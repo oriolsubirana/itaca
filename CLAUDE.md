@@ -50,6 +50,9 @@ integration point, configuration property, annotation or artifact name:
   before phase 2. Spring AI 2.0 API differs from 1.x — always check current docs.
 - No `io.spring.dependency-management`: use `platform(SpringBootPlugin.BOM_COORDINATES)`.
 - detekt 1.x's embedded analyzer rejects JVM target 25: its tasks pin `jvmTarget = "21"`.
+- detekt 1.23.8 triggers Gradle's `ReportingExtension.file(String)` deprecation
+  warning at apply time. Upstream issue, harmless until Gradle 10; do not chase it —
+  Renovate will bring the fixed release.
 - ESLint 10 flat config: react-hooks flat preset is `configs.flat.recommended`.
 
 ## Architecture rules
