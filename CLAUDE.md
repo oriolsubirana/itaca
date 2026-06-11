@@ -101,6 +101,23 @@ prepared by `.claude/hooks/session-start.sh`.
 ## Roadmap
 
 1. ✅ Skeleton (modules, schema+seeds, compose, CI)
-2. Chat + workout mode end-to-end (the star feature)
+2. ✅ Chat + workout mode end-to-end (Spring AI 2.0-RC2, training tools, SSE, mobile UI)
 3. Health (chat+form diary, lab pipeline with JobRunr)
 4. Home/dashboard · 5. Finance (CSV import) · 6. Ingestion (`/api/ingest`)
+
+### Chat architecture (phase 2)
+
+- Cross-context tool wiring without coupling: `shared.chat.ChatTools` marker
+  interface; each context's application service implements it (`TrainingTools`);
+  the chat module injects `List<ChatTools>` and passes them to `ChatClient.tools()`.
+- Spring AI 2.0 notes: property is `spring.ai.anthropic.chat.model` (no `.options`),
+  tools via `@Tool`/`@ToolParam` (`org.springframework.ai.tool.annotation`),
+  `ChatClient` fluent: `.system().messages().tools().stream().content()` → Flux.
+- Chat history is persisted in `chat_messages` (not Spring AI's memory advisors);
+  `ChatService` replays the last 60 messages per session.
+- SSE: MVC `SseEmitter` bridged from the Flux; events `chunk`/`done`/`error`,
+  payload `{"text": ...}`.
+- `adapter/in` packages need `@file:Suppress("ktlint:standard:package-name")`
+  (`in` is a Kotlin keyword).
+- Mocking `ChatModel` in tests: also stub `getOptions()`/`getDefaultOptions()`.
+- JPA + JdbcTemplate read-side in one transaction: `saveAndFlush` before reading.

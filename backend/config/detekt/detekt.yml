@@ -5,3 +5,11 @@ style:
     # Domain invariants like `value in 1..7` (Bristol) read better inline
     ignoreRanges: true
     ignoreCompanionObjectPropertyDeclaration: true
+  ReturnCount:
+    # Chat tools return early with structured error results (guard-clause style)
+    max: 5
+
+complexity:
+  LongParameterList:
+    # JPA entity constructors mirror table columns
+    ignoreAnnotated: ["jakarta.persistence.Entity"]

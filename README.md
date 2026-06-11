@@ -61,7 +61,7 @@ Documentadas en [.env.example](.env.example). La API key de Anthropic vive solo 
 ## Hoja de ruta
 
 1. ✅ Esqueleto: monorepo, módulos Modulith verificados, esquema Liquibase completo con seeds, docker-compose, CI
-2. Chat + modo entreno end-to-end (Spring AI 2.0, tools `@Tool` de training, SSE, UI móvil)
+2. ✅ Chat + modo entreno end-to-end (Spring AI 2.0-RC2, tools `@Tool` de training, SSE, UI móvil con respuestas rápidas)
 3. Módulo health (diario por chat y formulario, pipeline de analíticas con JobRunr)
 4. Home/dashboard
 5. Módulo finance (import CSV con categorización)
@@ -69,5 +69,5 @@ Documentadas en [.env.example](.env.example). La API key de Anthropic vive solo 
 
 ### Notas de versiones
 
-- **Spring AI 2.0**: a fecha de hoy lo último publicado en Maven Central es `2.0.0-RC2`; se fijará la GA al construir la fase 2.
+- **Spring AI 2.0**: fijado en `2.0.0-RC2` (la GA aún no está publicada); Renovate avisará cuando salga.
 - **Kotlin 2.2.x** no emite bytecode JVM 25 todavía: el toolchain y el runtime son Java 25, el bytecode target es 24.

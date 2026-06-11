@@ -14,6 +14,13 @@ spring:
     open-in-view: false
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  ai:
+    anthropic:
+      # Placeholder default keeps the context bootable without a key (calls will fail with 401)
+      api-key: ${ANTHROPIC_API_KEY:missing-api-key}
+      chat:
+        model: claude-sonnet-4-6
+        max-tokens: 2048
   modulith:
     events:
       jdbc:

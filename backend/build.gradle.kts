@@ -38,6 +38,7 @@ repositories {
 dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
     implementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
+    implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0-RC2"))
 
     // Spring
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -61,6 +62,9 @@ dependencies {
     // Async jobs (same Postgres, no broker)
     implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.6.1")
 
+    // Claude via Spring AI (GA not out yet; RC2 is the latest on Central)
+    implementation("org.springframework.ai:spring-ai-starter-model-anthropic")
+
     // OpenAPI as the contract (the frontend TS client is generated from it)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
@@ -71,6 +75,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
