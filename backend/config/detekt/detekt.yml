@@ -11,5 +11,8 @@ style:
 
 complexity:
   LongParameterList:
-    # JPA entity constructors mirror table columns
-    ignoreAnnotated: ["jakarta.persistence.Entity"]
+    # JPA entity constructors mirror table columns; @Tool signatures mirror
+    # the JSON schema the model fills in
+    ignoreAnnotated:
+      - "jakarta.persistence.Entity"
+      - "org.springframework.ai.tool.annotation.Tool"
