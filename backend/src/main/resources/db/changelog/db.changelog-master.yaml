@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/010-training-schema.sql
+  - include:
+      file: db/changelog/011-training-seed.sql
+  - include:
+      file: db/changelog/020-health-schema.sql
+  - include:
+      file: db/changelog/021-health-analytes-seed.sql
+  - include:
+      file: db/changelog/030-finance-schema.sql
+  - include:
+      file: db/changelog/031-finance-seed.sql
+  - include:
+      file: db/changelog/040-chat-schema.sql
+  - include:
+      file: db/changelog/050-ingestion-schema.sql

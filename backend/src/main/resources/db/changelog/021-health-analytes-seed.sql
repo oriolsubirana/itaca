@@ -1,0 +1,37 @@
+--liquibase formatted sql
+
+--changeset oriol:health-analytes-seed-001
+--comment Diccionario de analitos habituales en seguimiento de EII, con sinónimos de laboratorios españoles y suizos
+INSERT INTO analytes (codigo, nombre, unidad_canonica, sinonimos) VALUES
+    ('calprotectina_fecal',      'Calprotectina fecal',                  'µg/g',           '{"calprotectina","fecal calprotectin","calprotectine fécale","calprotectin"}'),
+    ('pcr',                      'Proteína C reactiva',                  'mg/L',           '{"PCR","CRP","proteína C-reactiva","C-reactive protein","CRP ultrasensible","hs-CRP"}'),
+    ('vsg',                      'Velocidad de sedimentación globular',  'mm/h',           '{"VSG","ESR","BSG","sedimentación globular","vitesse de sédimentation"}'),
+    ('ferritina',                'Ferritina',                            'ng/mL',          '{"ferritin","ferritine"}'),
+    ('hierro',                   'Hierro sérico',                        'µg/dL',          '{"Fe","iron","fer sérique","hierro serico"}'),
+    ('transferrina',             'Transferrina',                         'mg/dL',          '{"transferrin","transferrine"}'),
+    ('saturacion_transferrina',  'Saturación de transferrina',           '%',              '{"IST","TSAT","índice de saturación de transferrina"}'),
+    ('vitamina_b12',             'Vitamina B12',                         'pg/mL',          '{"B12","cobalamina","cyanocobalamine","vitamine B12"}'),
+    ('acido_folico',             'Ácido fólico',                         'ng/mL',          '{"folato","folate","acide folique","vitamina B9"}'),
+    ('vitamina_d',               '25-OH Vitamina D',                     'ng/mL',          '{"25-OH-D","calcidiol","vitamine D","25-hidroxivitamina D"}'),
+    ('hemoglobina',              'Hemoglobina',                          'g/dL',           '{"Hb","Hgb","hémoglobine","hemoglobin"}'),
+    ('hematocrito',              'Hematocrito',                          '%',              '{"Hto","Hct","hématocrite"}'),
+    ('vcm',                      'Volumen corpuscular medio',            'fL',             '{"VCM","MCV","VGM"}'),
+    ('leucocitos',               'Leucocitos',                           '10^9/L',         '{"WBC","glóbulos blancos","leucocytes","leucocitos totales"}'),
+    ('neutrofilos',              'Neutrófilos',                          '10^9/L',         '{"neutrophils","neutrophiles","neutrófilos absolutos"}'),
+    ('linfocitos',               'Linfocitos',                           '10^9/L',         '{"lymphocytes","linfocitos absolutos"}'),
+    ('plaquetas',                'Plaquetas',                            '10^9/L',         '{"PLT","trombocitos","platelets","thrombocytes"}'),
+    ('albumina',                 'Albúmina',                             'g/L',            '{"albumin","albumine","albúmina sérica"}'),
+    ('proteinas_totales',        'Proteínas totales',                    'g/L',            '{"total protein","protéines totales"}'),
+    ('alt',                      'Alanina aminotransferasa',             'U/L',            '{"ALT","GPT","ALAT","transaminasa GPT"}'),
+    ('ast',                      'Aspartato aminotransferasa',           'U/L',            '{"AST","GOT","ASAT","transaminasa GOT"}'),
+    ('ggt',                      'Gamma-glutamil transferasa',           'U/L',            '{"GGT","gamma-GT","γ-GT"}'),
+    ('fosfatasa_alcalina',       'Fosfatasa alcalina',                   'U/L',            '{"ALP","FA","phosphatase alcaline"}'),
+    ('bilirrubina_total',        'Bilirrubina total',                    'mg/dL',          '{"bilirubin","bilirubine totale"}'),
+    ('creatinina',               'Creatinina',                           'mg/dL',          '{"creatinine","créatinine"}'),
+    ('urea',                     'Urea',                                 'mg/dL',          '{"BUN","urée"}'),
+    ('egfr',                     'Filtrado glomerular estimado',         'mL/min/1.73m²',  '{"FG","GFR","eGFR","CKD-EPI","DFG"}'),
+    ('sodio',                    'Sodio',                                'mmol/L',         '{"Na","sodium"}'),
+    ('potasio',                  'Potasio',                              'mmol/L',         '{"K","potassium"}'),
+    ('magnesio',                 'Magnesio',                             'mmol/L',         '{"Mg","magnésium","magnesium"}'),
+    ('glucosa',                  'Glucosa',                              'mg/dL',          '{"glucemia","glucose","glycémie"}'),
+    ('tsh',                      'Hormona estimulante del tiroides',     'mU/L',           '{"TSH","tirotropina","thyréostimuline"}');
