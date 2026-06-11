@@ -34,6 +34,10 @@ integration point, configuration property, annotation or artifact name:
 - Frontend: React 19 · Vite · TypeScript · TanStack Router/Query · Tailwind v4 ·
   vite-plugin-pwa · Recharts. Mobile-first (90% phone usage), bottom tab bar, ≥44px
   touch targets. Aesthetic: Margaret Howell — warm neutrals, clean type, zero noise.
+  Page width: chat/reading pages stay `max-w-2xl` (line-length readability);
+  dashboard pages (Home/Salud/Gym/Finanzas, phases 3-5) use a wider responsive
+  grid (`max-w-5xl`+, multi-column cards, Recharts in ResponsiveContainer) — move
+  the max-width from Layout to per-page when the first dashboard lands.
 - Postgres (Supabase in prod) · Supabase Storage via REST.
 
 ### Version gotchas already learned (do not re-derive)
