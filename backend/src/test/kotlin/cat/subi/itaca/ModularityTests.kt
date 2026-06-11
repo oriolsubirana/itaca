@@ -5,21 +5,21 @@ import org.springframework.modulith.core.ApplicationModules
 import org.springframework.modulith.docs.Documenter
 
 /**
- * Verificación de arquitectura: los bounded contexts (training, health,
- * finance, chat, ingestion) no pueden referenciarse entre sí directamente;
- * solo comunican vía eventos. `shared` es el único módulo abierto.
+ * Architecture verification: bounded contexts (training, health, finance,
+ * chat, ingestion) must not reference each other directly; they only
+ * communicate via events. `shared` is the only open module.
  */
 class ModularityTests {
 
     private val modules = ApplicationModules.of(ItacaApplication::class.java)
 
     @Test
-    fun `la estructura modular es valida`() {
+    fun `modular structure is valid`() {
         modules.verify()
     }
 
     @Test
-    fun `genera la documentacion de modulos`() {
+    fun `generates module documentation`() {
         Documenter(modules).writeDocumentation()
     }
 }

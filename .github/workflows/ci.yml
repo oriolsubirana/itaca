@@ -12,7 +12,7 @@ jobs:
       run:
         working-directory: backend
     env:
-      # Mirror de Docker Hub para evitar rate limits en los tests con Testcontainers
+      # Docker Hub mirror to avoid rate limits in Testcontainers tests
       TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: mirror.gcr.io/
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build y tests (incluye verificación de Modulith)
+      - name: Build and tests (includes Modulith verification)
         run: ./gradlew build
 
   frontend:
@@ -37,5 +37,5 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: Typecheck y build
+      - name: Typecheck and build
         run: npm run build

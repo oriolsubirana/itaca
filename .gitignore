@@ -10,11 +10,11 @@ frontend/dev-dist/
 frontend/coverage/
 *.tsbuildinfo
 
-# Entorno local
+# Local environment
 .env
 .env*.local
 
-# IDE / SO
+# IDE / OS
 .idea/
 .vscode/
 .DS_Store

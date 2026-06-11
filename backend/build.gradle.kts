@@ -19,7 +19,7 @@ java {
 
 kotlin {
     compilerOptions {
-        // Kotlin 2.2.x no emite bytecode JVM 25 todavía: toolchain/runtime Java 25, target 24
+        // Kotlin 2.2.x cannot emit JVM 25 bytecode yet: Java 25 toolchain/runtime, target 24
         jvmTarget = JvmTarget.JVM_24
         freeCompilerArgs.add("-Xjsr305=strict")
     }
@@ -43,7 +43,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
-    // Modulith: bounded contexts verificados + event publication registry (outbox)
+    // Modulith: verified bounded contexts + event publication registry (outbox)
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
 
@@ -52,14 +52,14 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 
-    // Persistencia
+    // Persistence
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
     runtimeOnly("org.postgresql:postgresql")
 
-    // Jobs asíncronos (mismo Postgres, sin broker)
+    // Async jobs (same Postgres, no broker)
     implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.6.1")
 
-    // OpenAPI como contrato (el cliente TS del frontend se genera de aquí)
+    // OpenAPI as the contract (the frontend TS client is generated from it)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
     // Tests

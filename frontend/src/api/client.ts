@@ -1,6 +1,6 @@
 /**
- * Cliente API mínimo. Los tipos se generan desde el OpenAPI del backend
- * con `npm run generate:api` (src/api/schema.d.ts) cuando haya endpoints.
+ * Minimal API client. Types are generated from the backend OpenAPI spec
+ * with `npm run generate:api` (src/api/schema.d.ts) once endpoints exist.
  */
 const API_TOKEN = import.meta.env.VITE_API_TOKEN as string | undefined;
 

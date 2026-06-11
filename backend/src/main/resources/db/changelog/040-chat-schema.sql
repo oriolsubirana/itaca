@@ -1,11 +1,11 @@
 --liquibase formatted sql
 
 --changeset oriol:chat-001
---comment Esquema del contexto chat: sesiones y mensajes persistidos (una sesión de gym ~1h con muchos turnos)
+--comment Chat context schema: sessions and persisted messages (a gym session lasts ~1h with many turns)
 CREATE TABLE chat_sessions (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    titulo      TEXT,
-    modo        TEXT        NOT NULL DEFAULT 'general' CHECK (modo IN ('general', 'entreno')),
+    title       TEXT,
+    mode        TEXT        NOT NULL DEFAULT 'general' CHECK (mode IN ('general', 'workout')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -3,7 +3,7 @@ package cat.subi.itaca.training.domain
 import java.math.BigDecimal
 
 /**
- * Peso de una serie en kilogramos. Cero es válido (ejercicios a peso corporal).
+ * Weight of a set in kilograms. Zero is valid (bodyweight exercises).
  */
 @JvmInline
 value class Weight private constructor(val kg: BigDecimal) : Comparable<Weight> {
@@ -21,8 +21,8 @@ value class Weight private constructor(val kg: BigDecimal) : Comparable<Weight> 
         fun ofKg(kg: Double): Weight = ofKg(BigDecimal.valueOf(kg))
 
         fun ofKg(kg: BigDecimal): Weight {
-            require(kg.signum() >= 0) { "El peso no puede ser negativo: $kg" }
-            require(kg <= MAX_KG) { "Peso fuera de rango: $kg kg" }
+            require(kg.signum() >= 0) { "Weight cannot be negative: $kg" }
+            require(kg <= MAX_KG) { "Weight out of range: $kg kg" }
             return Weight(kg.stripTrailingZeros())
         }
     }

@@ -41,7 +41,7 @@ management:
 
 itaca:
   security:
-    # Bearer token estático para toda la API. Vacío = sin auth (solo desarrollo).
+    # Static bearer token for the whole API. Empty = no auth (development only).
     token: ${ITACA_API_TOKEN:}
 
 server:

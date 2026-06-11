@@ -7,41 +7,41 @@ import kotlin.test.assertEquals
 class WeightTest {
 
     @Test
-    fun `se crea a partir de kilogramos`() {
+    fun `creates from kilograms`() {
         val weight = Weight.ofKg(45.0)
         assertEquals("45 kg", weight.toString())
     }
 
     @Test
-    fun `conserva los decimales de los discos pequenos`() {
+    fun `keeps decimals of fractional plates`() {
         val weight = Weight.ofKg(12.5)
         assertEquals("12.5 kg", weight.toString())
     }
 
     @Test
-    fun `rechaza pesos negativos`() {
+    fun `rejects negative weights`() {
         assertThrows<IllegalArgumentException> { Weight.ofKg(-5.0) }
     }
 
     @Test
-    fun `rechaza pesos desorbitados`() {
+    fun `rejects absurdly large weights`() {
         assertThrows<IllegalArgumentException> { Weight.ofKg(501.0) }
     }
 
     @Test
-    fun `permite peso cero para ejercicios sin lastre`() {
+    fun `allows zero weight for bodyweight exercises`() {
         val bodyweight = Weight.ofKg(0.0)
         assertEquals("0 kg", bodyweight.toString())
     }
 
     @Test
-    fun `progresa en incrementos de 2 kg y medio`() {
+    fun `progresses in standard steps of 2 and a half kg`() {
         val current = Weight.ofKg(45.0)
         assertEquals(Weight.ofKg(47.5), current.increasedByStandardStep())
     }
 
     @Test
-    fun `dos pesos con el mismo valor son iguales`() {
+    fun `two weights with the same value are equal`() {
         assertEquals(Weight.ofKg(50.0), Weight.ofKg(50.00))
     }
 }

@@ -1,6 +1,6 @@
 /**
- * Bounded context del chat con Claude: sesiones, mensajes persistidos y
- * orquestación de tools. Interfaz principal de la aplicación.
+ * Chat bounded context: Claude sessions, persisted messages and tool
+ * orchestration. Main interface of the application.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Chat")
 package cat.subi.itaca.chat;

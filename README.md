@@ -24,6 +24,8 @@ Sin referencias directas ni FKs entre contextos; comunicación solo vía eventos
 
 Cada contexto sigue arquitectura hexagonal (`domain` / `application` / `adapter`) y CQRS ligero.
 
+**Convención de idioma**: todo el código en inglés (identificadores, esquema de BD, tests, comentarios, logs); en español solo los textos de la UI/chat y los datos visibles para el usuario (nombres de ejercicios, nombres de analitos...).
+
 ## Desarrollo local
 
 ```bash

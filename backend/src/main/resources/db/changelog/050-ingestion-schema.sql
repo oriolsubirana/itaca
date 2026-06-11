@@ -1,14 +1,14 @@
 --liquibase formatted sql
 
 --changeset oriol:ingestion-001
---comment Esquema del contexto ingestion: registro de ficheros recibidos por /api/ingest
+--comment Ingestion context schema: registry of files received via /api/ingest
 CREATE TABLE ingested_files (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    origen         TEXT        NOT NULL,
-    nombre         TEXT        NOT NULL,
-    tipo           TEXT        NOT NULL CHECK (tipo IN ('pdf', 'csv', 'desconocido')),
-    estado         TEXT        NOT NULL DEFAULT 'pendiente'
-                   CHECK (estado IN ('pendiente', 'procesado', 'error')),
+    source         TEXT        NOT NULL,
+    name           TEXT        NOT NULL,
+    type           TEXT        NOT NULL CHECK (type IN ('pdf', 'csv', 'unknown')),
+    status         TEXT        NOT NULL DEFAULT 'pending'
+                   CHECK (status IN ('pending', 'processed', 'error')),
     storage_path   TEXT,
     error_message  TEXT,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()

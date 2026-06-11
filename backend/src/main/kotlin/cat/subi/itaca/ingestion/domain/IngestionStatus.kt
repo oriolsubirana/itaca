@@ -1,6 +1,6 @@
 package cat.subi.itaca.ingestion.domain
 
 /**
- * Estado de procesado de un fichero ingerido vía /api/ingest.
+ * Processing status of a file ingested via /api/ingest.
  */
-enum class IngestionStatus { PENDIENTE, PROCESADO, ERROR }
+enum class IngestionStatus { PENDING, PROCESSED, ERROR }

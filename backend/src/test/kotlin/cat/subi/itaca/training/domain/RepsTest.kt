@@ -9,27 +9,27 @@ import kotlin.test.assertTrue
 class RepsTest {
 
     @Test
-    fun `se crea a partir de un numero de repeticiones`() {
+    fun `creates from a number of repetitions`() {
         assertEquals(12, Reps.of(12).value)
     }
 
     @Test
-    fun `rechaza cero repeticiones`() {
+    fun `rejects zero reps`() {
         assertThrows<IllegalArgumentException> { Reps.of(0) }
     }
 
     @Test
-    fun `rechaza repeticiones negativas`() {
+    fun `rejects negative reps`() {
         assertThrows<IllegalArgumentException> { Reps.of(-3) }
     }
 
     @Test
-    fun `rechaza valores absurdos`() {
+    fun `rejects absurd values`() {
         assertThrows<IllegalArgumentException> { Reps.of(201) }
     }
 
     @Test
-    fun `sabe si supera un objetivo con margen`() {
+    fun `knows whether it exceeds a target with margin`() {
         val target = Reps.of(8)
         assertTrue(Reps.of(10).exceedsWithMargin(target))
         assertFalse(Reps.of(9).exceedsWithMargin(target))

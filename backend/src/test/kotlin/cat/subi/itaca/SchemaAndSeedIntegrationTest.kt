@@ -9,8 +9,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Arranca el contexto completo contra un Postgres real (Testcontainers),
- * aplica las migraciones de Liquibase y comprueba los seeds.
+ * Boots the full context against a real Postgres (Testcontainers),
+ * applies the Liquibase migrations and verifies the seeds.
  */
 @SpringBootTest(properties = ["jobrunr.background-job-server.enabled=false"])
 @Import(TestcontainersConfiguration::class)
@@ -23,7 +23,7 @@ class SchemaAndSeedIntegrationTest {
         jdbc.queryForObject("SELECT count(*) FROM $table", Int::class.java)!!
 
     @Test
-    fun `los seeds de training estan cargados`() {
+    fun `training seeds are loaded`() {
         assertEquals(10, count("exercises"))
         assertEquals(3, count("routines"))
         assertEquals(10, count("routine_exercises"))
@@ -32,37 +32,37 @@ class SchemaAndSeedIntegrationTest {
     }
 
     @Test
-    fun `la ultima sesion completada es Push`() {
-        val ultimaRutina = jdbc.queryForObject(
+    fun `the last completed workout is Push`() {
+        val lastRoutine = jdbc.queryForObject(
             """
-            SELECT r.nombre FROM workouts w
+            SELECT r.name FROM workouts w
             JOIN routines r ON r.id = w.routine_id
-            WHERE w.completado ORDER BY w.fecha DESC LIMIT 1
+            WHERE w.completed ORDER BY w.date DESC LIMIT 1
             """.trimIndent(),
             String::class.java,
         )
-        assertEquals("Push", ultimaRutina)
+        assertEquals("Push", lastRoutine)
     }
 
     @Test
-    fun `el diccionario de analitos cubre los marcadores clave de EII`() {
+    fun `the analyte dictionary covers the key IBD markers`() {
         assertEquals(32, count("analytes"))
-        val codigos = jdbc.queryForList("SELECT codigo FROM analytes", String::class.java)
-        assertTrue(codigos.containsAll(listOf("calprotectina_fecal", "pcr", "vsg", "ferritina", "vitamina_d")))
+        val codes = jdbc.queryForList("SELECT code FROM analytes", String::class.java)
+        assertTrue(codes.containsAll(listOf("fecal_calprotectin", "crp", "esr", "ferritin", "vitamin_d")))
     }
 
     @Test
-    fun `las cuentas estan creadas con su divisa`() {
+    fun `accounts are created with their currency`() {
         assertEquals(4, count("accounts"))
-        val monedaNeon = jdbc.queryForObject(
-            "SELECT moneda FROM accounts WHERE nombre = 'Neon'",
+        val neonCurrency = jdbc.queryForObject(
+            "SELECT currency FROM accounts WHERE name = 'Neon'",
             String::class.java,
         )
-        assertEquals("CHF", monedaNeon)
+        assertEquals("CHF", neonCurrency)
     }
 
     @Test
-    fun `el registry de eventos de Modulith tiene su tabla`() {
+    fun `the Modulith event registry has its table`() {
         assertEquals(0, count("event_publication"))
     }
 }

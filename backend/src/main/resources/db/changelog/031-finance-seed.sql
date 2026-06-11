@@ -1,9 +1,9 @@
 --liquibase formatted sql
 
 --changeset oriol:finance-seed-001
---comment Cuentas: Neon y Revolut en CHF, MyInvestor y Sabadell en EUR
-INSERT INTO accounts (nombre, tipo, moneda) VALUES
-    ('Neon',       'corriente',  'CHF'),
-    ('Revolut',    'corriente',  'CHF'),
-    ('MyInvestor', 'inversion',  'EUR'),
-    ('Sabadell',   'corriente',  'EUR');
+--comment Accounts: Neon and Revolut in CHF, MyInvestor and Sabadell in EUR
+INSERT INTO accounts (name, type, currency) VALUES
+    ('Neon',       'checking',    'CHF'),
+    ('Revolut',    'checking',    'CHF'),
+    ('MyInvestor', 'investment',  'EUR'),
+    ('Sabadell',   'checking',    'EUR');

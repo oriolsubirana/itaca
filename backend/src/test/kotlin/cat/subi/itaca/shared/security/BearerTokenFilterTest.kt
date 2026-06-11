@@ -11,7 +11,7 @@ import kotlin.test.assertNull
 
 class BearerTokenFilterTest {
 
-    private val filter = BearerTokenFilter(configuredToken = "secreto")
+    private val filter = BearerTokenFilter(configuredToken = "secret")
 
     private fun request(authorization: String? = null) =
         MockHttpServletRequest("GET", "/api/workouts").apply {
@@ -19,7 +19,7 @@ class BearerTokenFilterTest {
         }
 
     @Test
-    fun `rechaza peticiones sin cabecera Authorization`() {
+    fun `rejects requests without Authorization header`() {
         val response = MockHttpServletResponse()
         val chain = MockFilterChain()
 
@@ -30,28 +30,28 @@ class BearerTokenFilterTest {
     }
 
     @Test
-    fun `rechaza tokens incorrectos`() {
+    fun `rejects wrong tokens`() {
         val response = MockHttpServletResponse()
         val chain = MockFilterChain()
 
-        filter.doFilter(request("Bearer incorrecto"), response, chain)
+        filter.doFilter(request("Bearer wrong"), response, chain)
 
         assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.status)
         assertNull(chain.request)
     }
 
     @Test
-    fun `deja pasar peticiones con el token correcto`() {
+    fun `lets requests with the right token through`() {
         val response = MockHttpServletResponse()
         val chain = MockFilterChain()
 
-        filter.doFilter(request("Bearer secreto"), response, chain)
+        filter.doFilter(request("Bearer secret"), response, chain)
 
         assertNotNull(chain.request)
     }
 
     @Test
-    fun `con token sin configurar el filtro queda desactivado`() {
+    fun `disables itself when no token is configured`() {
         val openFilter = BearerTokenFilter(configuredToken = "")
         val response = MockHttpServletResponse()
         val chain = MockFilterChain()

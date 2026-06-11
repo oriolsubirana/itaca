@@ -1,6 +1,6 @@
 /**
- * Bounded context de entrenamiento: ejercicios, rutinas, workouts y series.
- * Publica eventos como WorkoutCompleted; sin referencias directas a otros contextos.
+ * Training bounded context: exercises, routines, workouts and sets.
+ * Publishes events such as WorkoutCompleted; no direct references to other contexts.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Training")
 package cat.subi.itaca.training;

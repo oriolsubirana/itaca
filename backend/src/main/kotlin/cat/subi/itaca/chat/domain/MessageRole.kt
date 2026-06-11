@@ -1,6 +1,6 @@
 package cat.subi.itaca.chat.domain
 
 /**
- * Rol de un mensaje persistido en el historial del chat.
+ * Role of a message persisted in the chat history.
  */
 enum class MessageRole { USER, ASSISTANT, TOOL }

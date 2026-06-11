@@ -1,8 +1,8 @@
 package cat.subi.itaca.training.domain
 
 /**
- * Repeticiones de una serie. La progresión conservadora sube peso solo
- * cuando se supera el objetivo con margen (al menos 2 reps por encima).
+ * Repetitions of a set. Conservative progression only increases weight
+ * when the target is exceeded with margin (at least 2 reps above).
  */
 @JvmInline
 value class Reps private constructor(val value: Int) : Comparable<Reps> {
@@ -18,7 +18,7 @@ value class Reps private constructor(val value: Int) : Comparable<Reps> {
         private const val MAX_REPS = 200
 
         fun of(value: Int): Reps {
-            require(value in 1..MAX_REPS) { "Repeticiones fuera de rango: $value" }
+            require(value in 1..MAX_REPS) { "Reps out of range: $value" }
             return Reps(value)
         }
     }
