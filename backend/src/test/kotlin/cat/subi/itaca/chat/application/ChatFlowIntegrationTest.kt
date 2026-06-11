@@ -64,4 +64,37 @@ class ChatFlowIntegrationTest {
         val error = runCatching { chatService.createSession("yolo") }.exceptionOrNull()
         assertTrue(error is IllegalArgumentException)
     }
+
+    @Test
+    fun `does not leave an orphaned user message when the stream fails before any chunk`() {
+        given(chatModel.options).willReturn(ChatOptions.builder().build())
+        given(chatModel.defaultOptions).willReturn(ChatOptions.builder().build())
+        given(chatModel.stream(any(Prompt::class.java)))
+            .willReturn(Flux.error(IllegalStateException("anthropic down")))
+
+        val session = chatService.createSession("general")
+        val outcome =
+            runCatching {
+                chatService.streamReply(session.id, "hola").collectList().block()
+            }
+
+        assertTrue(outcome.isFailure)
+        assertTrue(chatService.history(session.id).isEmpty(), "failed sends must leave no trace")
+    }
+
+    @Test
+    fun `keeps the user message and the partial reply when the stream fails midway`() {
+        given(chatModel.options).willReturn(ChatOptions.builder().build())
+        given(chatModel.defaultOptions).willReturn(ChatOptions.builder().build())
+        given(chatModel.stream(any(Prompt::class.java)))
+            .willReturn(Flux.concat(Flux.just(chunk("Apuntado: jal")), Flux.error(IllegalStateException("cut"))))
+
+        val session = chatService.createSession("workout")
+        runCatching { chatService.streamReply(session.id, "jalón 45 por 12").collectList().block() }
+
+        val history = chatService.history(session.id)
+        assertEquals(2, history.size)
+        assertEquals("jalón 45 por 12", history[0].content)
+        assertEquals("Apuntado: jal", history[1].content)
+    }
 }

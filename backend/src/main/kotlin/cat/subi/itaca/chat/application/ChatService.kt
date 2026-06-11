@@ -47,7 +47,10 @@ class ChatService(
 
     /**
      * Persists the user message, streams Claude's reply (executing tools as
-     * needed) and persists the full assistant message on completion.
+     * needed) and persists the full assistant message on completion. If the
+     * stream fails before producing anything, the user message is removed so
+     * a failed send leaves no trace; if it fails midway, the partial reply is
+     * kept alongside the user message.
      */
     fun streamReply(
         sessionId: Long,
@@ -57,7 +60,8 @@ class ChatService(
             sessions
                 .findById(sessionId)
                 .orElseThrow { NoSuchElementException("Session $sessionId not found") }
-        messages.save(ChatMessageEntity(sessionId = sessionId, role = MessageRole.USER.name, content = userText))
+        val userMessage =
+            messages.save(ChatMessageEntity(sessionId = sessionId, role = MessageRole.USER.name, content = userText))
 
         val history = promptMessages(sessionId)
         val reply = StringBuilder()
@@ -71,17 +75,29 @@ class ChatService(
             .stream()
             .content()
             .doOnNext { reply.append(it) }
-            .doOnComplete {
-                if (reply.isNotEmpty()) {
-                    messages.save(
-                        ChatMessageEntity(
-                            sessionId = sessionId,
-                            role = MessageRole.ASSISTANT.name,
-                            content = reply.toString(),
-                        ),
-                    )
+            .doOnComplete { persistReply(sessionId, reply) }
+            .doOnError {
+                if (reply.isEmpty()) {
+                    messages.delete(userMessage)
+                } else {
+                    persistReply(sessionId, reply)
                 }
             }
+    }
+
+    private fun persistReply(
+        sessionId: Long,
+        reply: StringBuilder,
+    ) {
+        if (reply.isNotEmpty()) {
+            messages.save(
+                ChatMessageEntity(
+                    sessionId = sessionId,
+                    role = MessageRole.ASSISTANT.name,
+                    content = reply.toString(),
+                ),
+            )
+        }
     }
 
     private fun promptMessages(sessionId: Long): List<Message> =

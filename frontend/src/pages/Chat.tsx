@@ -117,9 +117,13 @@ export function Chat() {
         </button>
       </header>
 
-      <div className="flex-1 space-y-4 pb-44">
+      <div
+        className={`flex flex-1 flex-col gap-4 pb-44 ${
+          messages.length || pending ? "justify-end" : "justify-center"
+        }`}
+      >
         {messages.length === 0 && !pending && (
-          <p className="pt-10 text-center text-sm leading-relaxed text-ink-soft">
+          <p className="text-center text-sm leading-relaxed text-ink-soft">
             {mode === "workout"
               ? "Dile «empiezo» y Claude te guiará la sesión con los pesos de la última vez."
               : "Habla con Claude: consulta y registra entrenos, salud y finanzas."}
@@ -131,11 +135,15 @@ export function Chat() {
         {pending && (
           <>
             <Bubble role="USER" text={pending.user} />
-            <Bubble
-              role="ASSISTANT"
-              text={pending.assistant || "…"}
-              error={pending.failed}
-            />
+            {pending.assistant ? (
+              <Bubble
+                role="ASSISTANT"
+                text={pending.assistant}
+                error={pending.failed}
+              />
+            ) : (
+              <TypingDots />
+            )}
           </>
         )}
         <div ref={bottomRef} />
@@ -182,6 +190,16 @@ export function Chat() {
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TypingDots() {
+  return (
+    <div className="typing flex gap-1 py-1" role="status" aria-label="Pensando">
+      <span />
+      <span />
+      <span />
     </div>
   );
 }

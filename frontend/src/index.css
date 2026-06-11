@@ -23,6 +23,37 @@ body {
   margin: 0;
 }
 
+/* Animated "thinking" indicator while waiting for the first chunk */
+.typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--color-ink-soft);
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
 /* Markdown rendered inside assistant chat bubbles */
 .markdown > * + * {
   margin-top: 0.6rem;
