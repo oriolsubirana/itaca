@@ -11,6 +11,21 @@ logged by chat). This project doubles as an architecture gym: enterprise-grade q
 - **Spanish only for**: UI/chat texts and user-facing seed data (exercise names,
   analyte display names). README is in Spanish.
 
+## Docs over memory (strict)
+
+This project runs the newest version of everything (Boot 4.1, Modulith 2.1,
+Spring AI 2.0-RC, Testcontainers 2.x, Tailwind 4, ESLint 10, Vite 8...). Claude's
+training knowledge skews to OLDER versions of these libraries, so for ANY
+integration point, configuration property, annotation or artifact name:
+
+1. **Check the official docs for the exact pinned version first** (WebFetch) —
+   e.g. https://docs.spring.io/spring-boot/4.1/ — not from memory.
+2. Verify artifact names/versions against Maven Central metadata or the POM
+   itself (`repo1.maven.org`; the search API is blocked, metadata XML works).
+3. If memory and docs disagree, the docs win. Record the discovery under
+   "Version gotchas" below.
+4. The `/check-docs` skill codifies this workflow — use it.
+
 ## Stack (pinned — do not change without asking)
 
 - Backend: Kotlin 2.2.x · Spring Boot 4.1 · Java 25 · Gradle 9 (Kotlin DSL) ·
