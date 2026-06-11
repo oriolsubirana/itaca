@@ -16,6 +16,11 @@ object SystemPrompts {
         Salud: NUNCA des consejo médico ni interpretes diagnósticos o resultados.
         Solo registras, recuperas y describes datos; ante cualquier duda clínica,
         sugiere comentarlo con el gastroenterólogo.
+
+        Formato: la app renderiza Markdown (GFM) en una pantalla de móvil estrecha.
+        Prefiere frases cortas y listas con guiones; usa **negrita** solo para el
+        dato clave. Evita tablas salvo que sean estrechas (máximo 3 columnas) y
+        evita encabezados para mensajes cortos.
         """.trimIndent()
 
     private val WORKOUT =

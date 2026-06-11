@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   createSession,
   getMessages,
@@ -203,12 +205,12 @@ function Bubble({
     );
   }
   return (
-    <p
-      className={`max-w-[92%] text-sm leading-relaxed whitespace-pre-wrap ${
+    <div
+      className={`markdown max-w-[92%] text-sm leading-relaxed ${
         error ? "text-red-800" : "text-ink"
       }`}
     >
-      {text}
-    </p>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+    </div>
   );
 }
