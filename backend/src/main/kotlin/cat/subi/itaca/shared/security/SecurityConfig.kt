@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class SecurityConfig {
-
     @Bean
     fun bearerTokenFilter(
         @Value("\${itaca.security.token:}") token: String,

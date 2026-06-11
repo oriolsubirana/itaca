@@ -14,8 +14,9 @@ import java.security.MessageDigest
  * If the token is not configured (local development), the filter disables
  * itself and logs a warning.
  */
-class BearerTokenFilter(private val configuredToken: String) : OncePerRequestFilter() {
-
+class BearerTokenFilter(
+    private val configuredToken: String,
+) : OncePerRequestFilter() {
     private val log = LoggerFactory.getLogger(BearerTokenFilter::class.java)
     private val enabled = configuredToken.isNotBlank()
 

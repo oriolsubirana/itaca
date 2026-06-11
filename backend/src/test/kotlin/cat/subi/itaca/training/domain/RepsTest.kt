@@ -7,7 +7,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class RepsTest {
-
     @Test
     fun `creates from a number of repetitions`() {
         assertEquals(12, Reps.of(12).value)

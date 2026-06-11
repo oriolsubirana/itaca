@@ -6,8 +6,9 @@ import java.math.BigDecimal
  * Weight of a set in kilograms. Zero is valid (bodyweight exercises).
  */
 @JvmInline
-value class Weight private constructor(val kg: BigDecimal) : Comparable<Weight> {
-
+value class Weight private constructor(
+    val kg: BigDecimal,
+) : Comparable<Weight> {
     fun increasedByStandardStep(): Weight = Weight(kg + STANDARD_STEP_KG)
 
     override fun compareTo(other: Weight): Int = kg.compareTo(other.kg)

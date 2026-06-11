@@ -32,6 +32,8 @@ logged by chat). This project doubles as an architecture gym: enterprise-grade q
 - Spring AI 2.0 GA is not out yet (latest: `2.0.0-RC2` on Maven Central). Check
   before phase 2. Spring AI 2.0 API differs from 1.x — always check current docs.
 - No `io.spring.dependency-management`: use `platform(SpringBootPlugin.BOM_COORDINATES)`.
+- detekt 1.x's embedded analyzer rejects JVM target 25: its tasks pin `jvmTarget = "21"`.
+- ESLint 10 flat config: react-hooks flat preset is `configs.flat.recommended`.
 
 ## Architecture rules
 
@@ -63,12 +65,15 @@ logged by chat). This project doubles as an architecture gym: enterprise-grade q
 ## Commands
 
 ```bash
-cd backend && ./gradlew test          # full backend suite (needs Docker)
+cd backend && ./gradlew build         # compile + ktlint + detekt + full tests (needs Docker)
+cd backend && ./gradlew ktlintFormat  # auto-fix formatting
 cd backend && ./gradlew bootRun       # needs Postgres: docker compose up -d postgres
-cd frontend && npm run typecheck      # tsc
+cd frontend && npm run lint           # eslint
 cd frontend && npm run build          # typecheck + vite build
 cd frontend && npm run generate:api   # regenerate TS client from running backend
 ```
+
+Linters are CI gates: leave `ktlintCheck`, `detekt` and `npm run lint` green.
 
 The web session environment (dockerd, JDK 25, Testcontainers mirror, caches) is
 prepared by `.claude/hooks/session-start.sh`.

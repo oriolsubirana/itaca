@@ -8,6 +8,7 @@ import org.springframework.modulith.Modulithic
 @SpringBootApplication
 class ItacaApplication
 
+@Suppress("SpreadOperator") // canonical Spring Boot entry point
 fun main(args: Array<String>) {
     runApplication<ItacaApplication>(*args)
 }

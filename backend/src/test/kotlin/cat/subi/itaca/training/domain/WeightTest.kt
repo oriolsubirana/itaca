@@ -5,7 +5,6 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 
 class WeightTest {
-
     @Test
     fun `creates from kilograms`() {
         val weight = Weight.ofKg(45.0)

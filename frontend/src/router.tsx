@@ -2,25 +2,13 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  Outlet,
 } from "@tanstack/react-router";
-import { TabBar } from "./components/TabBar";
+import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Chat } from "./pages/Chat";
 import { Salud } from "./pages/Salud";
 import { Gym } from "./pages/Gym";
 import { Finanzas } from "./pages/Finanzas";
-
-function Layout() {
-  return (
-    <div className="min-h-dvh bg-paper text-ink">
-      <main className="mx-auto max-w-2xl px-5 pt-6 pb-28">
-        <Outlet />
-      </main>
-      <TabBar />
-    </div>
-  );
-}
 
 const rootRoute = createRootRoute({ component: Layout });
 

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 
 class MoneyTest {
-
     @Test
     fun `adds amounts of the same currency`() {
         assertEquals(Money.chf("150.50"), Money.chf("100.00") + Money.chf("50.50"))

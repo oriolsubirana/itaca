@@ -10,7 +10,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class BearerTokenFilterTest {
-
     private val filter = BearerTokenFilter(configuredToken = "secret")
 
     private fun request(authorization: String? = null) =

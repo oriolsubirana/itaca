@@ -5,7 +5,6 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 
 class BristolScaleTest {
-
     @Test
     fun `accepts values between 1 and 7`() {
         assertEquals(4, BristolScale.of(4).value)

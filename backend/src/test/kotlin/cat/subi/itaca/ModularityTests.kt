@@ -10,7 +10,6 @@ import org.springframework.modulith.docs.Documenter
  * communicate via events. `shared` is the only open module.
  */
 class ModularityTests {
-
     private val modules = ApplicationModules.of(ItacaApplication::class.java)
 
     @Test

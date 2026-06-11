@@ -15,12 +15,10 @@ import kotlin.test.assertTrue
 @SpringBootTest(properties = ["jobrunr.background-job-server.enabled=false"])
 @Import(TestcontainersConfiguration::class)
 class SchemaAndSeedIntegrationTest {
-
     @Autowired
     lateinit var jdbc: JdbcTemplate
 
-    private fun count(table: String): Int =
-        jdbc.queryForObject("SELECT count(*) FROM $table", Int::class.java)!!
+    private fun count(table: String): Int = jdbc.queryForObject("SELECT count(*) FROM $table", Int::class.java)!!
 
     @Test
     fun `training seeds are loaded`() {
@@ -33,14 +31,15 @@ class SchemaAndSeedIntegrationTest {
 
     @Test
     fun `the last completed workout is Push`() {
-        val lastRoutine = jdbc.queryForObject(
-            """
-            SELECT r.name FROM workouts w
-            JOIN routines r ON r.id = w.routine_id
-            WHERE w.completed ORDER BY w.date DESC LIMIT 1
-            """.trimIndent(),
-            String::class.java,
-        )
+        val lastRoutine =
+            jdbc.queryForObject(
+                """
+                SELECT r.name FROM workouts w
+                JOIN routines r ON r.id = w.routine_id
+                WHERE w.completed ORDER BY w.date DESC LIMIT 1
+                """.trimIndent(),
+                String::class.java,
+            )
         assertEquals("Push", lastRoutine)
     }
 
@@ -54,10 +53,11 @@ class SchemaAndSeedIntegrationTest {
     @Test
     fun `accounts are created with their currency`() {
         assertEquals(4, count("accounts"))
-        val neonCurrency = jdbc.queryForObject(
-            "SELECT currency FROM accounts WHERE name = 'Neon'",
-            String::class.java,
-        )
+        val neonCurrency =
+            jdbc.queryForObject(
+                "SELECT currency FROM accounts WHERE name = 'Neon'",
+                String::class.java,
+            )
         assertEquals("CHF", neonCurrency)
     }
 

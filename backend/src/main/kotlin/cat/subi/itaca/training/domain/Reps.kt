@@ -5,8 +5,9 @@ package cat.subi.itaca.training.domain
  * when the target is exceeded with margin (at least 2 reps above).
  */
 @JvmInline
-value class Reps private constructor(val value: Int) : Comparable<Reps> {
-
+value class Reps private constructor(
+    val value: Int,
+) : Comparable<Reps> {
     fun exceedsWithMargin(target: Reps): Boolean = value >= target.value + PROGRESSION_MARGIN
 
     override fun compareTo(other: Reps): Int = value.compareTo(other.value)

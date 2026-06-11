@@ -1,0 +1,7 @@
+# Detekt overrides on top of the default config (buildUponDefaultConfig = true)
+
+style:
+  MagicNumber:
+    # Domain invariants like `value in 1..7` (Bristol) read better inline
+    ignoreRanges: true
+    ignoreCompanionObjectPropertyDeclaration: true
