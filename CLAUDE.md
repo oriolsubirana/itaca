@@ -27,7 +27,9 @@ logged by chat). This project doubles as an architecture gym: enterprise-grade q
   (just `liquibase-core` will NOT auto-run migrations).
 - Boot 4 uses **Jackson 3** (`tools.jackson.*`), not 2 (`com.fasterxml.*`).
 - Testcontainers is 2.x: artifacts are `testcontainers-postgresql`,
-  `testcontainers-junit-jupiter`, `testcontainers-bom`.
+  `testcontainers-junit-jupiter`, `testcontainers-bom`. Classes moved to
+  `org.testcontainers.postgresql` (no `SELF` generic); the old
+  `org.testcontainers.containers` package is a deprecated shim.
 - Kotlin 2.2.x cannot emit JVM 25 bytecode: toolchain/runtime Java 25, `jvmTarget` 24.
 - Spring AI 2.0 GA is not out yet (latest: `2.0.0-RC2` on Maven Central). Check
   before phase 2. Spring AI 2.0 API differs from 1.x — always check current docs.
