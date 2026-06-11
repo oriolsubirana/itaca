@@ -106,7 +106,7 @@ prepared by `.claude/hooks/session-start.sh`.
 
 1. ✅ Skeleton (modules, schema+seeds, compose, CI)
 2. ✅ Chat + workout mode end-to-end (Spring AI 2.0-RC2, training tools, SSE, mobile UI)
-3. Health (chat+form diary, lab pipeline with JobRunr)
+3. ✅ Health (diary+flares via chat and form; lab pipeline: upload → JobRunr → claude-haiku extraction → review → per-analyte chart)
 4. Home/dashboard · 5. Finance (CSV import) · 6. Ingestion (`/api/ingest`)
 
 ### Chat architecture (phase 2)
@@ -125,3 +125,18 @@ prepared by `.claude/hooks/session-start.sh`.
   (`in` is a Kotlin keyword).
 - Mocking `ChatModel` in tests: also stub `getOptions()`/`getDefaultOptions()`.
 - JPA + JdbcTemplate read-side in one transaction: `saveAndFlush` before reading.
+
+### Health pipeline notes (phase 3)
+
+- JobRunr jobs use the JobRequest/JobRequestHandler pattern (no lambda bytecode
+  analysis, Kotlin-safe). `JobRequestScheduler` is autoconfigured by the starter.
+- PDF to Claude: `.user { it.text(prompt).media(pdfMimeType, ByteArrayResource(bytes)) }`;
+  structured output via `.entity(Class)` — extraction DTOs use `var` + defaults
+  so any Jackson can bind them.
+- Per-request model override: `.options(AnthropicChatOptions.builder().model(...))`
+  (pass the Builder itself, not `.build()`).
+- Storage port `LabFileStorage`: local files by default; Supabase impl activates
+  when the SUPABASE_URL env var exists (relaxed binding to `supabase.url` —
+  do NOT add a `supabase.url:` default to application.yml or the conditional
+  always matches).
+- Only CONFIRMED lab reports feed analyte series; review gate is mandatory.
