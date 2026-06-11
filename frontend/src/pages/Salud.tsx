@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageTitle } from "../components/PageTitle";
+import { AnalyteChart } from "../components/AnalyteChart";
+import { LabReports } from "../components/LabReports";
 import {
   endFlare,
   getEntry,
@@ -23,6 +25,13 @@ export function Salud() {
       <PageTitle>Salud</PageTitle>
       <FlareBanner />
       <TodayForm />
+      <section className="border-t border-line py-5">
+        <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
+          Analíticas
+        </h2>
+        <AnalyteChart />
+        <LabReports />
+      </section>
       <RecentEntries />
     </>
   );
