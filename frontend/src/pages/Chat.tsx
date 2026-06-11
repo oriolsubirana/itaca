@@ -95,7 +95,7 @@ export function Chat() {
 
   return (
     <div className="flex min-h-[calc(100dvh-9.5rem)] flex-col">
-      <header className="mb-4 flex items-center gap-2">
+      <header className="sticky top-0 z-10 -mx-5 mb-4 flex items-center gap-2 bg-paper/95 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur">
         {(["general", "workout"] as const).map((m) => (
           <button
             key={m}
