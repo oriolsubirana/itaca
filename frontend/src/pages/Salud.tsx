@@ -20,6 +20,14 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function Salud() {
   return (
     <>
@@ -84,17 +92,26 @@ function FlareSection() {
       {recent.length === 0 ? (
         <p className="mb-3 text-sm text-ink-soft">Ninguno registrado.</p>
       ) : (
-        <ul className="mb-3">
+        <ul className="mb-4">
           {recent.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-baseline gap-3 border-b border-line py-2 text-sm last:border-b-0"
-            >
-              <span className="text-ink-soft">
-                {f.startDate} → {f.endDate ?? "activo"}
-              </span>
-              <span>{SEVERITY_LABELS[f.severity]}</span>
-              {f.notes && <span className="truncate text-ink-soft">{f.notes}</span>}
+            <li key={f.id} className="border-b border-line py-3 last:border-b-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="whitespace-nowrap text-sm">
+                  {formatDate(f.startDate)} — {f.endDate ? formatDate(f.endDate) : "en curso"}
+                </span>
+                <span
+                  className={`shrink-0 text-xs uppercase tracking-wide ${
+                    f.severity === "severe" ? "text-red-800" : "text-ink-soft"
+                  }`}
+                >
+                  {SEVERITY_LABELS[f.severity]}
+                </span>
+              </div>
+              {f.notes && (
+                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-soft">
+                  {f.notes}
+                </p>
+              )}
             </li>
           ))}
         </ul>
