@@ -10,6 +10,9 @@ style:
     max: 5
 
 complexity:
+  TooManyFunctions:
+    # The public surface is the metric; private helpers don't count
+    ignorePrivate: true
   LongParameterList:
     # JPA entity constructors mirror table columns; @Tool signatures mirror
     # the JSON schema the model fills in

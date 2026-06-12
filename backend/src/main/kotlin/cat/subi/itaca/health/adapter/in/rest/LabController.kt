@@ -59,6 +59,12 @@ class LabController(
         @PathVariable id: Long,
     ): LabReportDto = labReports.review(id, confirm = false)
 
+    @DeleteMapping("/lab-reports/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteReport(
+        @PathVariable id: Long,
+    ) = labReports.deleteReport(id)
+
     @PatchMapping("/lab-results/{id}")
     fun updateResult(
         @PathVariable id: Long,

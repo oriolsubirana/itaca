@@ -61,6 +61,14 @@ data class DiaryEntryUpdate(
     val notes: String? = null,
 )
 
+/** Partial flare update; endDate accepts "" to reopen (clear the end). */
+data class FlareUpdate(
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val severity: String? = null,
+    val notes: String? = null,
+)
+
 /**
  * Application service of the health context, exposed to the chat as tools and
  * reused by the REST adapter. Records and retrieves data only — never
@@ -168,6 +176,41 @@ class HealthTools(
     fun entryOf(date: LocalDate): DiaryEntryDto? = diary.findByDate(date)?.toDto()
 
     fun recentFlares(): List<FlareDto> = flares.findTop10ByOrderByStartDateDesc().map { it.toDto() }
+
+    @Transactional
+    fun deleteEntry(date: LocalDate) {
+        val entity = diary.findByDate(date) ?: throw NoSuchElementException("No diary entry for $date")
+        diary.delete(entity)
+    }
+
+    @Transactional
+    fun updateFlare(
+        id: Long,
+        update: FlareUpdate,
+    ): FlareDto {
+        val flare = flares.findById(id).orElseThrow { NoSuchElementException("Flare $id not found") }
+        // Validate the resulting state BEFORE mutating: the entity is managed and
+        // a dirty invalid value would still be flushed despite the exception.
+        val newStart = update.startDate?.let(LocalDate::parse) ?: flare.startDate
+        val newEnd =
+            when {
+                update.endDate == null -> flare.endDate
+                update.endDate.isBlank() -> null
+                else -> LocalDate.parse(update.endDate)
+            }
+        newEnd?.let { require(!it.isBefore(newStart)) { "End date cannot be before the start date" } }
+        flare.startDate = newStart
+        flare.endDate = newEnd
+        update.severity?.let { flare.severity = FlareSeverity.from(it).dbValue }
+        update.notes?.let { flare.notes = it.takeIf(String::isNotBlank) }
+        return flares.save(flare).toDto()
+    }
+
+    @Transactional
+    fun deleteFlare(id: Long) {
+        if (!flares.existsById(id)) throw NoSuchElementException("Flare $id not found")
+        flares.deleteById(id)
+    }
 
     private fun startFlare(
         day: LocalDate,

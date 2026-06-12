@@ -44,7 +44,28 @@ export const saveEntry = (date: string, entry: Partial<DiaryEntry>) =>
     body: JSON.stringify(entry),
   });
 
+export const deleteEntry = (date: string) =>
+  api<void>(`/health/diary/${date}`, { method: "DELETE" });
+
 export const getFlares = () => api<FlaresView>("/health/flares");
+
+export interface FlareUpdate {
+  startDate?: string;
+  /** Empty string clears the end date (reopens the flare). */
+  endDate?: string;
+  severity?: Flare["severity"];
+  notes?: string;
+}
+
+export const updateFlare = (id: number, update: FlareUpdate) =>
+  api<Flare>(`/health/flares/${id}`, {
+    method: "PATCH",
+    headers: json,
+    body: JSON.stringify(update),
+  });
+
+export const deleteFlare = (id: number) =>
+  api<void>(`/health/flares/${id}`, { method: "DELETE" });
 
 export const startFlare = (
   severity: Flare["severity"],

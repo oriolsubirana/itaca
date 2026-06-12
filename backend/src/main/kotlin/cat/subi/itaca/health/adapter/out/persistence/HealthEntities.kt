@@ -35,11 +35,11 @@ class FlareEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
     @Column(name = "start_date", nullable = false)
-    val startDate: LocalDate,
+    var startDate: LocalDate,
     @Column(name = "end_date")
     var endDate: LocalDate? = null,
     @Column(nullable = false)
-    val severity: String,
+    var severity: String,
     var notes: String? = null,
 )
 

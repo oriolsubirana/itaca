@@ -5,12 +5,15 @@ import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { Modal } from "../components/Modal";
 import {
+  deleteEntry,
+  deleteFlare,
   endFlare,
   getEntry,
   getFlares,
   getSummary,
   saveEntry,
   startFlare,
+  updateFlare,
   SEVERITY_LABELS,
   type DiaryEntry,
   type Flare,
@@ -79,10 +82,18 @@ function ActiveFlareAlert() {
 function FlareSection() {
   const queryClient = useQueryClient();
   const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
-  const [showModal, setShowModal] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<Flare | null>(null);
 
   const recent = flares.data?.recent ?? [];
   const hasActive = flares.data?.active != null;
+
+  const onSaved = () => {
+    setShowCreate(false);
+    setEditing(null);
+    void queryClient.invalidateQueries({ queryKey: ["flares"] });
+    void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
+  };
 
   return (
     <section className="border-t border-line py-5">
@@ -94,61 +105,83 @@ function FlareSection() {
       ) : (
         <ul className="mb-4">
           {recent.map((f) => (
-            <li key={f.id} className="border-b border-line py-3 last:border-b-0">
-              <div className="flex items-center justify-between gap-3">
-                <span className="whitespace-nowrap text-sm">
-                  {formatDate(f.startDate)} — {f.endDate ? formatDate(f.endDate) : "en curso"}
-                </span>
-                <span
-                  className={`shrink-0 text-xs uppercase tracking-wide ${
-                    f.severity === "severe" ? "text-red-800" : "text-ink-soft"
-                  }`}
-                >
-                  {SEVERITY_LABELS[f.severity]}
-                </span>
-              </div>
-              {f.notes && (
-                <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-soft">
-                  {f.notes}
-                </p>
-              )}
+            <li key={f.id} className="border-b border-line last:border-b-0">
+              <button
+                onClick={() => setEditing(f)}
+                className="w-full py-3 text-left"
+                aria-label={`Editar brote del ${formatDate(f.startDate)}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="whitespace-nowrap text-sm">
+                    {formatDate(f.startDate)} — {f.endDate ? formatDate(f.endDate) : "en curso"}
+                  </span>
+                  <span
+                    className={`shrink-0 text-xs uppercase tracking-wide ${
+                      f.severity === "severe" ? "text-red-800" : "text-ink-soft"
+                    }`}
+                  >
+                    {SEVERITY_LABELS[f.severity]}
+                  </span>
+                </div>
+                {f.notes && (
+                  <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-soft">
+                    {f.notes}
+                  </p>
+                )}
+              </button>
             </li>
           ))}
         </ul>
       )}
       {!hasActive && (
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => setShowCreate(true)}
           className="min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft"
         >
           + Registrar brote
         </button>
       )}
-      {showModal && (
-        <FlareModal
-          onClose={() => setShowModal(false)}
-          onSaved={() => {
-            setShowModal(false);
-            void queryClient.invalidateQueries({ queryKey: ["flares"] });
-            void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
-          }}
-        />
+      {showCreate && <FlareModal onClose={() => setShowCreate(false)} onSaved={onSaved} />}
+      {editing && (
+        <FlareModal flare={editing} onClose={() => setEditing(null)} onSaved={onSaved} />
       )}
     </section>
   );
 }
 
-function FlareModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [severity, setSeverity] = useState<Flare["severity"] | null>(null);
-  const [date, setDate] = useState(today());
-  const [notes, setNotes] = useState("");
+function FlareModal({
+  flare,
+  onClose,
+  onSaved,
+}: {
+  flare?: Flare;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [severity, setSeverity] = useState<Flare["severity"] | null>(flare?.severity ?? null);
+  const [startDate, setStartDate] = useState(flare?.startDate ?? today());
+  const [endDate, setEndDate] = useState(flare?.endDate ?? "");
+  const [notes, setNotes] = useState(flare?.notes ?? "");
+
   const save = useMutation({
-    mutationFn: () => startFlare(severity!, date, notes.trim() || undefined),
+    mutationFn: () =>
+      flare
+        ? updateFlare(flare.id, {
+            startDate,
+            endDate,
+            severity: severity!,
+            notes: notes.trim(),
+          })
+        : startFlare(severity!, startDate, notes.trim() || undefined),
+    onSuccess: onSaved,
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteFlare(flare!.id),
     onSuccess: onSaved,
   });
 
   return (
-    <Modal title="Registrar brote" onClose={onClose}>
+    <Modal title={flare ? "Editar brote" : "Registrar brote"} onClose={onClose}>
       <div className="mb-4">
         <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">Severidad</p>
         <div className="flex gap-2">
@@ -170,12 +203,28 @@ function FlareModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
         <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">Fecha de inicio</p>
         <input
           type="date"
-          value={date}
+          value={startDate}
           max={today()}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(e) => setStartDate(e.target.value)}
           className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base outline-none focus:border-ink-soft"
         />
       </div>
+
+      {flare && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">
+            Fecha de fin · vacía = en curso
+          </p>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            max={today()}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base outline-none focus:border-ink-soft"
+          />
+        </div>
+      )}
 
       <div className="mb-5">
         <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">Notas</p>
@@ -190,11 +239,22 @@ function FlareModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
 
       <button
         onClick={() => save.mutate()}
-        disabled={!severity || !date || save.isPending}
+        disabled={!severity || !startDate || save.isPending}
         className="min-h-12 w-full rounded-lg bg-ink text-sm text-paper disabled:opacity-40"
       >
-        Registrar
+        {flare ? "Guardar" : "Registrar"}
       </button>
+      {flare && (
+        <button
+          onClick={() => {
+            if (window.confirm("¿Eliminar este brote?")) remove.mutate();
+          }}
+          disabled={remove.isPending}
+          className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+        >
+          Eliminar brote
+        </button>
+      )}
     </Modal>
   );
 }
@@ -279,13 +339,18 @@ function DiaryModal({
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Partial<DiaryEntry>>(initial);
 
+  const invalidateAndClose = () => {
+    void queryClient.invalidateQueries({ queryKey: ["diary", date] });
+    void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
+    onClose();
+  };
   const save = useMutation({
     mutationFn: () => saveEntry(date, form),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["diary", date] });
-      void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
-      onClose();
-    },
+    onSuccess: invalidateAndClose,
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteEntry(date),
+    onSuccess: invalidateAndClose,
   });
 
   const set = <K extends keyof DiaryEntry>(key: K, value: DiaryEntry[K]) => {
@@ -293,7 +358,7 @@ function DiaryModal({
   };
 
   return (
-    <Modal title="Diario de hoy" onClose={onClose}>
+    <Modal title={date === today() ? "Diario de hoy" : `Diario del ${formatDate(date)}`} onClose={onClose}>
       <Field label="Bristol">
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -350,6 +415,17 @@ function DiaryModal({
       >
         Guardar
       </button>
+      {!isEmptyEntry(initial) && (
+        <button
+          onClick={() => {
+            if (window.confirm("¿Eliminar el registro de este día?")) remove.mutate();
+          }}
+          disabled={remove.isPending}
+          className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+        >
+          Eliminar registro
+        </button>
+      )}
     </Modal>
   );
 }
@@ -411,6 +487,7 @@ function RecentEntries() {
     queryKey: ["health-summary"],
     queryFn: () => getSummary(30),
   });
+  const [editing, setEditing] = useState<DiaryEntry | null>(null);
   const entries = summary.data?.recentEntries ?? [];
 
   return (
@@ -423,20 +500,26 @@ function RecentEntries() {
       )}
       <ul>
         {entries.map((e) => (
-          <li
-            key={e.date}
-            className="flex items-center gap-4 border-b border-line py-3 text-sm last:border-b-0"
-          >
-            <span className="w-24 shrink-0 text-ink-soft">{e.date.slice(5)}</span>
-            <span className="flex-1">
-              {e.bristol != null && `Bristol ${e.bristol}`}
-              {e.bowelMovements != null && ` · ${e.bowelMovements} dep.`}
-              {e.pain != null && e.pain > 0 && ` · dolor ${e.pain}`}
-            </span>
-            {e.blood && <span className="size-2 rounded-full bg-red-800" aria-label="Sangre" />}
+          <li key={e.date} className="border-b border-line last:border-b-0">
+            <button
+              onClick={() => setEditing(e)}
+              className="flex min-h-11 w-full items-center gap-4 py-3 text-left text-sm"
+              aria-label={`Editar el ${formatDate(e.date)}`}
+            >
+              <span className="w-24 shrink-0 text-ink-soft">{e.date.slice(5)}</span>
+              <span className="flex-1">
+                {e.bristol != null && `Bristol ${e.bristol}`}
+                {e.bowelMovements != null && ` · ${e.bowelMovements} dep.`}
+                {e.pain != null && e.pain > 0 && ` · dolor ${e.pain}`}
+              </span>
+              {e.blood && <span className="size-2 rounded-full bg-red-800" aria-label="Sangre" />}
+            </button>
           </li>
         ))}
       </ul>
+      {editing && (
+        <DiaryModal date={editing.date} initial={editing} onClose={() => setEditing(null)} />
+      )}
     </section>
   );
 }

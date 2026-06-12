@@ -62,6 +62,9 @@ export const confirmLabReport = (id: number) =>
 export const discardLabReport = (id: number) =>
   api<LabReport>(`/health/lab-reports/${id}/discard`, { method: "POST" });
 
+export const deleteLabReport = (id: number) =>
+  api<void>(`/health/lab-reports/${id}`, { method: "DELETE" });
+
 export const getAnalytesWithData = () => api<AnalyteRef[]>("/health/analytes");
 
 export const getAnalyteSeries = (code: string) =>

@@ -136,6 +136,14 @@ class LabReportService(
     @Transactional
     fun deleteResult(resultId: Long) = results.deleteById(resultId)
 
+    /** Removes the report and all its results (the stored file is kept). */
+    @Transactional
+    fun deleteReport(reportId: Long) {
+        if (!reports.existsById(reportId)) throw NoSuchElementException("Lab report $reportId not found")
+        results.deleteByLabReportId(reportId)
+        reports.deleteById(reportId)
+    }
+
     private fun LabReportEntity.toDto(resultCount: Int) =
         LabReportDto(
             id = id!!,

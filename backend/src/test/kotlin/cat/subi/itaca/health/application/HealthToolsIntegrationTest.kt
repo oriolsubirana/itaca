@@ -75,6 +75,45 @@ class HealthToolsIntegrationTest {
     }
 
     @Test
+    fun `diary entries can be deleted by date`() {
+        tools.logDiaryEntry("2026-06-09", 4, null, null, null, 2, null, null)
+        tools.deleteEntry(java.time.LocalDate.parse("2026-06-09"))
+        assertNull(tools.entryOf(java.time.LocalDate.parse("2026-06-09")))
+
+        val missing = runCatching { tools.deleteEntry(java.time.LocalDate.parse("2026-06-09")) }
+        assertTrue(missing.exceptionOrNull() is NoSuchElementException)
+    }
+
+    @Test
+    fun `flares can be edited and deleted, validating the date range`() {
+        val created = tools.logFlare("start", "mild", "2026-06-01", null).flare!!
+
+        val updated =
+            tools.updateFlare(
+                created.id,
+                FlareUpdate(
+                    startDate = "2026-05-28",
+                    endDate = "2026-06-05",
+                    severity = "moderate",
+                    notes = "ajustado",
+                ),
+            )
+        assertEquals("2026-05-28", updated.startDate)
+        assertEquals("2026-06-05", updated.endDate)
+        assertEquals("moderate", updated.severity)
+        assertEquals("ajustado", updated.notes)
+
+        val reopened = tools.updateFlare(created.id, FlareUpdate(endDate = ""))
+        assertNull(reopened.endDate, "empty endDate reopens the flare")
+
+        val badRange = runCatching { tools.updateFlare(created.id, FlareUpdate(endDate = "2026-05-01")) }
+        assertTrue(badRange.isFailure)
+
+        tools.deleteFlare(created.id)
+        assertTrue(tools.recentFlares().none { it.id == created.id })
+    }
+
+    @Test
     fun `query_health returns recent entries newest first`() {
         tools.logDiaryEntry("2026-06-10", 5, 2, null, null, 3, null, null)
         tools.logDiaryEntry("2026-06-11", 4, 1, null, null, 2, null, null)

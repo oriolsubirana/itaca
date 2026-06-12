@@ -77,6 +77,13 @@ class LabPipelineIntegrationTest {
         val viaChat = queries.queryLabResults("calprotectina")
         assertEquals("fecal_calprotectin", viaChat?.code)
         assertEquals(1, viaChat?.points?.size)
+
+        service.deleteReport(uploaded.id)
+        assertTrue(
+            queries.seriesByCode("fecal_calprotectin")!!.points.isEmpty(),
+            "deleting the report must remove its results from the series",
+        )
+        assertTrue(runCatching { service.detail(uploaded.id) }.exceptionOrNull() is NoSuchElementException)
     }
 
     private fun stubExtraction(payloadJson: String) {
