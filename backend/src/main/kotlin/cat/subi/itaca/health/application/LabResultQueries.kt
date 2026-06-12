@@ -67,11 +67,13 @@ class LabResultQueries(
             unit = analyte.canonicalUnit,
             points =
                 jdbc.query(
+                    // One point per date: duplicate reports (same PDF uploaded twice)
+                    // would otherwise stack identical points. Most recent upload wins.
                     """
-                    SELECT r.date, lr.value, lr.ref_min, lr.ref_max
+                    SELECT DISTINCT ON (r.date) r.date, lr.value, lr.ref_min, lr.ref_max
                     FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
                     WHERE lr.analyte_id = ? AND lr.value IS NOT NULL AND r.status = 'confirmed'
-                    ORDER BY r.date
+                    ORDER BY r.date, r.created_at DESC
                     """.trimIndent(),
                     { rs, _ ->
                         AnalyteSeriesPoint(

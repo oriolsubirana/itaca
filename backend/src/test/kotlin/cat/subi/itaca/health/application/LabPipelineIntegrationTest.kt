@@ -134,6 +134,28 @@ class LabPipelineIntegrationTest {
         service.deleteReport(uploaded.id)
     }
 
+    @Test
+    fun `collapses duplicate reports of the same date into one series point`() {
+        val json =
+            """{"date": "2024-02-01", "laboratory": "labor team", "results": [
+                {"analyte": "Leukozyten", "value": 6.3, "unit": "10^9/L", "refMin": 3.5, "refMax": 10}
+            ]}"""
+        stubExtraction(json)
+        val ids =
+            (1..3).map {
+                val r = service.upload("leucos-$it.pdf", "fake-pdf-bytes".toByteArray())
+                service.runExtraction(r.id)
+                service.review(r.id, confirm = true)
+                r.id
+            }
+
+        val series = queries.seriesByCode("leukocytes")!!
+        assertEquals(1, series.points.size, "duplicate same-date reports must not stack points")
+        assertEquals(6.3, series.points.single().value)
+
+        ids.forEach { service.deleteReport(it) }
+    }
+
     private fun assertExtractedDetail(detail: LabReportDetail) {
         assertEquals("2026-05-20", detail.report.date)
         assertEquals("Unilabs Zürich", detail.report.laboratory)
