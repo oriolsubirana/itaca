@@ -133,7 +133,7 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
                   )}
                 </span>
                 <span className="text-right text-sm font-medium tabular-nums">
-                  {res.value} {res.unit ?? ""}
+                  {res.value ?? res.textValue} {res.unit ?? ""}
                 </span>
                 {res.refMax != null && (
                   <span className="col-start-2 text-right text-xs tabular-nums text-ink-soft">

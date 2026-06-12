@@ -47,7 +47,7 @@ class LabResultQueries(
             """
             SELECT DISTINCT a.id, a.code, a.name, a.canonical_unit
             FROM analytes a
-            JOIN lab_results lr ON lr.analyte_id = a.id
+            JOIN lab_results lr ON lr.analyte_id = a.id AND lr.value IS NOT NULL
             JOIN lab_reports r ON r.id = lr.lab_report_id AND r.status = 'confirmed'
             ORDER BY a.name
             """.trimIndent(),
@@ -70,7 +70,7 @@ class LabResultQueries(
                     """
                     SELECT r.date, lr.value, lr.ref_min, lr.ref_max
                     FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
-                    WHERE lr.analyte_id = ? AND r.status = 'confirmed'
+                    WHERE lr.analyte_id = ? AND lr.value IS NOT NULL AND r.status = 'confirmed'
                     ORDER BY r.date
                     """.trimIndent(),
                     { rs, _ ->

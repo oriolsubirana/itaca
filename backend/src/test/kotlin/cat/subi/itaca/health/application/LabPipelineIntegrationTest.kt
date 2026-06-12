@@ -41,7 +41,10 @@ class LabPipelineIntegrationTest {
               "results": [
                 {"analyte": "Calprotectina fecal", "value": 184.0, "unit": "µg/g", "refMin": 0, "refMax": 50},
                 {"analyte": "CRP", "value": 4.2, "unit": "mg/L", "refMin": 0, "refMax": 5},
-                {"analyte": "Misteriosina", "value": 1.0, "unit": "u", "refMin": null, "refMax": null}
+                {"analyte": "Misteriosina", "value": 1.0, "unit": "u", "refMin": null, "refMax": null},
+                {"analyte": "Blut im Urin", "value": null, "textValue": "++++", "unit": null, "refMin": null, "refMax": null},
+                {"analyte": "Hb", "value": null, "textValue": "normal", "unit": null, "refMin": null, "refMax": null},
+                {"analyte": "Geisterwert", "value": null, "textValue": null, "unit": null, "refMin": null, "refMax": null}
               ]
             }
             """.trimIndent()
@@ -53,15 +56,7 @@ class LabPipelineIntegrationTest {
 
         service.runExtraction(uploaded.id)
 
-        val detail = service.detail(uploaded.id)
-        assertEquals("2026-05-20", detail.report.date)
-        assertEquals("Unilabs Zürich", detail.report.laboratory)
-        assertEquals(3, detail.results.size)
-        val calpro = detail.results.single { it.rawName == "Calprotectina fecal" }
-        assertEquals("fecal_calprotectin", calpro.analyteCode, "must normalize via the dictionary")
-        assertEquals(184.0, calpro.value)
-        val unknown = detail.results.single { it.rawName == "Misteriosina" }
-        assertNull(unknown.analyteCode, "unknown analytes stay unmatched")
+        assertExtractedDetail(service.detail(uploaded.id))
 
         assertTrue(
             queries.seriesByCode("fecal_calprotectin")!!.points.isEmpty(),
@@ -79,12 +74,35 @@ class LabPipelineIntegrationTest {
         assertEquals("fecal_calprotectin", viaChat?.code)
         assertEquals(1, viaChat?.points?.size)
 
+        assertTrue(
+            queries.seriesByCode("hemoglobin")!!.points.isEmpty(),
+            "qualitative-only results must not feed the numeric series",
+        )
+        assertTrue(
+            queries.analytesWithData().none { it.code == "hemoglobin" },
+            "qualitative-only analytes must not appear in the chart selector",
+        )
+
         service.deleteReport(uploaded.id)
         assertTrue(
             queries.seriesByCode("fecal_calprotectin")!!.points.isEmpty(),
             "deleting the report must remove its results from the series",
         )
         assertTrue(runCatching { service.detail(uploaded.id) }.exceptionOrNull() is NoSuchElementException)
+    }
+
+    private fun assertExtractedDetail(detail: LabReportDetail) {
+        assertEquals("2026-05-20", detail.report.date)
+        assertEquals("Unilabs Zürich", detail.report.laboratory)
+        assertEquals(5, detail.results.size, "rows with neither value nor textValue are dropped")
+        val calpro = detail.results.single { it.rawName == "Calprotectina fecal" }
+        assertEquals("fecal_calprotectin", calpro.analyteCode, "must normalize via the dictionary")
+        assertEquals(184.0, calpro.value)
+        val unknown = detail.results.single { it.rawName == "Misteriosina" }
+        assertNull(unknown.analyteCode, "unknown analytes stay unmatched")
+        val qualitative = detail.results.single { it.rawName == "Blut im Urin" }
+        assertNull(qualitative.value)
+        assertEquals("++++", qualitative.textValue, "qualitative results keep their literal text")
     }
 
     private fun stubExtraction(payloadJson: String) {

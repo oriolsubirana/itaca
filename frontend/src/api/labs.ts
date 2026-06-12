@@ -14,7 +14,8 @@ export interface LabResult {
   rawName: string;
   analyteCode: string | null;
   analyteName: string | null;
-  value: number;
+  value: number | null;
+  textValue: string | null;
   unit: string | null;
   refMin: number | null;
   refMax: number | null;

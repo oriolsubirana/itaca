@@ -27,7 +27,8 @@ data class LabResultDto(
     val rawName: String,
     val analyteCode: String?,
     val analyteName: String?,
-    val value: Double,
+    val value: Double?,
+    val textValue: String?,
     val unit: String?,
     val refMin: Double?,
     val refMax: Double?,
@@ -83,14 +84,15 @@ class LabReportService(
 
         results.deleteByLabReportId(reportId) // idempotent re-runs (JobRunr retries)
         extraction.results
-            .filter { it.analyte.isNotBlank() && it.value != null }
+            .filter { it.analyte.isNotBlank() && (it.value != null || !it.textValue.isNullOrBlank()) }
             .forEach { row ->
                 results.save(
                     LabResultEntity(
                         labReportId = reportId,
                         analyteId = matcher.match(row.analyte)?.id,
                         rawName = row.analyte,
-                        value = BigDecimal.valueOf(row.value!!),
+                        value = row.value?.let(BigDecimal::valueOf),
+                        textValue = row.textValue?.takeIf { it.isNotBlank() },
                         unit = row.unit,
                         refMin = row.refMin?.let(BigDecimal::valueOf),
                         refMax = row.refMax?.let(BigDecimal::valueOf),
@@ -162,7 +164,8 @@ class LabReportService(
             rawName = rawName,
             analyteCode = analyte?.first,
             analyteName = analyte?.second,
-            value = value.toDouble(),
+            value = value?.toDouble(),
+            textValue = textValue,
             unit = unit,
             refMin = refMin?.toDouble(),
             refMax = refMax?.toDouble(),

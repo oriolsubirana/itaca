@@ -41,8 +41,9 @@ class LabResultEntity(
     var analyteId: Long? = null,
     @Column(name = "raw_name", nullable = false)
     val rawName: String,
-    @Column(nullable = false)
-    var value: BigDecimal,
+    var value: BigDecimal? = null,
+    @Column(name = "text_value")
+    var textValue: String? = null,
     var unit: String? = null,
     @Column(name = "ref_min")
     var refMin: BigDecimal? = null,

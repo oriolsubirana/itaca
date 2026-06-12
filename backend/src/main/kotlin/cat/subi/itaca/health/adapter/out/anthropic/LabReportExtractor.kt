@@ -11,6 +11,7 @@ import org.springframework.util.MimeType
 class ExtractedResult {
     var analyte: String = ""
     var value: Double? = null
+    var textValue: String? = null
     var unit: String? = null
     var refMin: Double? = null
     var refMax: Double? = null
@@ -44,14 +45,21 @@ class LabReportExtractor(
 
     companion object {
         private val PDF = MimeType.valueOf("application/pdf")
-        private const val MAX_TOKENS = 4096
+
+        // Multi-page reports can exceed 4K output tokens and truncate the JSON;
+        // claude-haiku-4-5 allows up to 64K, 16K is the safe non-streaming ceiling.
+        private const val MAX_TOKENS = 16384
         private val EXTRACTION_PROMPT =
             """
-            Extract every analyte result from this lab report PDF.
-            For each result return: analyte (exact name as printed), value (numeric),
-            unit, refMin and refMax (the reference range bounds, null if absent).
+            Extract every analyte result from this lab report PDF, from ALL pages.
+            For each result return: analyte (exact name as printed), unit, refMin and
+            refMax (the reference range bounds, null if absent), and the result itself:
+            - value: the number, when the result is numeric.
+            - textValue: the literal text, when the result is qualitative
+              (e.g. "neg", "pos", "+", "++++", "normal", "mässig"). Leave value null.
             Also return the report date (YYYY-MM-DD) and the laboratory name if present.
-            Extract data only; do not interpret or filter anything.
+            Be exhaustive: include every row of every results table, including the last
+            pages. Extract data only; do not interpret or filter anything.
             """.trimIndent()
     }
 }
