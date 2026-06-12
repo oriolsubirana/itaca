@@ -20,6 +20,7 @@ class LabReportEntity(
     @Column(nullable = false)
     var date: LocalDate,
     var laboratory: String? = null,
+    var filename: String? = null,
     @Column(name = "storage_path")
     val storagePath: String? = null,
     @Column(nullable = false)

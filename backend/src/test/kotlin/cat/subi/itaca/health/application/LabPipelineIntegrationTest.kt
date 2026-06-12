@@ -49,6 +49,7 @@ class LabPipelineIntegrationTest {
 
         val uploaded = service.upload("analitica-mayo.pdf", "fake-pdf-bytes".toByteArray())
         assertEquals("pending_review", uploaded.status)
+        assertEquals("analitica-mayo.pdf", uploaded.filename)
 
         service.runExtraction(uploaded.id)
 

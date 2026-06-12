@@ -4,6 +4,7 @@ export interface LabReport {
   id: number;
   date: string;
   laboratory: string | null;
+  filename: string | null;
   status: "pending_review" | "confirmed" | "discarded";
   resultCount: number;
 }

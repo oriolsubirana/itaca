@@ -17,6 +17,7 @@ data class LabReportDto(
     val id: Long,
     val date: String,
     val laboratory: String?,
+    val filename: String?,
     val status: String,
     val resultCount: Int,
 )
@@ -65,7 +66,7 @@ class LabReportService(
         content: ByteArray,
     ): LabReportDto {
         val path = storage.store(filename, content)
-        val report = reports.save(LabReportEntity(date = LocalDate.now(), storagePath = path))
+        val report = reports.save(LabReportEntity(date = LocalDate.now(), filename = filename, storagePath = path))
         return report.toDto(0)
     }
 
@@ -149,6 +150,7 @@ class LabReportService(
             id = id!!,
             date = date.toString(),
             laboratory = laboratory,
+            filename = filename,
             status = status,
             resultCount = resultCount,
         )

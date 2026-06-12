@@ -8,6 +8,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/021-health-analytes-seed.sql
   - include:
+      file: db/changelog/022-health-lab-filename.sql
+  - include:
       file: db/changelog/030-finance-schema.sql
   - include:
       file: db/changelog/031-finance-seed.sql

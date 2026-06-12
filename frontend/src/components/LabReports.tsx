@@ -52,10 +52,12 @@ export function LabReports() {
               onClick={() => setOpenReport(openReport === r.id ? null : r.id)}
               className="flex min-h-12 w-full items-center gap-3 py-2 text-left text-sm"
             >
-              <span className="text-ink-soft">{r.date}</span>
-              <span className="flex-1 truncate">{r.laboratory ?? "—"}</span>
+              <span className="shrink-0 text-ink-soft">{r.date}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {r.laboratory ?? r.filename ?? "—"}
+              </span>
               <span
-                className={`text-xs uppercase tracking-wide ${
+                className={`shrink-0 text-xs uppercase tracking-wide ${
                   r.status === "pending_review" ? "text-amber-700" : "text-ink-soft"
                 }`}
               >
@@ -102,30 +104,49 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
   const { report, results } = detail.data;
 
   return (
-    <div className="mb-3 rounded-lg border border-line p-3">
+    <div className="mb-3 rounded-lg border border-line p-4">
+      <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-line pb-3">
+        <span className="min-w-0 truncate text-sm font-medium">
+          {report.filename ?? report.laboratory ?? "Informe"}
+        </span>
+        <span className="shrink-0 text-xs text-ink-soft">
+          {report.laboratory && `${report.laboratory} · `}
+          {report.date}
+        </span>
+      </div>
       {results.length === 0 ? (
         <p className="py-2 text-sm text-ink-soft">Todavía sin resultados — la extracción está en curso.</p>
       ) : (
-        <ul className="mb-3">
-          {results.map((res) => (
-            <li key={res.id} className="flex items-baseline gap-2 border-b border-line py-1.5 text-sm last:border-b-0">
-              <span className="flex-1 truncate">
-                {res.analyteName ?? res.rawName}
-                {!res.analyteName && (
-                  <span className="ml-1 text-xs text-amber-700">(sin normalizar)</span>
-                )}
-              </span>
-              <span className="font-medium">
-                {res.value} {res.unit ?? ""}
-              </span>
-              {res.refMax != null && (
-                <span className="text-xs text-ink-soft">
-                  ref {res.refMin ?? 0}–{res.refMax}
+        <>
+          <ul className="mb-3 max-h-80 overflow-y-auto overscroll-contain">
+            {results.map((res) => (
+              <li
+                key={res.id}
+                className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 border-b border-line py-2 last:border-b-0"
+              >
+                <span className="text-sm leading-snug">
+                  {res.analyteName ?? res.rawName}
+                  {!res.analyteName && (
+                    <span className="ml-1.5 align-middle text-[11px] uppercase tracking-wide text-amber-700">
+                      sin normalizar
+                    </span>
+                  )}
                 </span>
-              )}
-            </li>
-          ))}
-        </ul>
+                <span className="text-right text-sm font-medium tabular-nums">
+                  {res.value} {res.unit ?? ""}
+                </span>
+                {res.refMax != null && (
+                  <span className="col-start-2 text-right text-xs tabular-nums text-ink-soft">
+                    ref {res.refMin ?? 0}–{res.refMax}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mb-3 text-xs text-ink-soft">
+            {results.length} resultados · {results.filter((r) => r.analyteName).length} normalizados
+          </p>
+        </>
       )}
       {report.status === "pending_review" && results.length > 0 && (
         <div className="flex gap-2">
