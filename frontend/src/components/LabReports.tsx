@@ -6,7 +6,7 @@ import {
   discardLabReport,
   getLabReportDetail,
   getLabReports,
-  uploadLabReport,
+  uploadLabReports,
   STATUS_LABELS,
 } from "../api/labs";
 
@@ -19,7 +19,7 @@ export function LabReports() {
   const reports = useQuery({ queryKey: ["lab-reports"], queryFn: getLabReports });
 
   const upload = useMutation({
-    mutationFn: uploadLabReport,
+    mutationFn: uploadLabReports,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["lab-reports"] }),
   });
 
@@ -29,10 +29,11 @@ export function LabReports() {
         ref={fileInput}
         type="file"
         accept="application/pdf"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) upload.mutate(file);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length > 0) upload.mutate(files);
           e.target.value = "";
         }}
       />

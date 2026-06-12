@@ -30,15 +30,19 @@ class LabController(
     private val labReports: LabReportService,
     private val jobs: JobRequestScheduler,
 ) {
+    /** Accepts one or many PDFs; each becomes its own report with its own extraction job. */
     @PostMapping("/lab-reports")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun upload(
-        @RequestParam("file") file: MultipartFile,
-    ): LabReportDto {
-        require(!file.isEmpty) { "Empty file" }
-        val report = labReports.upload(file.originalFilename ?: "informe.pdf", file.bytes)
-        jobs.enqueue(ExtractLabReportRequest(report.id))
-        return report
+        @RequestParam("files") files: List<MultipartFile>,
+    ): List<LabReportDto> {
+        require(files.isNotEmpty()) { "No files uploaded" }
+        require(files.none { it.isEmpty }) { "Empty file in upload" }
+        return files.map { file ->
+            val report = labReports.upload(file.originalFilename ?: "informe.pdf", file.bytes)
+            jobs.enqueue(ExtractLabReportRequest(report.id))
+            report
+        }
     }
 
     @GetMapping("/lab-reports")

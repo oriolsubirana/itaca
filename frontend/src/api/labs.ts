@@ -45,10 +45,10 @@ export interface AnalyteSeries {
   points: AnalyteSeriesPoint[];
 }
 
-export function uploadLabReport(file: File): Promise<LabReport> {
+export function uploadLabReports(files: File[]): Promise<LabReport[]> {
   const body = new FormData();
-  body.append("file", file);
-  return api<LabReport>("/health/lab-reports", { method: "POST", body });
+  files.forEach((file) => body.append("files", file));
+  return api<LabReport[]>("/health/lab-reports", { method: "POST", body });
 }
 
 export const getLabReports = () => api<LabReport[]>("/health/lab-reports");

@@ -58,6 +58,9 @@ integration point, configuration property, annotation or artifact name:
   warning at apply time. Upstream issue, harmless until Gradle 10; do not chase it —
   Renovate will bring the fixed release.
 - ESLint 10 flat config: react-hooks flat preset is `configs.flat.recommended`.
+- Boot 4 split MockMvc test support: dependency `spring-boot-starter-webmvc-test`,
+  annotation `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc`
+  (the old `...test.autoconfigure.web.servlet` package is gone).
 
 ## Architecture rules
 
