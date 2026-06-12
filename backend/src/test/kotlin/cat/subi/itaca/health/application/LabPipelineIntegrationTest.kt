@@ -157,6 +157,30 @@ class LabPipelineIntegrationTest {
     }
 
     @Test
+    fun `a urine-sediment count is not normalized into the blood series of the same name`() {
+        val json =
+            """{"date": "2024-04-01", "laboratory": "labor team", "results": [
+                {"analyte": "Leukozyten", "value": 6.5, "unit": "10^3/µL", "refMin": 3.5, "refMax": 10},
+                {"analyte": "Leukozyten", "value": 5.0, "unit": "/Gesichtsfeld", "refMin": 3, "refMax": 5}
+            ]}"""
+        stubExtraction(json)
+        val report = service.upload("urin-blut.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(report.id)
+        service.review(report.id, confirm = true)
+
+        val blood = service.detail(report.id).results.single { it.unit == "10^3/µL" }
+        assertEquals("leukocytes", blood.analyteCode, "the blood count normalizes")
+        val urine = service.detail(report.id).results.single { it.unit == "/Gesichtsfeld" }
+        assertNull(urine.analyteCode, "the per-field urine count must stay unnormalized")
+
+        val series = queries.seriesByCode("leukocytes")!!
+        assertEquals(1, series.points.size, "only the blood value feeds the series")
+        assertEquals(6.5, series.points.single().value)
+
+        service.deleteReport(report.id)
+    }
+
+    @Test
     fun `a cumulative report becomes a multi-date series from a single upload`() {
         val json =
             """{"date": "2024-03-01", "laboratory": "labor team w ag", "results": [

@@ -104,10 +104,16 @@ class LabReportService(
                 results.save(
                     LabResultEntity(
                         labReportId = reportId,
-                        // The dictionary holds numeric blood markers; a qualitative row that
-                        // shares a name (urine dipstick, smear morphology...) is a different
-                        // measurement, so only numeric results are normalized.
-                        analyteId = if (row.value != null) matcher.match(row.analyte)?.id else null,
+                        // The dictionary holds numeric blood markers; a qualitative row or a
+                        // per-field microscopy count that shares a name (urine sediment, smear
+                        // morphology...) is a different measurement. Normalize only numeric
+                        // results whose unit is compatible with the analyte's canonical unit.
+                        analyteId =
+                            if (row.value != null) {
+                                matcher.match(row.analyte)?.takeIf { unitsCompatible(row.unit, it.canonicalUnit) }?.id
+                            } else {
+                                null
+                            },
                         rawName = row.analyte,
                         resultDate = row.date?.let { d -> runCatching { LocalDate.parse(d) }.getOrNull() },
                         value = row.value?.let(BigDecimal::valueOf),
