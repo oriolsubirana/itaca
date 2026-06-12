@@ -45,19 +45,26 @@ class SchemaAndSeedIntegrationTest {
 
     @Test
     fun `the analyte dictionary covers the key IBD markers`() {
-        assertEquals(35, count("analytes"))
+        assertEquals(36, count("analytes"))
         val codes = jdbc.queryForList("SELECT code FROM analytes", String::class.java)
-        assertTrue(codes.containsAll(listOf("fecal_calprotectin", "crp", "esr", "ferritin", "vitamin_d", "ft4")))
+        val expected = listOf("fecal_calprotectin", "crp", "esr", "ferritin", "vitamin_d", "ft4", "erythrocytes")
+        assertTrue(codes.containsAll(expected))
     }
 
     @Test
-    fun `the analyte dictionary includes German synonyms for Swiss labs`() {
+    fun `the analyte dictionary includes German and Catalan synonyms for Swiss and Catalan labs`() {
         val viaGerman =
             jdbc.queryForObject(
                 "SELECT count(*) FROM analytes WHERE 'Hämatokrit' = ANY(synonyms)",
                 Int::class.java,
             )
         assertEquals(1, viaGerman)
+        val viaCatalan =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM analytes WHERE 'leucòcits' = ANY(synonyms)",
+                Int::class.java,
+            )
+        assertEquals(1, viaCatalan)
     }
 
     @Test

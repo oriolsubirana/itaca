@@ -31,7 +31,8 @@ fun unitsCompatible(
 
 /**
  * Normalizes raw analyte names from lab reports against the seeded dictionary
- * (canonical Spanish name + Spanish/Swiss lab synonyms), case-insensitively.
+ * (canonical Spanish name + Spanish/Catalan/English/German/French synonyms),
+ * case-insensitively.
  */
 @Component
 class AnalyteMatcher(
