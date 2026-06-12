@@ -18,6 +18,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/026-health-lab-extracting.sql
   - include:
+      file: db/changelog/027-health-lab-result-date.sql
+  - include:
       file: db/changelog/030-finance-schema.sql
   - include:
       file: db/changelog/031-finance-seed.sql

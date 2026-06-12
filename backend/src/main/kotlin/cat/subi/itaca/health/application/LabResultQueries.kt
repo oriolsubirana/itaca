@@ -67,17 +67,19 @@ class LabResultQueries(
             unit = analyte.canonicalUnit,
             points =
                 jdbc.query(
-                    // One point per date: duplicate reports (same PDF uploaded twice)
-                    // would otherwise stack identical points. Most recent upload wins.
+                    // Effective date = the result's own date (cumulative reports) or the
+                    // report date. One point per effective date: duplicate uploads collapse,
+                    // most recent winning, while a cumulative report's distinct dates stay.
                     """
-                    SELECT DISTINCT ON (r.date) r.date, lr.value, lr.ref_min, lr.ref_max
+                    SELECT DISTINCT ON (COALESCE(lr.result_date, r.date))
+                           COALESCE(lr.result_date, r.date) AS d, lr.value, lr.ref_min, lr.ref_max
                     FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
                     WHERE lr.analyte_id = ? AND lr.value IS NOT NULL AND r.status = 'confirmed'
-                    ORDER BY r.date, r.created_at DESC
+                    ORDER BY COALESCE(lr.result_date, r.date), r.created_at DESC
                     """.trimIndent(),
                     { rs, _ ->
                         AnalyteSeriesPoint(
-                            date = rs.getDate("date").toLocalDate().toString(),
+                            date = rs.getDate("d").toLocalDate().toString(),
                             value = rs.getDouble("value"),
                             refMin = rs.getBigDecimal("ref_min")?.toDouble(),
                             refMax = rs.getBigDecimal("ref_max")?.toDouble(),

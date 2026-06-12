@@ -15,6 +15,7 @@ export interface LabResult {
   rawName: string;
   analyteCode: string | null;
   analyteName: string | null;
+  date: string | null;
   value: number | null;
   textValue: string | null;
   unit: string | null;
@@ -23,8 +24,9 @@ export interface LabResult {
   reviewed: boolean;
 }
 
-/** Partial update; omitted fields stay as they are, "" clears textValue/unit. */
+/** Partial update; omitted fields stay as they are, "" clears date/textValue/unit. */
 export interface LabResultUpdate {
+  date?: string;
   value?: number;
   textValue?: string;
   unit?: string;

@@ -156,6 +156,27 @@ class LabPipelineIntegrationTest {
         ids.forEach { service.deleteReport(it) }
     }
 
+    @Test
+    fun `a cumulative report becomes a multi-date series from a single upload`() {
+        val json =
+            """{"date": "2024-03-01", "laboratory": "labor team w ag", "results": [
+                {"analyte": "Leukozyten", "date": "2024-01-15", "value": 6.3, "unit": "10^9/L", "refMin": 3.5, "refMax": 10},
+                {"analyte": "Leukozyten", "date": "2024-02-15", "value": 3.0, "unit": "10^9/L", "refMin": 3.5, "refMax": 10},
+                {"analyte": "Leukozyten", "date": "2024-03-01", "value": 6.5, "unit": "10^9/L", "refMin": 3.5, "refMax": 10}
+            ]}"""
+        stubExtraction(json)
+        val report = service.upload("kumulativ.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(report.id)
+        service.review(report.id, confirm = true)
+
+        val series = queries.seriesByCode("leukocytes")!!
+        assertEquals(3, series.points.size, "each dated column is its own point")
+        assertEquals(listOf("2024-01-15", "2024-02-15", "2024-03-01"), series.points.map { it.date })
+        assertEquals(listOf(6.3, 3.0, 6.5), series.points.map { it.value })
+
+        service.deleteReport(report.id)
+    }
+
     private fun assertExtractedDetail(detail: LabReportDetail) {
         assertEquals("2026-05-20", detail.report.date)
         assertEquals("Unilabs Zürich", detail.report.laboratory)

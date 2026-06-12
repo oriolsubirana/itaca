@@ -200,6 +200,9 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
                       </span>
                     )}
                   </span>
+                  {res.date && (
+                    <span className="block text-xs tabular-nums text-ink-soft">{res.date}</span>
+                  )}
                 </button>
                 <button
                   onClick={() => editable && setEditing(res)}
@@ -288,13 +291,14 @@ function EditResultModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [date, setDate] = useState(result.date ?? "");
   const [value, setValue] = useState(result.value?.toString() ?? "");
   const [textValue, setTextValue] = useState(result.textValue ?? "");
   const [unit, setUnit] = useState(result.unit ?? "");
 
   const save = useMutation({
     mutationFn: () => {
-      const update: LabResultUpdate = { textValue, unit, reviewed: true };
+      const update: LabResultUpdate = { date, textValue, unit, reviewed: true };
       if (value.trim() !== "") update.value = Number(value);
       return updateLabResult(result.id, update);
     },
@@ -311,6 +315,15 @@ function EditResultModal({
   return (
     <Modal title="Corregir resultado" onClose={onClose}>
       <p className="mb-4 text-sm font-medium">{result.analyteName ?? result.rawName}</p>
+      <label className="mb-3 block text-sm">
+        <span className="mb-1 block text-xs text-ink-soft">Fecha (vacío = la del informe)</span>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-transparent px-3 text-sm"
+        />
+      </label>
       <label className="mb-3 block text-sm">
         <span className="mb-1 block text-xs text-ink-soft">Valor numérico</span>
         <input

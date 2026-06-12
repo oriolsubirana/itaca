@@ -28,6 +28,8 @@ data class LabResultDto(
     val rawName: String,
     val analyteCode: String?,
     val analyteName: String?,
+    // The result's own measurement date (cumulative reports); null inherits the report date.
+    val date: String?,
     val value: Double?,
     val textValue: String?,
     val unit: String?,
@@ -43,6 +45,7 @@ data class LabReportDetail(
 
 /** Partial update; null means "leave as is", empty string clears textValue/unit. */
 data class LabResultUpdate(
+    val date: String? = null,
     val value: Double? = null,
     val textValue: String? = null,
     val unit: String? = null,
@@ -106,6 +109,7 @@ class LabReportService(
                         // measurement, so only numeric results are normalized.
                         analyteId = if (row.value != null) matcher.match(row.analyte)?.id else null,
                         rawName = row.analyte,
+                        resultDate = row.date?.let { d -> runCatching { LocalDate.parse(d) }.getOrNull() },
                         value = row.value?.let(BigDecimal::valueOf),
                         textValue = row.textValue?.takeIf { it.isNotBlank() },
                         unit = row.unit,
@@ -151,9 +155,19 @@ class LabReportService(
             update.analyteCode?.let { code ->
                 matcher.byCode(code)?.id ?: throw IllegalArgumentException("Unknown analyte code: $code")
             } ?: row.analyteId
+        val newDate =
+            if (update.date != null) {
+                update.date.ifBlank { null }?.let { raw ->
+                    runCatching { LocalDate.parse(raw) }
+                        .getOrElse { throw IllegalArgumentException("Invalid date: $raw") }
+                }
+            } else {
+                row.resultDate
+            }
         row.value = newValue
         row.textValue = newTextValue
         row.analyteId = newAnalyteId
+        row.resultDate = newDate
         update.unit?.let { row.unit = it.ifBlank { null } }
         update.reviewed?.let { row.reviewed = it }
         return results.save(row).toDto()
@@ -199,6 +213,7 @@ class LabReportService(
             rawName = rawName,
             analyteCode = analyte?.first,
             analyteName = analyte?.second,
+            date = resultDate?.toString(),
             value = value?.toDouble(),
             textValue = textValue,
             unit = unit,

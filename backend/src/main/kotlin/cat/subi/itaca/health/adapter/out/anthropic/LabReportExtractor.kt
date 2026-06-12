@@ -10,6 +10,7 @@ import org.springframework.util.MimeType
 /** One extracted analyte row, exactly as printed on the report. */
 class ExtractedResult {
     var analyte: String = ""
+    var date: String? = null
     var value: Double? = null
     var textValue: String? = null
     var unit: String? = null
@@ -57,7 +58,13 @@ class LabReportExtractor(
             - value: the number, when the result is numeric.
             - textValue: the literal text, when the result is qualitative
               (e.g. "neg", "pos", "+", "++++", "normal", "mässig"). Leave value null.
-            Also return the report date (YYYY-MM-DD) and the laboratory name if present.
+            Cumulative reports (Kumulativbefund) print several dated columns per analyte
+            (the historical trend in one PDF). When an analyte has multiple values under
+            different date columns, emit ONE result per value and set its "date"
+            (YYYY-MM-DD) to that column's date. For ordinary single-date reports leave
+            each result's "date" null.
+            Also return the top-level report date (YYYY-MM-DD, the most recent column for
+            cumulative reports) and the laboratory name if present.
             Be exhaustive: include every row of every results table, including the last
             pages. Extract data only; do not interpret or filter anything.
             """.trimIndent()
