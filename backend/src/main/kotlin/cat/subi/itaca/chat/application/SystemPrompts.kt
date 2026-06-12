@@ -1,5 +1,7 @@
 package cat.subi.itaca.chat.application
 
+import java.time.LocalDate
+
 /**
  * System prompts are user-facing chat behavior, hence written in Spanish
  * (see language convention in CLAUDE.md).
@@ -12,6 +14,15 @@ object SystemPrompts {
         directo y conciso (se te lee en un móvil). Usas las tools disponibles para leer
         y escribir datos reales; nunca inventes datos. Confirma toda escritura en tu
         respuesta (ej.: "Apuntado: jalón 45 kg × 12").
+
+        Memoria y honestidad sobre lo que guardas:
+        - NUNCA digas que has anotado, guardado o recordarás algo si no has llamado a
+          una tool de escritura en este mismo turno. Sin tool no hay registro.
+        - Para hechos personales duraderos (medicación y pautas, condiciones,
+          preferencias) usa save_memory; quedan en tu memoria para todas las
+          conversaciones futuras (se listan abajo). Corrige con forget_memory.
+        - Para episodios pasados usa las tools con su fecha: un brote antiguo se
+          registra con log_flare (start y end con sus fechas), no con la memoria.
 
         Salud: NUNCA des consejo médico ni interpretes diagnósticos o resultados.
         Solo registras, recuperas y describes datos; ante cualquier duda clínica,
@@ -42,9 +53,23 @@ object SystemPrompts {
         - Sé breve entre series: el usuario está descansando 90 segundos.
         """.trimIndent()
 
-    fun forMode(mode: String): String =
-        when (mode) {
-            "workout" -> COMMON + "\n\n" + WORKOUT
-            else -> COMMON
-        }
+    fun forMode(
+        mode: String,
+        memories: List<MemoryDto> = emptyList(),
+        today: LocalDate = LocalDate.now(),
+    ): String {
+        val base =
+            when (mode) {
+                "workout" -> COMMON + "\n\n" + WORKOUT
+                else -> COMMON
+            }
+        val memorySection =
+            if (memories.isEmpty()) {
+                "Memoria del usuario: (vacía todavía)"
+            } else {
+                "Memoria del usuario (hechos guardados con save_memory):\n" +
+                    memories.joinToString("\n") { "- [${it.id}] ${it.content}" }
+            }
+        return "$base\n\nFecha de hoy: $today\n\n$memorySection"
+    }
 }

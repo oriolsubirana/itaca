@@ -124,6 +124,11 @@ prepared by `.claude/hooks/session-start.sh`.
 - `adapter/in` packages need `@file:Suppress("ktlint:standard:package-name")`
   (`in` is a Kotlin keyword).
 - Mocking `ChatModel` in tests: also stub `getOptions()`/`getDefaultOptions()`.
+- Persistent user memory: `chat_memories` table + `save_memory`/`forget_memory`
+  tools; `ChatService` injects all memories into the system prompt. The prompt
+  forbids claiming "anotado" without a write-tool call in the same turn.
+- Spring AI autoconfigures beans named `chatMemory`/`chatMemoryRepository` —
+  do not name your own beans that (our JPA repo is `UserMemoryRepository`).
 - JPA + JdbcTemplate read-side in one transaction: `saveAndFlush` before reading.
 
 ### Health pipeline notes (phase 3)
