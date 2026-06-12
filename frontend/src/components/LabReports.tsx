@@ -132,14 +132,14 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
 
   return (
     <div className="mb-3 rounded-lg border border-line p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-line pb-3">
-        <span className="min-w-0 truncate text-sm font-medium">
+      <div className="mb-3 border-b border-line pb-3">
+        <p className="truncate text-sm font-medium">
           {report.filename ?? report.laboratory ?? "Informe"}
-        </span>
-        <span className="shrink-0 text-xs text-ink-soft">
+        </p>
+        <p className="truncate text-xs text-ink-soft">
           {report.laboratory && `${report.laboratory} · `}
           {report.date}
-        </span>
+        </p>
       </div>
       <button
         onClick={() => viewFile.mutate()}
@@ -216,11 +216,11 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
                 <button
                   onClick={() => editable && setEditing(res)}
                   disabled={!editable}
-                  className={`py-2 text-right ${!editable ? "cursor-default" : ""} ${
+                  className={`max-w-44 py-2 text-right sm:max-w-64 ${!editable ? "cursor-default" : ""} ${
                     res.reviewed ? "opacity-50" : ""
                   }`}
                 >
-                  <span className="block text-sm font-medium tabular-nums">
+                  <span className="block break-words text-sm font-medium tabular-nums">
                     {res.value ?? res.textValue} {res.unit ?? ""}
                   </span>
                   {res.refMax != null && (

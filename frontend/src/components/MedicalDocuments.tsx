@@ -106,14 +106,14 @@ function DocumentReview({ documentId, onDone }: { documentId: number; onDone: ()
 
   return (
     <div className="mb-3 rounded-lg border border-line p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-line pb-3">
-        <span className="min-w-0 truncate text-sm font-medium">
+      <div className="mb-3 border-b border-line pb-3">
+        <p className="truncate text-sm font-medium">
           {document.type ?? document.filename ?? "Documento"}
-        </span>
-        <span className="shrink-0 text-xs text-ink-soft">
+        </p>
+        <p className="truncate text-xs text-ink-soft">
           {document.center && `${document.center} · `}
           {document.date ?? ""}
-        </span>
+        </p>
       </div>
       <button
         onClick={() => viewFile.mutate()}
