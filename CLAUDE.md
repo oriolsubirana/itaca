@@ -32,8 +32,13 @@ integration point, configuration property, annotation or artifact name:
   Spring Modulith 2.1 · Spring MVC + virtual threads (NO WebFlux) · JPA/Hibernate ·
   Liquibase · JobRunr (same Postgres, no broker) · springdoc · Spring AI 2.0 (phase 2)
 - Frontend: React 19 · Vite · TypeScript · TanStack Router/Query · Tailwind v4 ·
-  vite-plugin-pwa · Recharts. Mobile-first (90% phone usage), bottom tab bar, ≥44px
-  touch targets. Aesthetic: Margaret Howell — warm neutrals, clean type, zero noise.
+  Headless UI · vite-plugin-pwa · Recharts. Mobile-first (90% phone usage), bottom
+  tab bar, ≥44px touch targets. Aesthetic: Margaret Howell — warm neutrals, clean
+  type, zero noise. **Interactive components (dropdowns, dialogs, popovers, tabs,
+  switches...) always use Headless UI primitives** styled with Tailwind
+  data-attributes (`data-focus`/`data-selected`/`data-open`) — never raw
+  `<select>`/`role="dialog"` reimplementations, and no styled component libraries
+  (Material UI etc.: their style engines fight Tailwind and the aesthetic).
   Page width: chat/reading pages stay `max-w-2xl` (line-length readability);
   dashboard pages (Home/Salud/Gym/Finanzas, phases 3-5) use a wider responsive
   grid (`max-w-5xl`+, multi-column cards, Recharts in ResponsiveContainer) — move
