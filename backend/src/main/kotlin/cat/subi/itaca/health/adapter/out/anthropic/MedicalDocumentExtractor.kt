@@ -28,6 +28,7 @@ class MedicalExtraction {
     var type: String? = null
     var provider: String? = null
     var center: String? = null
+    var category: String? = null
     var fullText: String? = null
     var diagnoses: List<ExtractedDiagnosis> = emptyList()
     var medications: List<ExtractedMedication> = emptyList()
@@ -76,6 +77,8 @@ class MedicalDocumentExtractor(
               duration, reason (if stated).
             - fullText: the document's body text, cleaned of headers/footers, preserving
               the clinical narrative so it can be searched later.
+            - category: classify into "ibd" (digestive / IBD / colitis / GI), "fertility"
+              (semen, fertility hormones), "general" (routine / other), or "other".
             Be faithful to the source; leave fields null when absent.
             """.trimIndent()
     }

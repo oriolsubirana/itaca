@@ -22,6 +22,7 @@ data class MedicalDocumentDto(
     val center: String?,
     val filename: String?,
     val status: String,
+    val category: String?,
     val extracting: Boolean,
     val diagnosisCount: Int,
     val medicationCount: Int,
@@ -89,6 +90,7 @@ class MedicalDocumentService(
         document.provider = extraction.provider?.takeIf { it.isNotBlank() }
         document.center = extraction.center?.takeIf { it.isNotBlank() }
         document.fullText = extraction.fullText?.takeIf { it.isNotBlank() }
+        normalizeCategory(extraction.category)?.let { document.category = it }
         document.extracting = false
         documents.save(document)
 
@@ -205,6 +207,7 @@ class MedicalDocumentService(
         center = center,
         filename = filename,
         status = status,
+        category = category,
         extracting = extracting,
         diagnosisCount = diagnosisCount,
         medicationCount = medicationCount,

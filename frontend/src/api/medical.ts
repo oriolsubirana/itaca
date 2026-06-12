@@ -1,4 +1,5 @@
 import { api, apiBlob } from "./client";
+import type { ReportCategory } from "./categories";
 
 export interface MedicalDocument {
   id: number;
@@ -8,6 +9,7 @@ export interface MedicalDocument {
   center: string | null;
   filename: string | null;
   status: "pending_review" | "confirmed" | "discarded";
+  category: ReportCategory | null;
   extracting: boolean;
   diagnosisCount: number;
   medicationCount: number;
@@ -58,6 +60,13 @@ export const reextractMedicalDocument = (id: number) =>
 
 export const deleteMedicalDocument = (id: number) =>
   api<void>(`/health/medical-documents/${id}`, { method: "DELETE" });
+
+export const setMedicalDocumentCategory = (id: number, category: ReportCategory | null) =>
+  api<void>(`/health/medical-documents/${id}/category`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category }),
+  });
 
 /** Opens the stored PDF (blank tab opened within the click so iOS doesn't block it). */
 export async function openMedicalDocumentFile(id: number): Promise<void> {

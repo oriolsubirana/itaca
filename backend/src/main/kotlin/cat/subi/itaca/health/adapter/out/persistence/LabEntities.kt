@@ -29,6 +29,7 @@ class LabReportEntity(
     val storagePath: String? = null,
     @Column(nullable = false)
     var status: String = "pending_review",
+    var category: String? = null,
     @Column(nullable = false)
     var extracting: Boolean = false,
     @Column(name = "created_at", nullable = false)

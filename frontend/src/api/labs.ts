@@ -1,4 +1,5 @@
 import { api, apiBlob } from "./client";
+import type { ReportCategory } from "./categories";
 
 export interface LabReport {
   id: number;
@@ -6,6 +7,7 @@ export interface LabReport {
   laboratory: string | null;
   filename: string | null;
   status: "pending_review" | "confirmed" | "discarded";
+  category: ReportCategory | null;
   extracting: boolean;
   resultCount: number;
 }
@@ -79,6 +81,13 @@ export const discardLabReport = (id: number) =>
 
 export const deleteLabReport = (id: number) =>
   api<void>(`/health/lab-reports/${id}`, { method: "DELETE" });
+
+export const setLabReportCategory = (id: number, category: ReportCategory | null) =>
+  api<void>(`/health/lab-reports/${id}/category`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category }),
+  });
 
 /**
  * Opens the stored PDF. The blank tab is opened synchronously (within the click

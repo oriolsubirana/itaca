@@ -21,6 +21,7 @@ class ExtractedResult {
 class LabExtraction {
     var date: String? = null
     var laboratory: String? = null
+    var category: String? = null
     var results: List<ExtractedResult> = emptyList()
 }
 
@@ -65,6 +66,9 @@ class LabReportExtractor(
             each result's "date" null.
             Also return the top-level report date (YYYY-MM-DD, the most recent column for
             cumulative reports) and the laboratory name if present.
+            Also classify the report into one "category": "ibd" (digestive / IBD /
+            colitis / calprotectin / GI panels), "fertility" (semen analysis, fertility
+            hormones), "general" (routine blood work, checkups), or "other".
             Be exhaustive: include every row of every results table, including the last
             pages. Extract data only; do not interpret or filter anything.
             """.trimIndent()

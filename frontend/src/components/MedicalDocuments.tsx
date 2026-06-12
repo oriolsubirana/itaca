@@ -8,9 +8,13 @@ import {
   getMedicalDocuments,
   openMedicalDocumentFile,
   reextractMedicalDocument,
+  setMedicalDocumentCategory,
   uploadMedicalDocuments,
   MEDICAL_STATUS_LABELS,
 } from "../api/medical";
+import { CATEGORY_ORDER } from "../api/categories";
+import type { ReportCategory } from "../api/categories";
+import { CategoryFilter, CategoryPicker } from "./CategoryControls";
 
 /** Long histories collapse to the most recent few rows (90% phone usage). */
 const COLLAPSED_COUNT = 5;
@@ -21,6 +25,7 @@ export function MedicalDocuments() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState<ReportCategory | "all">("all");
 
   const documents = useQuery({
     queryKey: ["medical-documents"],
@@ -34,8 +39,10 @@ export function MedicalDocuments() {
   });
 
   const all = documents.data ?? [];
-  const visible = showAll ? all : all.slice(0, COLLAPSED_COUNT);
-  const hidden = all.length - visible.length;
+  const present = CATEGORY_ORDER.filter((c) => all.some((d) => d.category === c));
+  const filtered = filter === "all" ? all : all.filter((d) => d.category === filter);
+  const visible = showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
+  const hidden = filtered.length - visible.length;
 
   return (
     <div>
@@ -58,6 +65,8 @@ export function MedicalDocuments() {
       >
         {upload.isPending ? "Subiendo…" : "+ Subir documento"}
       </button>
+
+      {present.length > 1 && <CategoryFilter value={filter} present={present} onChange={setFilter} />}
 
       <ul>
         {visible.map((d) => (
@@ -87,10 +96,10 @@ export function MedicalDocuments() {
           onClick={() => setShowAll(true)}
           className="min-h-11 w-full text-sm text-ink-soft"
         >
-          Mostrar todos ({all.length})
+          Mostrar todos ({filtered.length})
         </button>
       )}
-      {showAll && all.length > COLLAPSED_COUNT && (
+      {showAll && filtered.length > COLLAPSED_COUNT && (
         <button
           onClick={() => setShowAll(false)}
           className="min-h-11 w-full text-sm text-ink-soft"
@@ -123,6 +132,10 @@ function DocumentReview({ documentId, onDone }: { documentId: number; onDone: ()
   const remove = useMutation({ mutationFn: () => deleteMedicalDocument(documentId), onSuccess: close });
   const reextract = useMutation({ mutationFn: () => reextractMedicalDocument(documentId), onSuccess: refreshDetail });
   const viewFile = useMutation({ mutationFn: () => openMedicalDocumentFile(documentId) });
+  const setCategory = useMutation({
+    mutationFn: (c: ReportCategory | null) => setMedicalDocumentCategory(documentId, c),
+    onSuccess: refreshDetail,
+  });
 
   if (!detail.data) return null;
   const { document, diagnoses, medications } = detail.data;
@@ -138,6 +151,10 @@ function DocumentReview({ documentId, onDone }: { documentId: number; onDone: ()
           {document.center && `${document.center} · `}
           {document.date ?? ""}
         </p>
+      </div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-xs text-ink-soft">Tema:</span>
+        <CategoryPicker value={document.category} onChange={(c) => setCategory.mutate(c)} />
       </div>
       <button
         onClick={() => viewFile.mutate()}

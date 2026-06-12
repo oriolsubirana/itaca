@@ -11,11 +11,15 @@ import {
   reextractLabReport,
   renormalizeAllLabReports,
   renormalizeLabReport,
+  setLabReportCategory,
   updateLabResult,
   uploadLabReports,
   STATUS_LABELS,
 } from "../api/labs";
 import type { LabResult, LabResultUpdate } from "../api/labs";
+import { CATEGORY_ORDER } from "../api/categories";
+import type { ReportCategory } from "../api/categories";
+import { CategoryFilter, CategoryPicker } from "./CategoryControls";
 import { Modal } from "./Modal";
 
 /** Long histories collapse to the most recent few rows (90% phone usage). */
@@ -27,6 +31,7 @@ export function LabReports() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState<ReportCategory | "all">("all");
 
   // Poll while any extraction job is running so reports refresh on their own.
   const reports = useQuery({
@@ -50,8 +55,10 @@ export function LabReports() {
   });
 
   const all = reports.data ?? [];
-  const visible = showAll ? all : all.slice(0, COLLAPSED_COUNT);
-  const hidden = all.length - visible.length;
+  const present = CATEGORY_ORDER.filter((c) => all.some((r) => r.category === c));
+  const filtered = filter === "all" ? all : all.filter((r) => r.category === filter);
+  const visible = showAll ? filtered : filtered.slice(0, COLLAPSED_COUNT);
+  const hidden = filtered.length - visible.length;
 
   return (
     <div>
@@ -90,6 +97,8 @@ export function LabReports() {
         )}
       </div>
 
+      {present.length > 1 && <CategoryFilter value={filter} present={present} onChange={setFilter} />}
+
       <ul>
         {visible.map((r) => (
           <li key={r.id} className="border-b border-line last:border-b-0">
@@ -118,10 +127,10 @@ export function LabReports() {
           onClick={() => setShowAll(true)}
           className="min-h-11 w-full text-sm text-ink-soft"
         >
-          Mostrar todos ({all.length})
+          Mostrar todos ({filtered.length})
         </button>
       )}
-      {showAll && all.length > COLLAPSED_COUNT && (
+      {showAll && filtered.length > COLLAPSED_COUNT && (
         <button
           onClick={() => setShowAll(false)}
           className="min-h-11 w-full text-sm text-ink-soft"
@@ -174,6 +183,10 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
     onSuccess: refreshDetail,
   });
   const viewFile = useMutation({ mutationFn: () => openLabReportFile(reportId) });
+  const setCategory = useMutation({
+    mutationFn: (c: ReportCategory | null) => setLabReportCategory(reportId, c),
+    onSuccess: refreshDetail,
+  });
   const renormalize = useMutation({
     mutationFn: () => renormalizeLabReport(reportId),
     onSuccess: () => {
@@ -198,6 +211,10 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
           {report.laboratory && `${report.laboratory} · `}
           {report.date}
         </p>
+      </div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-xs text-ink-soft">Tema:</span>
+        <CategoryPicker value={report.category} onChange={(c) => setCategory.mutate(c)} />
       </div>
       <button
         onClick={() => viewFile.mutate()}

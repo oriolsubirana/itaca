@@ -39,6 +39,7 @@ class MedicalDocumentPipelineIntegrationTest {
               "type": "Urgencias",
               "provider": "Ruiz Gemar, Ines",
               "center": "Hospital de Sabadell",
+              "category": "ibd",
               "fullText": "Paciente con antecedentes de proctosigmoiditis ulcerosa diagnosticado en 2007.",
               "diagnoses": [
                 {"code": "J0390", "label": "Amigdalitis aguda", "date": "2018-02-21"},
@@ -59,6 +60,7 @@ class MedicalDocumentPipelineIntegrationTest {
         val detail = service.detail(uploaded.id)
         assertEquals("2018-02-21", detail.document.date)
         assertEquals("Urgencias", detail.document.type)
+        assertEquals("ibd", detail.document.category, "Claude's classification is stored")
         assertEquals(false, detail.document.extracting)
         assertEquals(2, detail.diagnoses.size)
         assertEquals("Amigdalitis aguda", detail.diagnoses.first().label)

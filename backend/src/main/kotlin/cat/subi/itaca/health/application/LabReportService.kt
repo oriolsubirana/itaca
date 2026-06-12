@@ -20,6 +20,7 @@ data class LabReportDto(
     val laboratory: String?,
     val filename: String?,
     val status: String,
+    val category: String?,
     val extracting: Boolean,
     val resultCount: Int,
 )
@@ -107,6 +108,7 @@ class LabReportService(
         reports.lockById(reportId) ?: throw NoSuchElementException("Lab report $reportId not found")
         extraction.date?.let { runCatching { report.date = LocalDate.parse(it) } }
         extraction.laboratory?.takeIf { it.isNotBlank() }?.let { report.laboratory = it }
+        normalizeCategory(extraction.category)?.let { report.category = it }
         report.extracting = false
         reports.save(report)
 
@@ -223,6 +225,7 @@ class LabReportService(
             laboratory = laboratory,
             filename = filename,
             status = status,
+            category = category,
             extracting = extracting,
             resultCount = resultCount,
         )
