@@ -26,10 +26,11 @@ export interface LabResult {
   reviewed: boolean;
 }
 
-/** Partial update; omitted fields stay as they are, "" clears date/textValue/unit. */
+/** Partial update; omitted fields stay as they are, "" clears date/textValue/unit, clearValue drops the number. */
 export interface LabResultUpdate {
   date?: string;
   value?: number;
+  clearValue?: boolean;
   textValue?: string;
   unit?: string;
   reviewed?: boolean;

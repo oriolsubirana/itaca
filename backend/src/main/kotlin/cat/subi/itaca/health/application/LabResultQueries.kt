@@ -33,6 +33,10 @@ data class MeasurementRef(
     val normalized: Boolean,
 )
 
+// Raw-name grouping key: lowercased, trimmed, internal whitespace collapsed, so
+// "Blut im Urin" and "Blut  im Urin" are one series. Matches AnalyteMatcher's canon().
+private const val RAW_KEY_EXPR = "lower(regexp_replace(trim(lr.raw_name), '\\s+', ' ', 'g'))"
+
 /**
  * Read side of the lab results: per-analyte series from CONFIRMED reports
  * only. Exposed to the chat as query_lab_results.
@@ -83,12 +87,12 @@ class LabResultQueries(
         val raw =
             jdbc.query(
                 """
-                SELECT lower(trim(lr.raw_name)) AS k,
+                SELECT $RAW_KEY_EXPR AS k,
                        (array_agg(lr.raw_name ORDER BY r.created_at DESC))[1] AS name,
                        (array_agg(lr.unit ORDER BY r.created_at DESC))[1] AS unit
                 FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
                 WHERE lr.analyte_id IS NULL AND lr.value IS NOT NULL AND r.status = 'confirmed'
-                GROUP BY lower(trim(lr.raw_name))
+                GROUP BY $RAW_KEY_EXPR
                 ORDER BY name
                 """.trimIndent(),
             ) { rs, _ ->
@@ -118,7 +122,7 @@ class LabResultQueries(
                 SELECT DISTINCT ON (COALESCE(lr.result_date, r.date))
                        COALESCE(lr.result_date, r.date) AS d, lr.value, lr.ref_min, lr.ref_max
                 FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
-                WHERE lower(trim(lr.raw_name)) = ? AND lr.value IS NOT NULL
+                WHERE $RAW_KEY_EXPR = ? AND lr.value IS NOT NULL
                       AND lr.analyte_id IS NULL AND r.status = 'confirmed'
                 ORDER BY COALESCE(lr.result_date, r.date), r.created_at DESC
                 """.trimIndent(),
@@ -140,7 +144,7 @@ class LabResultQueries(
                     SELECT (array_agg(lr.raw_name ORDER BY r.created_at DESC))[1] AS name,
                            (array_agg(lr.unit ORDER BY r.created_at DESC))[1] AS unit
                     FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
-                    WHERE lower(trim(lr.raw_name)) = ? AND lr.analyte_id IS NULL AND r.status = 'confirmed'
+                    WHERE $RAW_KEY_EXPR = ? AND lr.analyte_id IS NULL AND r.status = 'confirmed'
                     """.trimIndent(),
                     { rs, _ -> rs.getString("name") to (rs.getString("unit") ?: "") },
                     rawKey,

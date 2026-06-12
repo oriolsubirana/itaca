@@ -8,8 +8,15 @@ import org.springframework.transaction.annotation.Transactional
 /** Controlled theme vocabulary for reports and documents (display labels live in the UI). */
 val REPORT_CATEGORIES = setOf("ibd", "fertility", "general", "other")
 
-/** Normalizes a free extracted/edited category to the controlled set; unknown -> null. */
+/** Lenient: for Claude's extracted guess, an unknown value just means "no category". */
 fun normalizeCategory(raw: String?): String? = raw?.trim()?.lowercase()?.takeIf { it in REPORT_CATEGORIES }
+
+/** Strict: blank clears the category, but an unknown non-blank value is rejected (user input). */
+fun validateCategory(raw: String?): String? {
+    val trimmed = raw?.trim()?.lowercase()
+    if (trimmed.isNullOrEmpty()) return null
+    return trimmed.takeIf { it in REPORT_CATEGORIES } ?: throw IllegalArgumentException("Unknown category: $raw")
+}
 
 /**
  * Sets the theme category on a report or document. Kept apart from the large
@@ -26,7 +33,7 @@ class CategoryService(
         category: String?,
     ) {
         val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }
-        report.category = normalizeCategory(category)
+        report.category = validateCategory(category)
         reports.save(report)
     }
 
@@ -39,7 +46,7 @@ class CategoryService(
             documents.findById(documentId).orElseThrow {
                 NoSuchElementException("Medical document $documentId not found")
             }
-        document.category = normalizeCategory(category)
+        document.category = validateCategory(category)
         documents.save(document)
     }
 }

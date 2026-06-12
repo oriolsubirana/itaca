@@ -66,7 +66,16 @@ export function MedicalDocuments() {
         {upload.isPending ? "Subiendo…" : "+ Subir documento"}
       </button>
 
-      {present.length > 1 && <CategoryFilter value={filter} present={present} onChange={setFilter} />}
+      {present.length > 1 && (
+        <CategoryFilter
+          value={filter}
+          present={present}
+          onChange={(c) => {
+            setFilter(c);
+            setShowAll(false);
+          }}
+        />
+      )}
 
       <ul>
         {visible.map((d) => (

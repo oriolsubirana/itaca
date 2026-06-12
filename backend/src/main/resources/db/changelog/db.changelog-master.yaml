@@ -32,6 +32,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/035-health-more-analytes-seed.sql
   - include:
+      file: db/changelog/036-health-remove-holotc-synonym.sql
+  - include:
       file: db/changelog/030-finance-schema.sql
   - include:
       file: db/changelog/031-finance-seed.sql

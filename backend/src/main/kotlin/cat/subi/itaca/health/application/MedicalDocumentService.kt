@@ -10,6 +10,7 @@ import cat.subi.itaca.health.adapter.out.persistence.MedicalMedicationRepository
 import cat.subi.itaca.health.adapter.out.storage.DocumentStorage
 import cat.subi.itaca.health.adapter.out.storage.StoredFile
 import org.slf4j.LoggerFactory
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -62,6 +63,7 @@ class MedicalDocumentService(
     private val medications: MedicalMedicationRepository,
     private val storage: DocumentStorage,
     private val extractor: MedicalDocumentExtractor,
+    private val jdbc: JdbcTemplate,
 ) {
     private val log = LoggerFactory.getLogger(MedicalDocumentService::class.java)
 
@@ -130,13 +132,17 @@ class MedicalDocumentService(
         )
     }
 
-    fun recentDocuments(): List<MedicalDocumentDto> =
-        documents.findForList().map {
-            it.toDto(
-                diagnoses.findByDocumentIdOrderById(it.id!!).size,
-                medications.findByDocumentIdOrderById(it.id!!).size,
-            )
-        }
+    fun recentDocuments(): List<MedicalDocumentDto> {
+        val dxCounts = countsBy("medical_diagnoses")
+        val medCounts = countsBy("medical_medications")
+        return documents.findForList().map { it.toDto(dxCounts[it.id] ?: 0, medCounts[it.id] ?: 0) }
+    }
+
+    private fun countsBy(table: String): Map<Long, Int> =
+        jdbc
+            .query("SELECT document_id, count(*) AS c FROM $table GROUP BY document_id") { rs, _ ->
+                rs.getLong("document_id") to rs.getInt("c")
+            }.toMap()
 
     fun detail(documentId: Long): MedicalDocumentDetail {
         val document = documents.findById(documentId).orElseThrow { notFound(documentId) }

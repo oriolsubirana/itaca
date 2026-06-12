@@ -45,7 +45,10 @@ export function AnalyteChart() {
     queryFn: getMeasurements,
   });
   const [selected, setSelected] = useState<string | null>(null);
-  const key = selected ?? measurements.data?.[0]?.key ?? null;
+  // Fall back to the first measurement when nothing is selected or the selection
+  // no longer exists (e.g. its only report was deleted).
+  const selectionValid = selected != null && (measurements.data?.some((m) => m.key === selected) ?? false);
+  const key = (selectionValid ? selected : measurements.data?.[0]?.key) ?? null;
 
   const series = useQuery({
     queryKey: ["analyte-series", key],
@@ -56,7 +59,7 @@ export function AnalyteChart() {
   if (!measurements.data?.length) return null;
 
   const data = series.data;
-  const reference = data?.points.findLast((p) => p.refMin != null || p.refMax != null);
+  const reference = data?.points.findLast((p) => p.refMax != null);
   const selectedName = measurements.data.find((m) => m.key === key)?.name ?? "—";
 
   return (

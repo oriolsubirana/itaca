@@ -50,10 +50,11 @@ data class RenormalizeResult(
     val total: Int,
 )
 
-/** Partial update; null means "leave as is", empty string clears textValue/unit. */
+/** Partial update; null means "leave as is", empty string clears textValue/unit, clearValue drops the number. */
 data class LabResultUpdate(
     val date: String? = null,
     val value: Double? = null,
+    val clearValue: Boolean = false,
     val textValue: String? = null,
     val unit: String? = null,
     val analyteCode: String? = null,
@@ -142,10 +143,14 @@ class LabReportService(
         log.info("Extracted {} results from lab report {}", extraction.results.size, reportId)
     }
 
-    fun recentReports(): List<LabReportDto> =
-        reports.findForList().map { report ->
-            report.toDto(results.findByLabReportIdOrderById(report.id!!).size)
-        }
+    fun recentReports(): List<LabReportDto> {
+        val counts =
+            jdbc
+                .query("SELECT lab_report_id, count(*) AS c FROM lab_results GROUP BY lab_report_id") { rs, _ ->
+                    rs.getLong("lab_report_id") to rs.getInt("c")
+                }.toMap()
+        return reports.findForList().map { it.toDto(counts[it.id] ?: 0) }
+    }
 
     fun detail(reportId: Long): LabReportDetail {
         val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }
@@ -171,12 +176,22 @@ class LabReportService(
     ): LabResultDto {
         val row = results.findById(resultId).orElseThrow { NoSuchElementException("Lab result $resultId not found") }
         // Validate before mutating the managed entity (anything assigned would be flushed).
-        val newValue = update.value?.let(BigDecimal::valueOf) ?: row.value
+        val newUnit = if (update.unit != null) update.unit.ifBlank { null } else row.unit
+        val newValue =
+            when {
+                update.clearValue -> null
+                update.value != null -> BigDecimal.valueOf(update.value)
+                else -> row.value
+            }
         val newTextValue = if (update.textValue != null) update.textValue.ifBlank { null } else row.textValue
         require(newValue != null || newTextValue != null) { "A result needs a numeric value or a text value" }
         val newAnalyteId =
             update.analyteCode?.let { code ->
-                matcher.byCode(code)?.id ?: throw IllegalArgumentException("Unknown analyte code: $code")
+                val ref = matcher.byCode(code) ?: throw IllegalArgumentException("Unknown analyte code: $code")
+                require(unitsCompatible(newUnit, ref.canonicalUnit)) {
+                    "Unit '${newUnit ?: "?"}' is incompatible with analyte $code"
+                }
+                ref.id
             } ?: row.analyteId
         val newDate =
             if (update.date != null) {
@@ -189,9 +204,9 @@ class LabReportService(
             }
         row.value = newValue
         row.textValue = newTextValue
+        row.unit = newUnit
         row.analyteId = newAnalyteId
         row.resultDate = newDate
-        update.unit?.let { row.unit = it.ifBlank { null } }
         update.reviewed?.let { row.reviewed = it }
         return results.save(row).toDto()
     }

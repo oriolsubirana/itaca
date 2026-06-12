@@ -71,7 +71,8 @@ private val ACCENTS =
     )
 
 // Leading specimen code (S-Glucose, B-Leukocytes) and Catalan "San-/sang" = "en sang".
-private val SAMPLE_PREFIX = Regex("^((san|sang|sangre|lcr)[-\\s]+|[sbpu]-+)")
+// A single-letter code only strips when a letter follows, so "S-100" (protein) is left intact.
+private val SAMPLE_PREFIX = Regex("^((san|sang|sangre|lcr)[-\\s]+|[sbpu]-(?=[a-z]))")
 
 // Decoration that marks specimen or method, not a different analyte — safe to drop before matching.
 // NOT stripped: "volum(en)" and "%" — those ARE different measurements (corpuscular volume, relative count).
@@ -107,9 +108,13 @@ private fun canon(s: String): String = s.replace(Regex("[^a-z0-9 ]"), " ").repla
 class AnalyteMatcher(
     private val jdbc: JdbcTemplate,
 ) {
+    // The dictionary is seeded by Liquibase at startup and static at runtime, so the
+    // canonical-key index is built once and reused — match() is called per result row
+    // (a full table scan + map build per call would make renormalizeAll O(rows × analytes)).
+    private val index: Map<String, AnalyteRef> by lazy { keyIndex() }
+
     fun match(rawName: String): AnalyteRef? {
         if (rawName.isBlank()) return null
-        val index = keyIndex()
         return candidates(rawName).firstNotNullOfOrNull { index[it] }
     }
 

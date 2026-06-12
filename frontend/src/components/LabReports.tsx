@@ -44,13 +44,16 @@ export function LabReports() {
     mutationFn: uploadLabReports,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["lab-reports"] }),
   });
+  const [renormCount, setRenormCount] = useState<number | null>(null);
   const renormalizeAll = useMutation({
     mutationFn: renormalizeAllLabReports,
-    onSuccess: () => {
+    onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
       void queryClient.invalidateQueries({ queryKey: ["lab-report"] });
       void queryClient.invalidateQueries({ queryKey: ["analytes"] });
       void queryClient.invalidateQueries({ queryKey: ["analyte-series"] });
+      setRenormCount(data.changed);
+      setTimeout(() => setRenormCount(null), 4000);
     },
   });
 
@@ -90,14 +93,23 @@ export function LabReports() {
           >
             {renormalizeAll.isPending
               ? "Re-normalizando…"
-              : renormalizeAll.data
-                ? `Re-normalizado (${renormalizeAll.data.changed})`
+              : renormCount != null
+                ? `Re-normalizado (${renormCount})`
                 : "↻ Re-normalizar histórico"}
           </button>
         )}
       </div>
 
-      {present.length > 1 && <CategoryFilter value={filter} present={present} onChange={setFilter} />}
+      {present.length > 1 && (
+        <CategoryFilter
+          value={filter}
+          present={present}
+          onChange={(c) => {
+            setFilter(c);
+            setShowAll(false);
+          }}
+        />
+      )}
 
       <ul>
         {visible.map((r) => (
@@ -393,6 +405,7 @@ function EditResultModal({
     mutationFn: () => {
       const update: LabResultUpdate = { date, textValue, unit, reviewed: true };
       if (value.trim() !== "") update.value = Number(value);
+      else if (result.value != null) update.clearValue = true; // numeric -> text-only
       return updateLabResult(result.id, update);
     },
     onSuccess: onSaved,

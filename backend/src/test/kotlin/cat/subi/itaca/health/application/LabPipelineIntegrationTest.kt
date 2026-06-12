@@ -121,6 +121,17 @@ class LabPipelineIntegrationTest {
             "clearing textValue is fine while a numeric value remains",
         )
 
+        // A numeric row can be turned text-only with clearValue, dropping the bogus number.
+        val textOnly = service.updateResult(result.id, LabResultUpdate(clearValue = true, textValue = "pos"))
+        assertNull(textOnly.value, "clearValue drops the numeric value")
+        assertEquals("pos", textOnly.textValue)
+        assertTrue(
+            runCatching {
+                service.updateResult(result.id, LabResultUpdate(value = 7.0, unit = "%", analyteCode = "leukocytes"))
+            }.exceptionOrNull() is IllegalArgumentException,
+            "assigning an analyte with an incompatible unit is rejected",
+        )
+
         val requeued = service.prepareReextraction(uploaded.id)
         assertEquals("pending_review", requeued.status)
         assertTrue(requeued.extracting, "re-extraction flags the report as processing again")
