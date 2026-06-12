@@ -36,20 +36,23 @@ export function AnalyteChart() {
 
   return (
     <div>
-      <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1">
-        {analytes.data.map((a) => (
-          <button
-            key={a.code}
-            onClick={() => setSelected(a.code)}
-            className={`min-h-11 shrink-0 rounded-full border px-4 text-sm ${
-              a.code === code
-                ? "border-ink bg-ink text-paper"
-                : "border-line text-ink-soft"
-            }`}
+      <div className="mb-4">
+        <label className="relative block">
+          <select
+            value={code ?? ""}
+            onChange={(e) => setSelected(e.target.value)}
+            className="min-h-11 w-full appearance-none rounded-lg border border-line bg-paper py-2 pl-3 pr-10 text-sm text-ink"
           >
-            {a.name}
-          </button>
-        ))}
+            {analytes.data.map((a) => (
+              <option key={a.code} value={a.code}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-soft">
+            ⌄
+          </span>
+        </label>
       </div>
 
       {data && data.points.length > 0 && (
