@@ -9,6 +9,8 @@ import {
   getLabReports,
   openLabReportFile,
   reextractLabReport,
+  renormalizeAllLabReports,
+  renormalizeLabReport,
   updateLabResult,
   uploadLabReports,
   STATUS_LABELS,
@@ -37,6 +39,15 @@ export function LabReports() {
     mutationFn: uploadLabReports,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["lab-reports"] }),
   });
+  const renormalizeAll = useMutation({
+    mutationFn: renormalizeAllLabReports,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["lab-report"] });
+      void queryClient.invalidateQueries({ queryKey: ["analytes"] });
+      void queryClient.invalidateQueries({ queryKey: ["analyte-series"] });
+    },
+  });
 
   const all = reports.data ?? [];
   const visible = showAll ? all : all.slice(0, COLLAPSED_COUNT);
@@ -56,13 +67,28 @@ export function LabReports() {
           e.target.value = "";
         }}
       />
-      <button
-        onClick={() => fileInput.current?.click()}
-        disabled={upload.isPending}
-        className="mb-4 min-h-11 rounded-full border border-line px-5 text-sm text-ink disabled:opacity-40"
-      >
-        {upload.isPending ? "Subiendo…" : "+ Subir analítica"}
-      </button>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => fileInput.current?.click()}
+          disabled={upload.isPending}
+          className="min-h-11 rounded-full border border-line px-5 text-sm text-ink disabled:opacity-40"
+        >
+          {upload.isPending ? "Subiendo…" : "+ Subir analítica"}
+        </button>
+        {all.length > 0 && (
+          <button
+            onClick={() => renormalizeAll.mutate()}
+            disabled={renormalizeAll.isPending}
+            className="min-h-11 text-sm text-ink-soft underline underline-offset-2 disabled:opacity-40"
+          >
+            {renormalizeAll.isPending
+              ? "Re-normalizando…"
+              : renormalizeAll.data
+                ? `Re-normalizado (${renormalizeAll.data.changed})`
+                : "↻ Re-normalizar histórico"}
+          </button>
+        )}
+      </div>
 
       <ul>
         {visible.map((r) => (
@@ -148,6 +174,14 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
     onSuccess: refreshDetail,
   });
   const viewFile = useMutation({ mutationFn: () => openLabReportFile(reportId) });
+  const renormalize = useMutation({
+    mutationFn: () => renormalizeLabReport(reportId),
+    onSuccess: () => {
+      refreshDetail();
+      void queryClient.invalidateQueries({ queryKey: ["analytes"] });
+      void queryClient.invalidateQueries({ queryKey: ["analyte-series"] });
+    },
+  });
 
   if (!detail.data) return null;
   const { report, results } = detail.data;
@@ -261,15 +295,24 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
               {editable && `${reviewedCount}/${results.length} revisados · `}
               {results.filter((r) => r.analyteName).length} normalizados
             </p>
-            {editable && (
+            <div className="flex shrink-0 items-center gap-3">
               <button
-                onClick={() => reextract.mutate()}
-                disabled={reextract.isPending}
-                className="shrink-0 text-xs text-ink-soft underline underline-offset-2 disabled:opacity-40"
+                onClick={() => renormalize.mutate()}
+                disabled={renormalize.isPending}
+                className="text-xs text-ink-soft underline underline-offset-2 disabled:opacity-40"
               >
-                {reextract.isPending ? "reprocesando…" : "↻ reprocesar"}
+                {renormalize.isPending ? "normalizando…" : "↻ re-normalizar"}
               </button>
-            )}
+              {editable && (
+                <button
+                  onClick={() => reextract.mutate()}
+                  disabled={reextract.isPending}
+                  className="text-xs text-ink-soft underline underline-offset-2 disabled:opacity-40"
+                >
+                  {reextract.isPending ? "reprocesando…" : "↻ reprocesar"}
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}

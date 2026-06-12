@@ -100,6 +100,12 @@ export async function openLabReportFile(id: number): Promise<void> {
 export const reextractLabReport = (id: number) =>
   api<LabReport>(`/health/lab-reports/${id}/extract`, { method: "POST" });
 
+export const renormalizeLabReport = (id: number) =>
+  api<{ changed: number; total: number }>(`/health/lab-reports/${id}/renormalize`, { method: "POST" });
+
+export const renormalizeAllLabReports = () =>
+  api<{ changed: number; total: number }>("/health/lab-reports/renormalize", { method: "POST" });
+
 export const updateLabResult = (id: number, update: LabResultUpdate) =>
   api<LabResult>(`/health/lab-results/${id}`, {
     method: "PATCH",

@@ -31,6 +31,9 @@ class LabPipelineIntegrationTest {
     @Autowired
     lateinit var queries: LabResultQueries
 
+    @Autowired
+    lateinit var normalization: LabNormalizationService
+
     @Test
     fun `extracts, normalizes against the dictionary, and feeds the series only after confirmation`() {
         val extractionJson =
@@ -154,6 +157,45 @@ class LabPipelineIntegrationTest {
         assertEquals(6.3, series.points.single().value)
 
         ids.forEach { service.deleteReport(it) }
+    }
+
+    @Test
+    fun `renormalize relinks stored results against the current dictionary without re-extracting`() {
+        // "Hematòcrit" is Catalan; assume a report confirmed when only the canonical name was known.
+        stubExtraction(
+            """{"date": "2024-01-08", "laboratory": "Parc Taulí", "results": [
+                {"analyte": "Hematòcrit", "value": 0.38, "unit": "L/L", "refMin": 0.41, "refMax": 0.53}
+            ]}""",
+        )
+        val report = service.upload("parc-tauli.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(report.id)
+        service.review(report.id, confirm = true)
+        // The Catalan synonym is in the seeded dictionary, so it already matches here; assert the
+        // renormalize path is idempotent and keeps the link (the real-world gain is for older rows).
+        assertEquals(
+            "hematocrit",
+            service
+                .detail(report.id)
+                .results
+                .single()
+                .analyteCode,
+        )
+
+        normalization.renormalize(report.id)
+        assertEquals(
+            "hematocrit",
+            service
+                .detail(report.id)
+                .results
+                .single()
+                .analyteCode,
+        )
+        assertEquals(1, queries.seriesByCode("hematocrit")!!.points.size)
+
+        val result = normalization.renormalizeAll()
+        assertTrue(result.total >= 1)
+
+        service.deleteReport(report.id)
     }
 
     @Test

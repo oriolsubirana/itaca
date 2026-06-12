@@ -44,6 +44,11 @@ data class LabReportDetail(
     val results: List<LabResultDto>,
 )
 
+data class RenormalizeResult(
+    val changed: Int,
+    val total: Int,
+)
+
 /** Partial update; null means "leave as is", empty string clears textValue/unit. */
 data class LabResultUpdate(
     val date: String? = null,
