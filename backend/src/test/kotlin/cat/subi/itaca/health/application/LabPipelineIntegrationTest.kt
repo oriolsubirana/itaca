@@ -138,6 +138,30 @@ class LabPipelineIntegrationTest {
     }
 
     @Test
+    fun `un-normalized numeric results are still chartable by their raw name`() {
+        stubExtraction(
+            """{"date": "2024-05-01", "laboratory": "Lab", "results": [
+                {"analyte": "Espermatozoides", "value": 45.0, "unit": "mill/mL", "refMin": 15, "refMax": null}
+            ]}""",
+        )
+        val report = service.upload("espermiograma.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(report.id)
+        service.review(report.id, confirm = true)
+
+        val unmatched = service.detail(report.id).results.single()
+        assertNull(unmatched.analyteCode, "not in the dictionary")
+
+        val measurements = queries.chartableMeasurements()
+        val raw = measurements.single { it.name == "Espermatozoides" }
+        assertEquals(false, raw.normalized)
+        val series = queries.seriesByKey(raw.key)!!
+        assertEquals(1, series.points.size)
+        assertEquals(45.0, series.points.single().value)
+
+        service.deleteReport(report.id)
+    }
+
+    @Test
     fun `collapses duplicate reports of the same date into one series point`() {
         val json =
             """{"date": "2024-02-01", "laboratory": "labor team", "results": [

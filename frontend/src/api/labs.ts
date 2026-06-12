@@ -131,6 +131,19 @@ export const getAnalytesWithData = () => api<AnalyteRef[]>("/health/analytes");
 export const getAnalyteSeries = (code: string) =>
   api<AnalyteSeries>(`/health/analytes/${code}/series`);
 
+export interface MeasurementRef {
+  key: string;
+  name: string;
+  unit: string;
+  category: string;
+  normalized: boolean;
+}
+
+export const getMeasurements = () => api<MeasurementRef[]>("/health/measurements");
+
+export const getMeasurementSeries = (key: string) =>
+  api<AnalyteSeries>(`/health/measurements/series?key=${encodeURIComponent(key)}`);
+
 export const STATUS_LABELS: Record<LabReport["status"], string> = {
   pending_review: "pendiente de revisión",
   confirmed: "confirmado",

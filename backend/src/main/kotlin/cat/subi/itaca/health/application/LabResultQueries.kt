@@ -21,6 +21,19 @@ data class AnalyteSeries(
 )
 
 /**
+ * A chartable measurement: either a dictionary analyte ("code:...") or an
+ * un-normalized result grouped by its raw name ("raw:..."), so any loaded
+ * numeric value can be plotted.
+ */
+data class MeasurementRef(
+    val key: String,
+    val name: String,
+    val unit: String,
+    val category: String,
+    val normalized: Boolean,
+)
+
+/**
  * Read side of the lab results: per-analyte series from CONFIRMED reports
  * only. Exposed to the chat as query_lab_results.
  */
@@ -60,6 +73,80 @@ class LabResultQueries(
                 rs.getString("category"),
             )
         }
+
+    /** Everything chartable: dictionary analytes plus un-normalized results by raw name. */
+    fun chartableMeasurements(): List<MeasurementRef> {
+        val dictionary =
+            analytesWithData().map {
+                MeasurementRef("code:${it.code}", it.name, it.canonicalUnit, it.category ?: "Otros", true)
+            }
+        val raw =
+            jdbc.query(
+                """
+                SELECT lower(trim(lr.raw_name)) AS k,
+                       (array_agg(lr.raw_name ORDER BY r.created_at DESC))[1] AS name,
+                       (array_agg(lr.unit ORDER BY r.created_at DESC))[1] AS unit
+                FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
+                WHERE lr.analyte_id IS NULL AND lr.value IS NOT NULL AND r.status = 'confirmed'
+                GROUP BY lower(trim(lr.raw_name))
+                ORDER BY name
+                """.trimIndent(),
+            ) { rs, _ ->
+                MeasurementRef(
+                    key = "raw:${rs.getString("k")}",
+                    name = rs.getString("name"),
+                    unit = rs.getString("unit") ?: "",
+                    category = "Sin normalizar",
+                    normalized = false,
+                )
+            }
+        return dictionary + raw
+    }
+
+    /** Series for a measurement key ("code:..." dictionary analyte or "raw:..." raw name). */
+    fun seriesByKey(key: String): AnalyteSeries? =
+        when {
+            key.startsWith("code:") -> seriesByCode(key.removePrefix("code:"))
+            key.startsWith("raw:") -> rawSeries(key.removePrefix("raw:"))
+            else -> null
+        }
+
+    private fun rawSeries(rawKey: String): AnalyteSeries? {
+        val points =
+            jdbc.query(
+                """
+                SELECT DISTINCT ON (COALESCE(lr.result_date, r.date))
+                       COALESCE(lr.result_date, r.date) AS d, lr.value, lr.ref_min, lr.ref_max
+                FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
+                WHERE lower(trim(lr.raw_name)) = ? AND lr.value IS NOT NULL
+                      AND lr.analyte_id IS NULL AND r.status = 'confirmed'
+                ORDER BY COALESCE(lr.result_date, r.date), r.created_at DESC
+                """.trimIndent(),
+                { rs, _ ->
+                    AnalyteSeriesPoint(
+                        date = rs.getDate("d").toLocalDate().toString(),
+                        value = rs.getDouble("value"),
+                        refMin = rs.getBigDecimal("ref_min")?.toDouble(),
+                        refMax = rs.getBigDecimal("ref_max")?.toDouble(),
+                    )
+                },
+                rawKey,
+            )
+        if (points.isEmpty()) return null
+        val meta =
+            jdbc
+                .query(
+                    """
+                    SELECT (array_agg(lr.raw_name ORDER BY r.created_at DESC))[1] AS name,
+                           (array_agg(lr.unit ORDER BY r.created_at DESC))[1] AS unit
+                    FROM lab_results lr JOIN lab_reports r ON r.id = lr.lab_report_id
+                    WHERE lower(trim(lr.raw_name)) = ? AND lr.analyte_id IS NULL AND r.status = 'confirmed'
+                    """.trimIndent(),
+                    { rs, _ -> rs.getString("name") to (rs.getString("unit") ?: "") },
+                    rawKey,
+                ).firstOrNull() ?: return null
+        return AnalyteSeries(code = "raw:$rawKey", name = meta.first, unit = meta.second, points = points)
+    }
 
     private fun series(analyte: AnalyteRef): AnalyteSeries =
         AnalyteSeries(

@@ -15,17 +15,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getAnalyteSeries, getAnalytesWithData } from "../api/labs";
-import type { AnalyteRef } from "../api/labs";
+import { getMeasurements, getMeasurementSeries } from "../api/labs";
+import type { MeasurementRef } from "../api/labs";
 
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-/** Groups analytes into their panels, preserving the backend's category-then-name order. */
-function groupByCategory(analytes: AnalyteRef[]): [string, AnalyteRef[]][] {
-  const groups = new Map<string, AnalyteRef[]>();
-  for (const a of analytes) {
-    const key = a.category ?? "Otros";
-    (groups.get(key) ?? groups.set(key, []).get(key)!).push(a);
+/** Groups measurements into their panels, preserving the backend's category-then-name order. */
+function groupByCategory(measurements: MeasurementRef[]): [string, MeasurementRef[]][] {
+  const groups = new Map<string, MeasurementRef[]>();
+  for (const m of measurements) {
+    (groups.get(m.category) ?? groups.set(m.category, []).get(m.category)!).push(m);
   }
   return [...groups.entries()];
 }
@@ -41,28 +40,28 @@ function formatTick(date: string): string {
  * reports feed this chart.
  */
 export function AnalyteChart() {
-  const analytes = useQuery({
+  const measurements = useQuery({
     queryKey: ["analytes"],
-    queryFn: getAnalytesWithData,
+    queryFn: getMeasurements,
   });
   const [selected, setSelected] = useState<string | null>(null);
-  const code = selected ?? analytes.data?.[0]?.code ?? null;
+  const key = selected ?? measurements.data?.[0]?.key ?? null;
 
   const series = useQuery({
-    queryKey: ["analyte-series", code],
-    queryFn: () => getAnalyteSeries(code!),
-    enabled: code !== null,
+    queryKey: ["analyte-series", key],
+    queryFn: () => getMeasurementSeries(key!),
+    enabled: key !== null,
   });
 
-  if (!analytes.data?.length) return null;
+  if (!measurements.data?.length) return null;
 
   const data = series.data;
   const reference = data?.points.findLast((p) => p.refMin != null || p.refMax != null);
-  const selectedName = analytes.data.find((a) => a.code === code)?.name ?? "—";
+  const selectedName = measurements.data.find((m) => m.key === key)?.name ?? "—";
 
   return (
     <div className="mb-8">
-      <Listbox value={code ?? ""} onChange={setSelected}>
+      <Listbox value={key ?? ""} onChange={setSelected}>
         <ListboxButton className="group flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-line bg-paper px-3 text-left text-sm text-ink outline-none transition-colors data-[focus]:border-ink-soft data-[open]:border-ink-soft">
           <span className="truncate">{selectedName}</span>
           <svg
@@ -83,18 +82,18 @@ export function AnalyteChart() {
           transition
           className="z-50 max-h-72 w-[var(--button-width)] overflow-auto rounded-lg border border-line bg-paper p-1 shadow-lg [--anchor-gap:4px] outline-none data-[closed]:opacity-0 data-[closed]:transition data-[enter]:duration-100 data-[enter]:ease-out data-[leave]:duration-75 data-[leave]:ease-in"
         >
-          {groupByCategory(analytes.data).map(([category, items]) => (
+          {groupByCategory(measurements.data).map(([category, items]) => (
             <div key={category}>
               <p className="px-3 pt-3 pb-1 text-[11px] uppercase tracking-wide text-ink-soft first:pt-1">
                 {category}
               </p>
-              {items.map((a) => (
+              {items.map((m) => (
                 <ListboxOption
-                  key={a.code}
-                  value={a.code}
+                  key={m.key}
+                  value={m.key}
                   className="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm text-ink-soft transition-colors data-[focus]:bg-line data-[selected]:text-ink"
                 >
-                  <span className="truncate">{a.name}</span>
+                  <span className="truncate">{m.name}</span>
                   <span className="text-ink opacity-0 transition-opacity group-data-[selected]:opacity-100">
                     ✓
                   </span>
