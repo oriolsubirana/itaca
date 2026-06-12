@@ -7,6 +7,7 @@ import {
   discardLabReport,
   getLabReportDetail,
   getLabReports,
+  openLabReportFile,
   reextractLabReport,
   updateLabResult,
   uploadLabReports,
@@ -122,6 +123,7 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
     mutationFn: (r: LabResult) => updateLabResult(r.id, { reviewed: !r.reviewed }),
     onSuccess: refreshDetail,
   });
+  const viewFile = useMutation({ mutationFn: () => openLabReportFile(reportId) });
 
   if (!detail.data) return null;
   const { report, results } = detail.data;
@@ -139,6 +141,13 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
           {report.date}
         </span>
       </div>
+      <button
+        onClick={() => viewFile.mutate()}
+        disabled={viewFile.isPending}
+        className="mb-3 min-h-11 w-full rounded-lg border border-line text-sm text-ink-soft disabled:opacity-40"
+      >
+        {viewFile.isPending ? "Abriendo…" : "Ver documento (PDF)"}
+      </button>
       {report.extracting && (
         <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
           <span className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />

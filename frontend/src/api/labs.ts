@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, apiBlob } from "./client";
 
 export interface LabReport {
   id: number;
@@ -78,6 +78,24 @@ export const discardLabReport = (id: number) =>
 
 export const deleteLabReport = (id: number) =>
   api<void>(`/health/lab-reports/${id}`, { method: "DELETE" });
+
+/**
+ * Opens the stored PDF. The blank tab is opened synchronously (within the click
+ * gesture) so iOS Safari doesn't block it, then pointed at the fetched blob.
+ */
+export async function openLabReportFile(id: number): Promise<void> {
+  const tab = window.open("", "_blank");
+  try {
+    const blob = await apiBlob(`/health/lab-reports/${id}/file`);
+    const url = URL.createObjectURL(blob);
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    tab?.close();
+    throw e;
+  }
+}
 
 export const reextractLabReport = (id: number) =>
   api<LabReport>(`/health/lab-reports/${id}/extract`, { method: "POST" });

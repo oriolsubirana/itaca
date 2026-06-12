@@ -8,7 +8,11 @@ import cat.subi.itaca.health.application.LabReportDetail
 import cat.subi.itaca.health.application.LabReportDto
 import cat.subi.itaca.health.application.LabReportService
 import org.jobrunr.scheduling.JobRequestScheduler
+import org.springframework.http.ContentDisposition
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
@@ -48,6 +52,20 @@ class LabController(
     fun detail(
         @PathVariable id: Long,
     ): LabReportDetail = labReports.detail(id)
+
+    /** Serves the original PDF inline so the UI can display the source document. */
+    @GetMapping("/lab-reports/{id}/file")
+    fun file(
+        @PathVariable id: Long,
+    ): ResponseEntity<ByteArray> {
+        val file = labReports.loadFile(id)
+        val disposition = ContentDisposition.inline().filename(file.filename).build()
+        return ResponseEntity
+            .ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+            .body(file.content)
+    }
 
     @PostMapping("/lab-reports/{id}/confirm")
     fun confirm(

@@ -43,6 +43,12 @@ data class LabReportDetail(
     val results: List<LabResultDto>,
 )
 
+/** The stored PDF bytes plus the original filename (plain class: ByteArray needs no equals). */
+class LabReportFile(
+    val filename: String,
+    val content: ByteArray,
+)
+
 /** Partial update; null means "leave as is", empty string clears textValue/unit. */
 data class LabResultUpdate(
     val date: String? = null,
@@ -80,6 +86,13 @@ class LabReportService(
                 LabReportEntity(date = LocalDate.now(), filename = filename, storagePath = path, extracting = true),
             )
         return report.toDto(0)
+    }
+
+    /** Loads the stored PDF (with its original filename) so the UI can display it. */
+    fun loadFile(reportId: Long): LabReportFile {
+        val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }
+        val path = checkNotNull(report.storagePath) { "Report $reportId has no stored file" }
+        return LabReportFile(report.filename ?: "informe.pdf", storage.load(path))
     }
 
     /** Executed by the JobRunr handler, with retries on failure. */
