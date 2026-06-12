@@ -160,6 +160,29 @@ class LabPipelineIntegrationTest {
     }
 
     @Test
+    fun `decorated name variants normalize to the same analyte but distinct measurements stay apart`() {
+        stubExtraction(
+            """{"date": "2024-07-01", "laboratory": "Parc Taulí", "results": [
+                {"analyte": "Aspartat aminotransferasa (AST/GOT) en sèrum", "value": 28.0, "unit": "U/L", "refMin": 0, "refMax": 40},
+                {"analyte": "Hematòcrit en sang", "value": 0.42, "unit": "L/L", "refMin": 0.41, "refMax": 0.53},
+                {"analyte": "Neutròfils en sang (automatitzat), volum", "value": 150.0, "unit": "fL", "refMin": null, "refMax": null}
+            ]}""",
+        )
+        val report = service.upload("hemograma-decorado.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(report.id)
+        val results = service.detail(report.id).results
+
+        assertEquals("ast", results.single { it.rawName.startsWith("Aspartat") }.analyteCode, "paren code matches")
+        val hct = results.single { it.rawName.startsWith("Hematòcrit") }
+        assertEquals("hematocrit", hct.analyteCode, "sample suffix dropped")
+        assertNull(
+            results.single { it.rawName.contains("volum") }.analyteCode,
+            "a volume measurement is not the neutrophil count",
+        )
+        service.deleteReport(report.id)
+    }
+
+    @Test
     fun `un-normalized numeric results are still chartable by their raw name`() {
         stubExtraction(
             """{"date": "2024-05-01", "laboratory": "Lab", "results": [

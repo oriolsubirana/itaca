@@ -13,11 +13,6 @@ data class AnalyteRef(
 
 private val PER_FIELD_UNIT = Regex("gesic|hpf|/gf|/feld", RegexOption.IGNORE_CASE)
 
-// Sample-type prefixes labs prepend to an analyte name (e.g. Parc Taulí's "San-" =
-// "en sang"). They mark the specimen, not a different analyte, so strip them before
-// matching: "San-Leucòcits" -> "Leucòcits".
-private val SAMPLE_PREFIX = Regex("^(san|sang|sangre|s|b|p|u|lcr)[-\\s]+", RegexOption.IGNORE_CASE)
-
 private val SAME_UNIT_RATIO = Regex("^(\\w+)/\\1$", RegexOption.IGNORE_CASE)
 private val CONCENTRATION_UNIT = Regex("10\\^|10\\*|/l|/dl|/ml|/µl|/ul|/nl|/mm|mol/|g/l|u/l", RegexOption.IGNORE_CASE)
 
@@ -47,57 +42,125 @@ fun unitsCompatible(
     return perFieldOk && !percentVsAbsolute
 }
 
+private val ACCENTS =
+    mapOf(
+        'à' to 'a',
+        'á' to 'a',
+        'â' to 'a',
+        'ä' to 'a',
+        'ã' to 'a',
+        'è' to 'e',
+        'é' to 'e',
+        'ê' to 'e',
+        'ë' to 'e',
+        'ì' to 'i',
+        'í' to 'i',
+        'î' to 'i',
+        'ï' to 'i',
+        'ò' to 'o',
+        'ó' to 'o',
+        'ô' to 'o',
+        'ö' to 'o',
+        'õ' to 'o',
+        'ù' to 'u',
+        'ú' to 'u',
+        'û' to 'u',
+        'ü' to 'u',
+        'ç' to 'c',
+        'ñ' to 'n',
+    )
+
+// Leading specimen code (S-Glucose, B-Leukocytes) and Catalan "San-/sang" = "en sang".
+private val SAMPLE_PREFIX = Regex("^((san|sang|sangre|lcr)[-\\s]+|[sbpu]-+)")
+
+// Decoration that marks specimen or method, not a different analyte — safe to drop before matching.
+// NOT stripped: "volum(en)" and "%" — those ARE different measurements (corpuscular volume, relative count).
+private val DECORATION =
+    listOf(
+        Regex("\\(automatitzat\\)"),
+        Regex("\\(automatizado\\)"),
+        Regex("\\(automated\\)"),
+        Regex("\\(v\\.? ?absolut[o]?\\)"),
+        Regex("\\(valor absolut[o]?\\)"),
+        Regex("\\babs\\.?"),
+        Regex(",? ?en sang(re)?\\b"),
+        Regex(",? ?en serum\\b"),
+        Regex(",? ?en seric[oa]\\b"),
+        Regex(",? ?en orina\\b"),
+        Regex(",? ?en plasma\\b"),
+    )
+
+private val PAREN = Regex("\\(([^)]+)\\)")
+
+private fun fold(s: String): String = buildString { for (c in s.lowercase()) append(ACCENTS[c] ?: c) }
+
+/** Reduce to alphanumerics + single spaces, for exact comparison on a canonical form. */
+private fun canon(s: String): String = s.replace(Regex("[^a-z0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
+
 /**
  * Normalizes raw analyte names from lab reports against the seeded dictionary
- * (canonical Spanish name + Spanish/Catalan/English/German/French synonyms),
- * case-insensitively.
+ * (canonical Spanish name + Spanish/Catalan/English/German/French synonyms).
+ * Matching is exact on a canonical form (accent-folded, decoration-stripped),
+ * so it tolerates wording variants without merging genuinely different measurements.
  */
 @Component
 class AnalyteMatcher(
     private val jdbc: JdbcTemplate,
 ) {
     fun match(rawName: String): AnalyteRef? {
-        val needle = rawName.trim()
-        if (needle.isEmpty()) return null
-        // Exact match first; then retry once with the sample-type prefix stripped.
-        return exactMatch(needle) ?: SAMPLE_PREFIX.find(needle)?.let { exactMatch(needle.removeRange(it.range)) }
+        if (rawName.isBlank()) return null
+        val index = keyIndex()
+        return candidates(rawName).firstNotNullOfOrNull { index[it] }
     }
 
-    private fun exactMatch(needle: String): AnalyteRef? {
-        if (needle.isBlank()) return null
-        return jdbc
-            .query(
-                """
-                SELECT id, code, name, canonical_unit FROM analytes
-                WHERE lower(name) = lower(?)
-                   OR lower(code) = lower(?)
-                   OR EXISTS (SELECT 1 FROM unnest(synonyms) syn WHERE lower(syn) = lower(?))
-                LIMIT 1
-                """.trimIndent(),
-                { rs, _ ->
-                    AnalyteRef(
-                        rs.getLong("id"),
-                        rs.getString("code"),
-                        rs.getString("name"),
-                        rs.getString("canonical_unit"),
-                    )
-                },
-                needle,
-                needle,
-                needle,
-            ).firstOrNull()
+    /** Canonical candidate keys for a raw name, in priority order. */
+    private fun candidates(raw: String): List<String> {
+        val folded = fold(raw.trim())
+        val keys = LinkedHashSet<String>()
+        keys += canon(folded)
+        val noPrefix = folded.replace(SAMPLE_PREFIX, "")
+        keys += canon(noPrefix)
+        var stripped = noPrefix
+        DECORATION.forEach { stripped = it.replace(stripped, " ") }
+        keys += canon(stripped)
+        // A parenthetical code is a strong signal: "Aspartat aminotransferasa (AST)" -> AST.
+        PAREN.findAll(folded).forEach { m ->
+            m.groupValues[1].split("/").forEach { keys += canon(it) }
+        }
+        return keys.filter { it.isNotBlank() }
+    }
+
+    /** All dictionary entries indexed by every canonical key (name, code, synonyms). */
+    private fun keyIndex(): Map<String, AnalyteRef> {
+        val index = HashMap<String, AnalyteRef>()
+        jdbc.query("SELECT id, code, name, canonical_unit, category, synonyms FROM analytes") { rs, _ ->
+            val ref =
+                AnalyteRef(
+                    rs.getLong("id"),
+                    rs.getString("code"),
+                    rs.getString("name"),
+                    rs.getString("canonical_unit"),
+                    rs.getString("category"),
+                )
+            val synonyms = (rs.getArray("synonyms")?.array as? Array<*>)?.filterIsInstance<String>().orEmpty()
+            (synonyms + ref.name + ref.code).forEach { key ->
+                index.putIfAbsent(canon(fold(key)), ref)
+            }
+        }
+        return index
     }
 
     fun byCode(code: String): AnalyteRef? =
         jdbc
             .query(
-                "SELECT id, code, name, canonical_unit FROM analytes WHERE code = ?",
+                "SELECT id, code, name, canonical_unit, category FROM analytes WHERE code = ?",
                 { rs, _ ->
                     AnalyteRef(
                         rs.getLong("id"),
                         rs.getString("code"),
                         rs.getString("name"),
                         rs.getString("canonical_unit"),
+                        rs.getString("category"),
                     )
                 },
                 code,
