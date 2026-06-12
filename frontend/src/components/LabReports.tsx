@@ -40,7 +40,7 @@ export function LabReports() {
         disabled={upload.isPending}
         className="mb-4 min-h-11 rounded-full border border-line px-5 text-sm text-ink disabled:opacity-40"
       >
-        {upload.isPending ? "Subiendo…" : "Subir PDF de analítica"}
+        {upload.isPending ? "Subiendo…" : "+ Subir analítica"}
       </button>
 
       <ul>

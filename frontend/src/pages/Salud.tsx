@@ -24,7 +24,7 @@ export function Salud() {
   return (
     <>
       <PageTitle>Salud</PageTitle>
-      <FlareBanner />
+      <ActiveFlareAlert />
       <TodaySection />
       <section className="border-t border-line py-5">
         <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
@@ -34,54 +34,86 @@ export function Salud() {
         <LabReports />
       </section>
       <RecentEntries />
+      <FlareSection />
     </>
   );
 }
 
-function FlareBanner() {
+/** Critical state only: shown at the top exclusively while a flare is active. */
+function ActiveFlareAlert() {
   const queryClient = useQueryClient();
   const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["flares"] });
-    void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
-  };
-  const end = useMutation({ mutationFn: endFlare, onSuccess: invalidate });
-  const [showModal, setShowModal] = useState(false);
+  const end = useMutation({
+    mutationFn: endFlare,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["flares"] }),
+  });
 
   const active = flares.data?.active;
-  if (flares.isPending) return null;
-
-  if (active) {
-    return (
-      <section className="mb-6 flex min-h-12 items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-        <p className="text-sm text-red-900">
-          Brote {SEVERITY_LABELS[active.severity]} desde el {active.startDate}
-        </p>
-        <button
-          onClick={() => end.mutate()}
-          disabled={end.isPending}
-          className="min-h-11 px-2 text-xs uppercase tracking-wide text-red-900"
-        >
-          Finalizar
-        </button>
-      </section>
-    );
-  }
+  if (!active) return null;
 
   return (
-    <section className="mb-6">
+    <section className="mb-6 flex min-h-12 items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+      <p className="text-sm text-red-900">
+        Brote {SEVERITY_LABELS[active.severity]} desde el {active.startDate}
+      </p>
       <button
-        onClick={() => setShowModal(true)}
-        className="min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft"
+        onClick={() => end.mutate()}
+        disabled={end.isPending}
+        className="min-h-11 px-2 text-xs uppercase tracking-wide text-red-900"
       >
-        + Registrar brote
+        Finalizar
       </button>
+    </section>
+  );
+}
+
+/** Rare event: lives at the bottom with its history and the register action. */
+function FlareSection() {
+  const queryClient = useQueryClient();
+  const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
+  const [showModal, setShowModal] = useState(false);
+
+  const recent = flares.data?.recent ?? [];
+  const hasActive = flares.data?.active != null;
+
+  return (
+    <section className="border-t border-line py-5">
+      <h2 className="mb-3 text-xs uppercase tracking-[0.15em] text-ink-soft">
+        Brotes
+      </h2>
+      {recent.length === 0 ? (
+        <p className="mb-3 text-sm text-ink-soft">Ninguno registrado.</p>
+      ) : (
+        <ul className="mb-3">
+          {recent.map((f) => (
+            <li
+              key={f.id}
+              className="flex items-baseline gap-3 border-b border-line py-2 text-sm last:border-b-0"
+            >
+              <span className="text-ink-soft">
+                {f.startDate} → {f.endDate ?? "activo"}
+              </span>
+              <span>{SEVERITY_LABELS[f.severity]}</span>
+              {f.notes && <span className="truncate text-ink-soft">{f.notes}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!hasActive && (
+        <button
+          onClick={() => setShowModal(true)}
+          className="min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft"
+        >
+          + Registrar brote
+        </button>
+      )}
       {showModal && (
         <FlareModal
           onClose={() => setShowModal(false)}
           onSaved={() => {
             setShowModal(false);
-            invalidate();
+            void queryClient.invalidateQueries({ queryKey: ["flares"] });
+            void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
           }}
         />
       )}
