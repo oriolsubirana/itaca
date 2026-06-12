@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":timezone(Europe/Zurich)"],
+  "schedule": ["before 8am on monday"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "groupName": "Spring ecosystem",
+      "matchPackageNames": [
+        "org.springframework{/,}**",
+        "org.springdoc{/,}**",
+        "org.jobrunr{/,}**"
+      ]
+    },
+    {
+      "description": "Kotlin is pinned to 2.2.x until the JVM 25 bytecode target lands (see CLAUDE.md)",
+      "matchPackageNames": ["org.jetbrains.kotlin{/,}**"],
+      "allowedVersions": "<2.3.0"
+    },
+    {
+      "description": "openapi-typescript still requires TS ^5.x as peer",
+      "matchPackageNames": ["typescript"],
+      "matchManagers": ["npm"],
+      "allowedVersions": "<6.0.0"
+    },
+    {
+      "groupName": "frontend minor and patch",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"]
+    }
+  ]
+}

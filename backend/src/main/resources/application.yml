@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: itaca
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/itaca}
+    username: ${SPRING_DATASOURCE_USERNAME:itaca}
+    password: ${SPRING_DATASOURCE_PASSWORD:itaca}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  ai:
+    anthropic:
+      # Placeholder default keeps the context bootable without a key (calls will fail with 401)
+      api-key: ${ANTHROPIC_API_KEY:missing-api-key}
+      chat:
+        model: claude-sonnet-4-6
+        max-tokens: 2048
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: true
+      republish-outstanding-events-on-restart: true
+
+jobrunr:
+  background-job-server:
+    enabled: true
+  dashboard:
+    enabled: false
+
+springdoc:
+  api-docs:
+    path: /api/docs/openapi
+  swagger-ui:
+    path: /api/docs/swagger
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+itaca:
+  security:
+    # Static bearer token for the whole API. Empty = no auth (development only).
+    token: ${ITACA_API_TOKEN:}
+
+server:
+  port: 8080

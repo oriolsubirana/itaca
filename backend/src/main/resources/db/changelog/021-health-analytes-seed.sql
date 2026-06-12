@@ -1,0 +1,37 @@
+--liquibase formatted sql
+
+--changeset oriol:health-analytes-seed-001
+--comment Dictionary of common analytes in IBD follow-up. Codes in English; display names are UI text (Spanish); synonyms cover Spanish and Swiss labs
+INSERT INTO analytes (code, name, canonical_unit, synonyms) VALUES
+    ('fecal_calprotectin',     'Calprotectina fecal',                  'µg/g',           '{"calprotectina","calprotectina fecal","fecal calprotectin","calprotectine fécale","calprotectin"}'),
+    ('crp',                    'Proteína C reactiva',                  'mg/L',           '{"PCR","CRP","proteína C-reactiva","C-reactive protein","CRP ultrasensible","hs-CRP"}'),
+    ('esr',                    'Velocidad de sedimentación globular',  'mm/h',           '{"VSG","ESR","BSG","sedimentación globular","vitesse de sédimentation"}'),
+    ('ferritin',               'Ferritina',                            'ng/mL',          '{"ferritina","ferritin","ferritine"}'),
+    ('iron',                   'Hierro sérico',                        'µg/dL',          '{"hierro","Fe","iron","fer sérique","hierro sérico"}'),
+    ('transferrin',            'Transferrina',                         'mg/dL',          '{"transferrina","transferrin","transferrine"}'),
+    ('transferrin_saturation', 'Saturación de transferrina',           '%',              '{"IST","TSAT","índice de saturación de transferrina","saturación de transferrina"}'),
+    ('vitamin_b12',            'Vitamina B12',                         'pg/mL',          '{"B12","vitamina B12","cobalamina","cyanocobalamine","vitamine B12"}'),
+    ('folate',                 'Ácido fólico',                         'ng/mL',          '{"ácido fólico","folato","folate","acide folique","vitamina B9"}'),
+    ('vitamin_d',              '25-OH Vitamina D',                     'ng/mL',          '{"vitamina D","25-OH-D","calcidiol","vitamine D","25-hidroxivitamina D"}'),
+    ('hemoglobin',             'Hemoglobina',                          'g/dL',           '{"hemoglobina","Hb","Hgb","hémoglobine","hemoglobin"}'),
+    ('hematocrit',             'Hematocrito',                          '%',              '{"hematocrito","Hto","Hct","hématocrite"}'),
+    ('mcv',                    'Volumen corpuscular medio',            'fL',             '{"VCM","MCV","VGM","volumen corpuscular medio"}'),
+    ('leukocytes',             'Leucocitos',                           '10^9/L',         '{"leucocitos","WBC","glóbulos blancos","leucocytes","leucocitos totales"}'),
+    ('neutrophils',            'Neutrófilos',                          '10^9/L',         '{"neutrófilos","neutrophils","neutrophiles","neutrófilos absolutos"}'),
+    ('lymphocytes',            'Linfocitos',                           '10^9/L',         '{"linfocitos","lymphocytes","linfocitos absolutos"}'),
+    ('platelets',              'Plaquetas',                            '10^9/L',         '{"plaquetas","PLT","trombocitos","platelets","thrombocytes"}'),
+    ('albumin',                'Albúmina',                             'g/L',            '{"albúmina","albumin","albumine","albúmina sérica"}'),
+    ('total_protein',          'Proteínas totales',                    'g/L',            '{"proteínas totales","total protein","protéines totales"}'),
+    ('alt',                    'Alanina aminotransferasa',             'U/L',            '{"ALT","GPT","ALAT","transaminasa GPT"}'),
+    ('ast',                    'Aspartato aminotransferasa',           'U/L',            '{"AST","GOT","ASAT","transaminasa GOT"}'),
+    ('ggt',                    'Gamma-glutamil transferasa',           'U/L',            '{"GGT","gamma-GT","γ-GT"}'),
+    ('alkaline_phosphatase',   'Fosfatasa alcalina',                   'U/L',            '{"fosfatasa alcalina","ALP","FA","phosphatase alcaline"}'),
+    ('total_bilirubin',        'Bilirrubina total',                    'mg/dL',          '{"bilirrubina total","bilirubin","bilirubine totale"}'),
+    ('creatinine',             'Creatinina',                           'mg/dL',          '{"creatinina","creatinine","créatinine"}'),
+    ('urea',                   'Urea',                                 'mg/dL',          '{"urea","BUN","urée"}'),
+    ('egfr',                   'Filtrado glomerular estimado',         'mL/min/1.73m²',  '{"FG","GFR","eGFR","CKD-EPI","DFG","filtrado glomerular"}'),
+    ('sodium',                 'Sodio',                                'mmol/L',         '{"sodio","Na","sodium"}'),
+    ('potassium',              'Potasio',                              'mmol/L',         '{"potasio","K","potassium"}'),
+    ('magnesium',              'Magnesio',                             'mmol/L',         '{"magnesio","Mg","magnésium","magnesium"}'),
+    ('glucose',                'Glucosa',                              'mg/dL',          '{"glucosa","glucemia","glucose","glycémie"}'),
+    ('tsh',                    'Hormona estimulante del tiroides',     'mU/L',           '{"TSH","tirotropina","thyréostimuline"}');

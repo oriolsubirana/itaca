@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/* Minimalist aesthetic (Margaret Howell reference): warm neutrals,
+   clean typography, zero visual noise. */
+@theme {
+  --font-sans:
+    "Helvetica Neue", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Arial, sans-serif;
+  --color-paper: #faf9f7;
+  --color-ink: #1c1c1a;
+  --color-ink-soft: #6b6963;
+  --color-line: #e8e6e1;
+}
+
+html {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+/* Animated "thinking" indicator while waiting for the first chunk */
+.typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--color-ink-soft);
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* Markdown rendered inside assistant chat bubbles */
+.markdown > * + * {
+  margin-top: 0.6rem;
+}
+
+.markdown strong {
+  font-weight: 600;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 1.25rem;
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown li + li {
+  margin-top: 0.25rem;
+}
+
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.markdown th {
+  text-align: left;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.6875rem;
+  color: var(--color-ink-soft);
+}
+
+.markdown th,
+.markdown td {
+  border-bottom: 1px solid var(--color-line);
+  padding: 0.4rem 0.5rem 0.4rem 0;
+}
+
+.markdown code {
+  font-size: 0.8125rem;
+  background: var(--color-line);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--color-ink-soft);
+}
