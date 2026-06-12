@@ -136,7 +136,9 @@ class LabReportService(
     }
 
     fun recentReports(): List<LabReportDto> =
-        reports.findTop20ByOrderByCreatedAtDesc().map { it.toDto(results.findByLabReportIdOrderById(it.id!!).size) }
+        reports.findForList().map { report ->
+            report.toDto(results.findByLabReportIdOrderById(report.id!!).size)
+        }
 
     fun detail(reportId: Long): LabReportDetail {
         val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }

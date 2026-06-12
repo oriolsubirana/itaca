@@ -62,7 +62,15 @@ class LabResultEntity(
 )
 
 interface LabReportRepository : JpaRepository<LabReportEntity, Long> {
-    fun findTop20ByOrderByCreatedAtDesc(): List<LabReportEntity>
+    /** Review queue order: pending first, then most recent report date. */
+    @Query(
+        """
+        SELECT r FROM LabReportEntity r
+        ORDER BY CASE WHEN r.status = 'pending_review' THEN 0 ELSE 1 END,
+                 r.date DESC, r.createdAt DESC
+        """,
+    )
+    fun findForList(): List<LabReportEntity>
 
     /** Row lock to serialize concurrent extraction jobs for the same report. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -16,11 +16,15 @@ import {
 import type { LabResult, LabResultUpdate } from "../api/labs";
 import { Modal } from "./Modal";
 
+/** Long histories collapse to the most recent few rows (90% phone usage). */
+const COLLAPSED_COUNT = 5;
+
 /** Upload + review flow: nothing reaches the charts until confirmed. */
 export function LabReports() {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [openReport, setOpenReport] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   // Poll while any extraction job is running so reports refresh on their own.
   const reports = useQuery({
@@ -33,6 +37,10 @@ export function LabReports() {
     mutationFn: uploadLabReports,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["lab-reports"] }),
   });
+
+  const all = reports.data ?? [];
+  const visible = showAll ? all : all.slice(0, COLLAPSED_COUNT);
+  const hidden = all.length - visible.length;
 
   return (
     <div>
@@ -57,7 +65,7 @@ export function LabReports() {
       </button>
 
       <ul>
-        {(reports.data ?? []).map((r) => (
+        {visible.map((r) => (
           <li key={r.id} className="border-b border-line last:border-b-0">
             <button
               onClick={() => setOpenReport(openReport === r.id ? null : r.id)}
@@ -79,6 +87,22 @@ export function LabReports() {
           </li>
         ))}
       </ul>
+      {hidden > 0 && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="min-h-11 w-full text-sm text-ink-soft"
+        >
+          Mostrar todos ({all.length})
+        </button>
+      )}
+      {showAll && all.length > COLLAPSED_COUNT && (
+        <button
+          onClick={() => setShowAll(false)}
+          className="min-h-11 w-full text-sm text-ink-soft"
+        >
+          Mostrar menos
+        </button>
+      )}
     </div>
   );
 }

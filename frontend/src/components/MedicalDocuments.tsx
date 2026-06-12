@@ -12,11 +12,15 @@ import {
   MEDICAL_STATUS_LABELS,
 } from "../api/medical";
 
+/** Long histories collapse to the most recent few rows (90% phone usage). */
+const COLLAPSED_COUNT = 5;
+
 /** Clinical documents: upload narrative reports, review the extracted facts, confirm. */
 export function MedicalDocuments() {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const documents = useQuery({
     queryKey: ["medical-documents"],
@@ -28,6 +32,10 @@ export function MedicalDocuments() {
     mutationFn: uploadMedicalDocuments,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["medical-documents"] }),
   });
+
+  const all = documents.data ?? [];
+  const visible = showAll ? all : all.slice(0, COLLAPSED_COUNT);
+  const hidden = all.length - visible.length;
 
   return (
     <div>
@@ -52,7 +60,7 @@ export function MedicalDocuments() {
       </button>
 
       <ul>
-        {(documents.data ?? []).map((d) => (
+        {visible.map((d) => (
           <li key={d.id} className="border-b border-line last:border-b-0">
             <button
               onClick={() => setOpen(open === d.id ? null : d.id)}
@@ -74,6 +82,22 @@ export function MedicalDocuments() {
           </li>
         ))}
       </ul>
+      {hidden > 0 && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="min-h-11 w-full text-sm text-ink-soft"
+        >
+          Mostrar todos ({all.length})
+        </button>
+      )}
+      {showAll && all.length > COLLAPSED_COUNT && (
+        <button
+          onClick={() => setShowAll(false)}
+          className="min-h-11 w-full text-sm text-ink-soft"
+        >
+          Mostrar menos
+        </button>
+      )}
     </div>
   );
 }

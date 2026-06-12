@@ -70,7 +70,15 @@ class MedicalMedicationEntity(
 )
 
 interface MedicalDocumentRepository : JpaRepository<MedicalDocumentEntity, Long> {
-    fun findTop50ByOrderByCreatedAtDesc(): List<MedicalDocumentEntity>
+    /** Review queue order: pending first, then most recent document date. */
+    @Query(
+        """
+        SELECT d FROM MedicalDocumentEntity d
+        ORDER BY CASE WHEN d.status = 'pending_review' THEN 0 ELSE 1 END,
+                 d.docDate DESC NULLS LAST, d.createdAt DESC
+        """,
+    )
+    fun findForList(): List<MedicalDocumentEntity>
 
     /** Row lock to serialize concurrent extraction jobs for the same document. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

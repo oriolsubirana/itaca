@@ -129,7 +129,7 @@ class MedicalDocumentService(
     }
 
     fun recentDocuments(): List<MedicalDocumentDto> =
-        documents.findTop50ByOrderByCreatedAtDesc().map {
+        documents.findForList().map {
             it.toDto(
                 diagnoses.findByDocumentIdOrderById(it.id!!).size,
                 medications.findByDocumentIdOrderById(it.id!!).size,
