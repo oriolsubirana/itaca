@@ -13,13 +13,27 @@ data class AnalyteRef(
 
 private val PER_FIELD_UNIT = Regex("gesic|hpf|/gf|/feld", RegexOption.IGNORE_CASE)
 
+// Sample-type prefixes labs prepend to an analyte name (e.g. Parc Taulí's "San-" =
+// "en sang"). They mark the specimen, not a different analyte, so strip them before
+// matching: "San-Leucòcits" -> "Leucòcits".
+private val SAMPLE_PREFIX = Regex("^(san|sang|sangre|s|b|p|u|lcr)[-\\s]+", RegexOption.IGNORE_CASE)
+
+private val SAME_UNIT_RATIO = Regex("^(\\w+)/\\1$", RegexOption.IGNORE_CASE)
+private val CONCENTRATION_UNIT = Regex("10\\^|10\\*|/l|/dl|/ml|/µl|/ul|/nl|/mm|mol/|g/l|u/l", RegexOption.IGNORE_CASE)
+
+private fun isPercent(unit: String) = unit == "%" || unit.contains("percent", ignoreCase = true)
+
+/** Per-volume concentration (10^9/L, 10^3/µL, mg/dL...) but not a dimensionless ratio like L/L. */
+private fun isConcentration(unit: String) = !SAME_UNIT_RATIO.matches(unit) && CONCENTRATION_UNIT.containsMatchIn(unit)
+
 /**
  * Conservative unit guard for normalization. The dictionary holds concentration /
  * activity blood markers; a numeric result that shares an analyte name but is a
- * per-visual-field microscopy count (urine sediment: "/Gesichtsfeld", "/HPF") is a
- * different measurement and must not feed that analyte's series. Only this clear
- * cross-family mismatch blocks a match — equivalent concentration spellings
- * (10^3/µL ≡ 10^9/L) are never subdivided, and a blank/unknown unit never blocks.
+ * per-visual-field microscopy count (urine sediment) or a relative percentage where
+ * the analyte is an absolute count is a different measurement and must not feed that
+ * analyte's series. Only these clear cross-family mismatches block a match — equivalent
+ * concentration spellings (10^3/µL ≡ 10^9/L) and dimensionless ratios (L/L ≡ %) are
+ * never subdivided, and a blank/unknown unit never blocks.
  */
 fun unitsCompatible(
     resultUnit: String?,
@@ -27,7 +41,10 @@ fun unitsCompatible(
 ): Boolean {
     val u = resultUnit?.trim().orEmpty()
     if (u.isEmpty()) return true
-    return PER_FIELD_UNIT.containsMatchIn(u) == PER_FIELD_UNIT.containsMatchIn(canonicalUnit)
+    val perFieldOk = PER_FIELD_UNIT.containsMatchIn(u) == PER_FIELD_UNIT.containsMatchIn(canonicalUnit)
+    val percentVsAbsolute =
+        (isPercent(u) && isConcentration(canonicalUnit)) || (isPercent(canonicalUnit) && isConcentration(u))
+    return perFieldOk && !percentVsAbsolute
 }
 
 /**
@@ -42,6 +59,12 @@ class AnalyteMatcher(
     fun match(rawName: String): AnalyteRef? {
         val needle = rawName.trim()
         if (needle.isEmpty()) return null
+        // Exact match first; then retry once with the sample-type prefix stripped.
+        return exactMatch(needle) ?: SAMPLE_PREFIX.find(needle)?.let { exactMatch(needle.removeRange(it.range)) }
+    }
+
+    private fun exactMatch(needle: String): AnalyteRef? {
+        if (needle.isBlank()) return null
         return jdbc
             .query(
                 """

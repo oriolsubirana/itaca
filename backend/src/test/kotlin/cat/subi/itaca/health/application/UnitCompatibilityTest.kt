@@ -25,4 +25,11 @@ class UnitCompatibilityTest {
         assertFalse(unitsCompatible("/Gesic", "10^9/L"))
         assertFalse(unitsCompatible("/HPF", "10^9/L"))
     }
+
+    @Test
+    fun `a percentage is not the same measurement as an absolute concentration`() {
+        assertFalse(unitsCompatible("%", "10^9/L"), "relative count vs absolute count")
+        assertFalse(unitsCompatible("10^9/L", "%"))
+        assertTrue(unitsCompatible("%", "%"), "percentage analytes (RDW) match")
+    }
 }

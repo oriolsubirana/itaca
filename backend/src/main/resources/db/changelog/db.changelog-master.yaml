@@ -28,6 +28,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/033-health-analyte-categories-seed.sql
   - include:
+      file: db/changelog/034-health-cbc-analytes-seed.sql
+  - include:
       file: db/changelog/030-finance-schema.sql
   - include:
       file: db/changelog/031-finance-seed.sql

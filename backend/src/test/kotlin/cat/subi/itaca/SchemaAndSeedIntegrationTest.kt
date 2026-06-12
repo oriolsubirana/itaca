@@ -45,9 +45,9 @@ class SchemaAndSeedIntegrationTest {
 
     @Test
     fun `the analyte dictionary covers the key IBD markers`() {
-        assertEquals(36, count("analytes"))
+        assertEquals(41, count("analytes"))
         val codes = jdbc.queryForList("SELECT code FROM analytes", String::class.java)
-        val expected = listOf("fecal_calprotectin", "crp", "esr", "ferritin", "vitamin_d", "ft4", "erythrocytes")
+        val expected = listOf("fecal_calprotectin", "crp", "ferritin", "erythrocytes", "basophils", "reticulocytes")
         assertTrue(codes.containsAll(expected))
     }
 

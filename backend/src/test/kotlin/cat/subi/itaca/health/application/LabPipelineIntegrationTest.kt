@@ -138,6 +138,28 @@ class LabPipelineIntegrationTest {
     }
 
     @Test
+    fun `a sample-type prefix is stripped so San- names normalize`() {
+        stubExtraction(
+            """{"date": "2024-06-01", "laboratory": "Parc Taulí", "results": [
+                {"analyte": "San-Leucòcits", "value": 7.1, "unit": "10^9/L", "refMin": 3.5, "refMax": 10}
+            ]}""",
+        )
+        val report = service.upload("hemograma.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(report.id)
+        service.review(report.id, confirm = true)
+
+        assertEquals(
+            "leukocytes",
+            service
+                .detail(report.id)
+                .results
+                .single()
+                .analyteCode,
+        )
+        service.deleteReport(report.id)
+    }
+
+    @Test
     fun `un-normalized numeric results are still chartable by their raw name`() {
         stubExtraction(
             """{"date": "2024-05-01", "laboratory": "Lab", "results": [
