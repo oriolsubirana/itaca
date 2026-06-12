@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   confirmLabReport,
+  deleteLabReport,
   discardLabReport,
   getLabReportDetail,
   getLabReports,
@@ -91,6 +92,10 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
     mutationFn: () => discardLabReport(reportId),
     onSuccess: invalidate,
   });
+  const remove = useMutation({
+    mutationFn: () => deleteLabReport(reportId),
+    onSuccess: invalidate,
+  });
 
   if (!detail.data) return null;
   const { report, results } = detail.data;
@@ -139,6 +144,15 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
           </button>
         </div>
       )}
+      <button
+        onClick={() => {
+          if (window.confirm("¿Eliminar este informe y todos sus resultados?")) remove.mutate();
+        }}
+        disabled={remove.isPending}
+        className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+      >
+        Eliminar informe
+      </button>
     </div>
   );
 }
