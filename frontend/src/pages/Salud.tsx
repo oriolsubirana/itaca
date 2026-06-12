@@ -25,7 +25,7 @@ export function Salud() {
     <>
       <PageTitle>Salud</PageTitle>
       <FlareBanner />
-      <TodayForm />
+      <TodaySection />
       <section className="border-t border-line py-5">
         <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
           Analíticas
@@ -150,28 +150,92 @@ function FlareModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   );
 }
 
-function TodayForm() {
+function isEmptyEntry(e: DiaryEntry): boolean {
+  return (
+    e.bristol == null &&
+    e.pain == null &&
+    e.urgency == null &&
+    e.bowelMovements == null &&
+    e.stress == null &&
+    !e.blood &&
+    !e.notes
+  );
+}
+
+function entrySummary(e: DiaryEntry): string {
+  const parts: string[] = [];
+  if (e.bristol != null) parts.push(`Bristol ${e.bristol}`);
+  if (e.bowelMovements != null) parts.push(`${e.bowelMovements} dep.`);
+  if (e.pain != null && e.pain > 0) parts.push(`dolor ${e.pain}`);
+  if (e.urgency != null && e.urgency > 0) parts.push(`urgencia ${e.urgency}`);
+  if (e.stress != null && e.stress > 0) parts.push(`estrés ${e.stress}`);
+  return parts.join(" · ");
+}
+
+function TodaySection() {
   const date = today();
+  const [showModal, setShowModal] = useState(false);
   const entry = useQuery({
     queryKey: ["diary", date],
     queryFn: () => getEntry(date),
   });
 
   if (!entry.data) return null;
-  return <TodayFormFields date={date} initial={entry.data} />;
+  const empty = isEmptyEntry(entry.data);
+
+  return (
+    <section className="border-t border-line py-5">
+      <h2 className="mb-3 text-xs uppercase tracking-[0.15em] text-ink-soft">
+        Hoy
+      </h2>
+      <div className="flex items-center gap-3">
+        <p className="flex-1 text-sm leading-relaxed">
+          {empty ? (
+            <span className="text-ink-soft">Sin registrar todavía.</span>
+          ) : (
+            <>
+              {entrySummary(entry.data)}
+              {entry.data.blood && (
+                <span
+                  className="ml-2 inline-block size-2 rounded-full bg-red-800"
+                  aria-label="Sangre"
+                />
+              )}
+            </>
+          )}
+        </p>
+        <button
+          onClick={() => setShowModal(true)}
+          className="min-h-11 shrink-0 rounded-full border border-line px-5 text-sm text-ink-soft"
+        >
+          {empty ? "+ Registrar día" : "Editar"}
+        </button>
+      </div>
+      {showModal && (
+        <DiaryModal date={date} initial={entry.data} onClose={() => setShowModal(false)} />
+      )}
+    </section>
+  );
 }
 
-function TodayFormFields({ date, initial }: { date: string; initial: DiaryEntry }) {
+function DiaryModal({
+  date,
+  initial,
+  onClose,
+}: {
+  date: string;
+  initial: DiaryEntry;
+  onClose: () => void;
+}) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Partial<DiaryEntry>>(initial);
-  const [saved, setSaved] = useState(false);
 
   const save = useMutation({
     mutationFn: () => saveEntry(date, form),
     onSuccess: () => {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      void queryClient.invalidateQueries({ queryKey: ["diary", date] });
       void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
+      onClose();
     },
   });
 
@@ -180,11 +244,7 @@ function TodayFormFields({ date, initial }: { date: string; initial: DiaryEntry 
   };
 
   return (
-    <section className="border-t border-line py-5">
-      <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
-        Hoy
-      </h2>
-
+    <Modal title="Diario de hoy" onClose={onClose}>
       <Field label="Bristol">
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -239,9 +299,9 @@ function TodayFormFields({ date, initial }: { date: string; initial: DiaryEntry 
         disabled={save.isPending}
         className="mt-2 min-h-12 w-full rounded-lg bg-ink text-sm text-paper disabled:opacity-40"
       >
-        {saved ? "Guardado ✓" : "Guardar"}
+        Guardar
       </button>
-    </section>
+    </Modal>
   );
 }
 
