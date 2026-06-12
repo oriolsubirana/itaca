@@ -6,6 +6,7 @@ export interface LabReport {
   laboratory: string | null;
   filename: string | null;
   status: "pending_review" | "confirmed" | "discarded";
+  extracting: boolean;
   resultCount: number;
 }
 

@@ -148,3 +148,6 @@ prepared by `.claude/hooks/session-start.sh`.
   do NOT add a `supabase.url:` default to application.yml or the conditional
   always matches).
 - Only CONFIRMED lab reports feed analyte series; review gate is mandatory.
+- Spring Data derived `deleteBy...` loads and deletes row by row → StaleObjectState
+  when jobs race; use `@Modifying @Query` bulk deletes and serialize concurrent
+  extraction jobs with a `PESSIMISTIC_WRITE` row lock taken AFTER the slow API call.

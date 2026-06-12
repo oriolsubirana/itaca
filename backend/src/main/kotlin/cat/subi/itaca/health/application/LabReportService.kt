@@ -19,6 +19,7 @@ data class LabReportDto(
     val laboratory: String?,
     val filename: String?,
     val status: String,
+    val extracting: Boolean,
     val resultCount: Int,
 )
 
@@ -71,7 +72,10 @@ class LabReportService(
         content: ByteArray,
     ): LabReportDto {
         val path = storage.store(filename, content)
-        val report = reports.save(LabReportEntity(date = LocalDate.now(), filename = filename, storagePath = path))
+        val report =
+            reports.save(
+                LabReportEntity(date = LocalDate.now(), filename = filename, storagePath = path, extracting = true),
+            )
         return report.toDto(0)
     }
 
@@ -82,8 +86,12 @@ class LabReportService(
         val pdf = storage.load(checkNotNull(report.storagePath) { "Report $reportId has no stored file" })
         val extraction = extractor.extract(pdf)
 
+        // Serialize concurrent jobs for the same report only around the writes
+        // (the row lock is not held during the slow extraction call above).
+        reports.lockById(reportId) ?: throw NoSuchElementException("Lab report $reportId not found")
         extraction.date?.let { runCatching { report.date = LocalDate.parse(it) } }
         extraction.laboratory?.takeIf { it.isNotBlank() }?.let { report.laboratory = it }
+        report.extracting = false
         reports.save(report)
 
         results.deleteByLabReportId(reportId) // idempotent re-runs (JobRunr retries)
@@ -154,6 +162,7 @@ class LabReportService(
         val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }
         require(report.status != "confirmed") { "Confirmed reports cannot be re-extracted" }
         report.status = "pending_review"
+        report.extracting = true
         reports.save(report)
         return report.toDto(results.findByLabReportIdOrderById(reportId).size)
     }
@@ -176,6 +185,7 @@ class LabReportService(
             laboratory = laboratory,
             filename = filename,
             status = status,
+            extracting = extracting,
             resultCount = resultCount,
         )
 

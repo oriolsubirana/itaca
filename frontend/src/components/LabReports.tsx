@@ -21,7 +21,12 @@ export function LabReports() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [openReport, setOpenReport] = useState<number | null>(null);
 
-  const reports = useQuery({ queryKey: ["lab-reports"], queryFn: getLabReports });
+  // Poll while any extraction job is running so reports refresh on their own.
+  const reports = useQuery({
+    queryKey: ["lab-reports"],
+    queryFn: getLabReports,
+    refetchInterval: (query) => (query.state.data?.some((r) => r.extracting) ? 3000 : false),
+  });
 
   const upload = useMutation({
     mutationFn: uploadLabReports,
@@ -66,9 +71,7 @@ export function LabReports() {
                   r.status === "pending_review" ? "text-amber-700" : "text-ink-soft"
                 }`}
               >
-                {r.resultCount === 0 && r.status === "pending_review"
-                  ? "procesando…"
-                  : STATUS_LABELS[r.status]}
+                {r.extracting ? "procesando…" : STATUS_LABELS[r.status]}
               </span>
             </button>
             {openReport === r.id && <ReportReview reportId={r.id} onDone={() => setOpenReport(null)} />}
@@ -85,6 +88,7 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
   const detail = useQuery({
     queryKey: ["lab-report", reportId],
     queryFn: () => getLabReportDetail(reportId),
+    refetchInterval: (query) => (query.state.data?.report.extracting ? 3000 : false),
   });
 
   // Row-level edits keep the panel open; report-level actions close it.
@@ -121,7 +125,7 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
 
   if (!detail.data) return null;
   const { report, results } = detail.data;
-  const editable = report.status === "pending_review";
+  const editable = report.status === "pending_review" && !report.extracting;
   const reviewedCount = results.filter((r) => r.reviewed).length;
 
   return (
@@ -135,18 +139,28 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
           {report.date}
         </span>
       </div>
+      {report.extracting && (
+        <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <span className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />
+          Procesando el PDF… los resultados aparecerán aquí solos.
+        </p>
+      )}
       {results.length === 0 ? (
         <div className="py-2">
-          <p className="mb-3 text-sm text-ink-soft">
-            Sin resultados — la extracción está en curso o no encontró nada.
-          </p>
-          <button
-            onClick={() => reextract.mutate()}
-            disabled={reextract.isPending}
-            className="min-h-11 rounded-full border border-line px-5 text-sm text-ink disabled:opacity-40"
-          >
-            {reextract.isPending ? "Reprocesando…" : "↻ Reprocesar extracción"}
-          </button>
+          {!report.extracting && (
+            <>
+              <p className="mb-3 text-sm text-ink-soft">
+                Sin resultados — la extracción no encontró nada en el PDF.
+              </p>
+              <button
+                onClick={() => reextract.mutate()}
+                disabled={reextract.isPending}
+                className="min-h-11 rounded-full border border-line px-5 text-sm text-ink disabled:opacity-40"
+              >
+                ↻ Reprocesar extracción
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <>

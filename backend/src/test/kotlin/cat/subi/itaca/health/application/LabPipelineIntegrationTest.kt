@@ -99,8 +99,11 @@ class LabPipelineIntegrationTest {
             ]}""",
         )
         val uploaded = service.upload("analitica-junio.pdf", "fake-pdf-bytes".toByteArray())
+        assertTrue(uploaded.extracting, "a fresh upload reports its extraction as running")
         service.runExtraction(uploaded.id)
-        val result = service.detail(uploaded.id).results.single()
+        val afterRun = service.detail(uploaded.id)
+        assertEquals(false, afterRun.report.extracting, "the flag clears when the job finishes")
+        val result = afterRun.results.single()
 
         val corrected = service.updateResult(result.id, LabResultUpdate(value = 4.2, reviewed = true))
         assertEquals(4.2, corrected.value)
@@ -117,6 +120,7 @@ class LabPipelineIntegrationTest {
 
         val requeued = service.prepareReextraction(uploaded.id)
         assertEquals("pending_review", requeued.status)
+        assertTrue(requeued.extracting, "re-extraction flags the report as processing again")
         service.runExtraction(uploaded.id)
         val fresh = service.detail(uploaded.id).results.single()
         assertEquals(42.0, fresh.value, "re-extraction replaces edited rows")

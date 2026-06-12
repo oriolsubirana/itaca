@@ -5,8 +5,12 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.LockModeType
 import jakarta.persistence.Table
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -25,6 +29,8 @@ class LabReportEntity(
     val storagePath: String? = null,
     @Column(nullable = false)
     var status: String = "pending_review",
+    @Column(nullable = false)
+    var extracting: Boolean = false,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),
 )
@@ -55,10 +61,19 @@ class LabResultEntity(
 
 interface LabReportRepository : JpaRepository<LabReportEntity, Long> {
     fun findTop20ByOrderByCreatedAtDesc(): List<LabReportEntity>
+
+    /** Row lock to serialize concurrent extraction jobs for the same report. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM LabReportEntity r WHERE r.id = :id")
+    fun lockById(id: Long): LabReportEntity?
 }
 
 interface LabResultRepository : JpaRepository<LabResultEntity, Long> {
     fun findByLabReportIdOrderById(labReportId: Long): List<LabResultEntity>
 
+    // Bulk delete: the derived deleteBy loads and deletes row by row, which
+    // fails the optimistic row-count check when two jobs race on one report.
+    @Modifying
+    @Query("DELETE FROM LabResultEntity r WHERE r.labReportId = :labReportId")
     fun deleteByLabReportId(labReportId: Long)
 }
