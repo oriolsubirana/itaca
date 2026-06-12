@@ -101,7 +101,10 @@ class LabReportService(
                 results.save(
                     LabResultEntity(
                         labReportId = reportId,
-                        analyteId = matcher.match(row.analyte)?.id,
+                        // The dictionary holds numeric blood markers; a qualitative row that
+                        // shares a name (urine dipstick, smear morphology...) is a different
+                        // measurement, so only numeric results are normalized.
+                        analyteId = if (row.value != null) matcher.match(row.analyte)?.id else null,
                         rawName = row.analyte,
                         value = row.value?.let(BigDecimal::valueOf),
                         textValue = row.textValue?.takeIf { it.isNotBlank() },

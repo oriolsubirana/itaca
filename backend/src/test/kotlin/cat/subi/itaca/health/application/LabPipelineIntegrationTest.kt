@@ -146,6 +146,11 @@ class LabPipelineIntegrationTest {
         val qualitative = detail.results.single { it.rawName == "Blut im Urin" }
         assertNull(qualitative.value)
         assertEquals("++++", qualitative.textValue, "qualitative results keep their literal text")
+        val namedQualitative = detail.results.single { it.rawName == "Hb" }
+        assertNull(
+            namedQualitative.analyteCode,
+            "qualitative rows are not normalized even when the name matches a numeric analyte",
+        )
     }
 
     private fun stubExtraction(payloadJson: String) {
