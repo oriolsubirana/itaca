@@ -91,6 +91,45 @@ class LabPipelineIntegrationTest {
         assertTrue(runCatching { service.detail(uploaded.id) }.exceptionOrNull() is NoSuchElementException)
     }
 
+    @Test
+    fun `lets the user correct, check off and re-extract results during review`() {
+        stubExtraction(
+            """{"date": "2026-06-01", "laboratory": "Unilabs", "results": [
+                {"analyte": "CRP", "value": 42.0, "unit": "mg/L", "refMin": 0, "refMax": 5}
+            ]}""",
+        )
+        val uploaded = service.upload("analitica-junio.pdf", "fake-pdf-bytes".toByteArray())
+        service.runExtraction(uploaded.id)
+        val result = service.detail(uploaded.id).results.single()
+
+        val corrected = service.updateResult(result.id, LabResultUpdate(value = 4.2, reviewed = true))
+        assertEquals(4.2, corrected.value)
+        assertTrue(corrected.reviewed)
+
+        val qualitative = service.updateResult(result.id, LabResultUpdate(textValue = "neg"))
+        assertEquals("neg", qualitative.textValue, "a text value can be added during review")
+        assertTrue(
+            runCatching {
+                service.updateResult(result.id, LabResultUpdate(textValue = ""))
+            }.isSuccess,
+            "clearing textValue is fine while a numeric value remains",
+        )
+
+        val requeued = service.prepareReextraction(uploaded.id)
+        assertEquals("pending_review", requeued.status)
+        service.runExtraction(uploaded.id)
+        val fresh = service.detail(uploaded.id).results.single()
+        assertEquals(42.0, fresh.value, "re-extraction replaces edited rows")
+        assertEquals(false, fresh.reviewed, "re-extraction resets review checkmarks")
+
+        service.review(uploaded.id, confirm = true)
+        assertTrue(
+            runCatching { service.prepareReextraction(uploaded.id) }.exceptionOrNull() is IllegalArgumentException,
+            "confirmed reports must not be re-extracted",
+        )
+        service.deleteReport(uploaded.id)
+    }
+
     private fun assertExtractedDetail(detail: LabReportDetail) {
         assertEquals("2026-05-20", detail.report.date)
         assertEquals("Unilabs Zürich", detail.report.laboratory)

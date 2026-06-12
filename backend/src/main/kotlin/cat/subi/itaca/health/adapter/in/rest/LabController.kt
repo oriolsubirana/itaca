@@ -7,17 +7,13 @@ import cat.subi.itaca.health.adapter.jobs.ExtractLabReportRequest
 import cat.subi.itaca.health.application.LabReportDetail
 import cat.subi.itaca.health.application.LabReportDto
 import cat.subi.itaca.health.application.LabReportService
-import cat.subi.itaca.health.application.LabResultDto
-import cat.subi.itaca.health.application.LabResultUpdate
 import org.jobrunr.scheduling.JobRequestScheduler
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -58,6 +54,17 @@ class LabController(
         @PathVariable id: Long,
     ): LabReportDto = labReports.review(id, confirm = true)
 
+    /** Re-runs the extraction (e.g. after a 0-result run or a prompt improvement). */
+    @PostMapping("/lab-reports/{id}/extract")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    fun reextract(
+        @PathVariable id: Long,
+    ): LabReportDto {
+        val report = labReports.prepareReextraction(id)
+        jobs.enqueue(ExtractLabReportRequest(id))
+        return report
+    }
+
     @PostMapping("/lab-reports/{id}/discard")
     fun discard(
         @PathVariable id: Long,
@@ -68,18 +75,6 @@ class LabController(
     fun deleteReport(
         @PathVariable id: Long,
     ) = labReports.deleteReport(id)
-
-    @PatchMapping("/lab-results/{id}")
-    fun updateResult(
-        @PathVariable id: Long,
-        @RequestBody update: LabResultUpdate,
-    ): LabResultDto = labReports.updateResult(id, update)
-
-    @DeleteMapping("/lab-results/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun deleteResult(
-        @PathVariable id: Long,
-    ) = labReports.deleteResult(id)
 
     @ExceptionHandler(NoSuchElementException::class)
     @ResponseStatus(HttpStatus.NOT_FOUND)

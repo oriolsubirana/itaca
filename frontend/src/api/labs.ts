@@ -19,6 +19,15 @@ export interface LabResult {
   unit: string | null;
   refMin: number | null;
   refMax: number | null;
+  reviewed: boolean;
+}
+
+/** Partial update; omitted fields stay as they are, "" clears textValue/unit. */
+export interface LabResultUpdate {
+  value?: number;
+  textValue?: string;
+  unit?: string;
+  reviewed?: boolean;
 }
 
 export interface LabReportDetail {
@@ -66,6 +75,19 @@ export const discardLabReport = (id: number) =>
 
 export const deleteLabReport = (id: number) =>
   api<void>(`/health/lab-reports/${id}`, { method: "DELETE" });
+
+export const reextractLabReport = (id: number) =>
+  api<LabReport>(`/health/lab-reports/${id}/extract`, { method: "POST" });
+
+export const updateLabResult = (id: number, update: LabResultUpdate) =>
+  api<LabResult>(`/health/lab-results/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+
+export const deleteLabResult = (id: number) =>
+  api<void>(`/health/lab-results/${id}`, { method: "DELETE" });
 
 export const getAnalytesWithData = () => api<AnalyteRef[]>("/health/analytes");
 

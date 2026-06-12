@@ -32,6 +32,7 @@ data class LabResultDto(
     val unit: String?,
     val refMin: Double?,
     val refMax: Double?,
+    val reviewed: Boolean,
 )
 
 data class LabReportDetail(
@@ -39,10 +40,13 @@ data class LabReportDetail(
     val results: List<LabResultDto>,
 )
 
+/** Partial update; null means "leave as is", empty string clears textValue/unit. */
 data class LabResultUpdate(
     val value: Double? = null,
+    val textValue: String? = null,
     val unit: String? = null,
     val analyteCode: String? = null,
+    val reviewed: Boolean? = null,
 )
 
 /**
@@ -128,12 +132,30 @@ class LabReportService(
         update: LabResultUpdate,
     ): LabResultDto {
         val row = results.findById(resultId).orElseThrow { NoSuchElementException("Lab result $resultId not found") }
-        update.value?.let { row.value = BigDecimal.valueOf(it) }
-        update.unit?.let { row.unit = it }
-        update.analyteCode?.let { code ->
-            row.analyteId = matcher.byCode(code)?.id ?: throw IllegalArgumentException("Unknown analyte code: $code")
-        }
+        // Validate before mutating the managed entity (anything assigned would be flushed).
+        val newValue = update.value?.let(BigDecimal::valueOf) ?: row.value
+        val newTextValue = if (update.textValue != null) update.textValue.ifBlank { null } else row.textValue
+        require(newValue != null || newTextValue != null) { "A result needs a numeric value or a text value" }
+        val newAnalyteId =
+            update.analyteCode?.let { code ->
+                matcher.byCode(code)?.id ?: throw IllegalArgumentException("Unknown analyte code: $code")
+            } ?: row.analyteId
+        row.value = newValue
+        row.textValue = newTextValue
+        row.analyteId = newAnalyteId
+        update.unit?.let { row.unit = it.ifBlank { null } }
+        update.reviewed?.let { row.reviewed = it }
         return results.save(row).toDto()
+    }
+
+    /** Re-queues a report for extraction; existing results are replaced by the job. */
+    @Transactional
+    fun prepareReextraction(reportId: Long): LabReportDto {
+        val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }
+        require(report.status != "confirmed") { "Confirmed reports cannot be re-extracted" }
+        report.status = "pending_review"
+        reports.save(report)
+        return report.toDto(results.findByLabReportIdOrderById(reportId).size)
     }
 
     @Transactional
@@ -169,6 +191,7 @@ class LabReportService(
             unit = unit,
             refMin = refMin?.toDouble(),
             refMax = refMax?.toDouble(),
+            reviewed = reviewed,
         )
     }
 

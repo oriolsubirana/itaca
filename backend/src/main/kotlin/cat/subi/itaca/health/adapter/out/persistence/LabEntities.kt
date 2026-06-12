@@ -49,6 +49,8 @@ class LabResultEntity(
     var refMin: BigDecimal? = null,
     @Column(name = "ref_max")
     var refMax: BigDecimal? = null,
+    @Column(nullable = false)
+    var reviewed: Boolean = false,
 )
 
 interface LabReportRepository : JpaRepository<LabReportEntity, Long> {

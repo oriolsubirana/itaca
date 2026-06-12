@@ -12,6 +12,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/023-health-lab-text-values.sql
   - include:
+      file: db/changelog/024-health-lab-reviewed.sql
+  - include:
       file: db/changelog/030-finance-schema.sql
   - include:
       file: db/changelog/031-finance-seed.sql

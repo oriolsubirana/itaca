@@ -3,12 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   confirmLabReport,
   deleteLabReport,
+  deleteLabResult,
   discardLabReport,
   getLabReportDetail,
   getLabReports,
+  reextractLabReport,
+  updateLabResult,
   uploadLabReports,
   STATUS_LABELS,
 } from "../api/labs";
+import type { LabResult, LabResultUpdate } from "../api/labs";
+import { Modal } from "./Modal";
 
 /** Upload + review flow: nothing reaches the charts until confirmed. */
 export function LabReports() {
@@ -76,13 +81,19 @@ export function LabReports() {
 
 function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => void }) {
   const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<LabResult | null>(null);
   const detail = useQuery({
     queryKey: ["lab-report", reportId],
     queryFn: () => getLabReportDetail(reportId),
   });
 
-  const invalidate = () => {
+  // Row-level edits keep the panel open; report-level actions close it.
+  const refreshDetail = () => {
+    void queryClient.invalidateQueries({ queryKey: ["lab-report", reportId] });
     void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
+  };
+  const invalidate = () => {
+    refreshDetail();
     void queryClient.invalidateQueries({ queryKey: ["analytes"] });
     void queryClient.invalidateQueries({ queryKey: ["analyte-series"] });
     onDone();
@@ -99,9 +110,19 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
     mutationFn: () => deleteLabReport(reportId),
     onSuccess: invalidate,
   });
+  const reextract = useMutation({
+    mutationFn: () => reextractLabReport(reportId),
+    onSuccess: refreshDetail,
+  });
+  const toggleReviewed = useMutation({
+    mutationFn: (r: LabResult) => updateLabResult(r.id, { reviewed: !r.reviewed }),
+    onSuccess: refreshDetail,
+  });
 
   if (!detail.data) return null;
   const { report, results } = detail.data;
+  const editable = report.status === "pending_review";
+  const reviewedCount = results.filter((r) => r.reviewed).length;
 
   return (
     <div className="mb-3 rounded-lg border border-line p-4">
@@ -115,40 +136,94 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
         </span>
       </div>
       {results.length === 0 ? (
-        <p className="py-2 text-sm text-ink-soft">Todavía sin resultados — la extracción está en curso.</p>
+        <div className="py-2">
+          <p className="mb-3 text-sm text-ink-soft">
+            Sin resultados — la extracción está en curso o no encontró nada.
+          </p>
+          <button
+            onClick={() => reextract.mutate()}
+            disabled={reextract.isPending}
+            className="min-h-11 rounded-full border border-line px-5 text-sm text-ink disabled:opacity-40"
+          >
+            {reextract.isPending ? "Reprocesando…" : "↻ Reprocesar extracción"}
+          </button>
+        </div>
       ) : (
         <>
           <ul className="mb-3 max-h-80 overflow-y-auto overscroll-contain">
             {results.map((res) => (
               <li
                 key={res.id}
-                className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 border-b border-line py-2 last:border-b-0"
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-x-2 border-b border-line last:border-b-0"
               >
-                <span className="text-sm leading-snug">
-                  {res.analyteName ?? res.rawName}
-                  {!res.analyteName && (
-                    <span className="ml-1.5 align-middle text-[11px] uppercase tracking-wide text-amber-700">
-                      sin normalizar
+                {editable && (
+                  <button
+                    onClick={() => toggleReviewed.mutate(res)}
+                    aria-label={res.reviewed ? "Desmarcar revisado" : "Marcar revisado"}
+                    className="flex size-11 shrink-0 items-center justify-center"
+                  >
+                    <span
+                      className={`flex size-5 items-center justify-center rounded-full border text-[11px] ${
+                        res.reviewed ? "border-ink bg-ink text-paper" : "border-line text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                  </button>
+                )}
+                <button
+                  onClick={() => editable && setEditing(res)}
+                  disabled={!editable}
+                  className={`min-w-0 py-2 text-left ${!editable ? "col-span-2 cursor-default" : ""} ${
+                    res.reviewed ? "opacity-50" : ""
+                  }`}
+                >
+                  <span className="block truncate text-sm leading-snug">
+                    {res.analyteName ?? res.rawName}
+                    {!res.analyteName && (
+                      <span className="ml-1.5 align-middle text-[11px] uppercase tracking-wide text-amber-700">
+                        sin normalizar
+                      </span>
+                    )}
+                  </span>
+                </button>
+                <button
+                  onClick={() => editable && setEditing(res)}
+                  disabled={!editable}
+                  className={`py-2 text-right ${!editable ? "cursor-default" : ""} ${
+                    res.reviewed ? "opacity-50" : ""
+                  }`}
+                >
+                  <span className="block text-sm font-medium tabular-nums">
+                    {res.value ?? res.textValue} {res.unit ?? ""}
+                  </span>
+                  {res.refMax != null && (
+                    <span className="block text-xs tabular-nums text-ink-soft">
+                      ref {res.refMin ?? 0}–{res.refMax}
                     </span>
                   )}
-                </span>
-                <span className="text-right text-sm font-medium tabular-nums">
-                  {res.value ?? res.textValue} {res.unit ?? ""}
-                </span>
-                {res.refMax != null && (
-                  <span className="col-start-2 text-right text-xs tabular-nums text-ink-soft">
-                    ref {res.refMin ?? 0}–{res.refMax}
-                  </span>
-                )}
+                </button>
               </li>
             ))}
           </ul>
-          <p className="mb-3 text-xs text-ink-soft">
-            {results.length} resultados · {results.filter((r) => r.analyteName).length} normalizados
-          </p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-ink-soft">
+              {editable && `${reviewedCount}/${results.length} revisados · `}
+              {results.filter((r) => r.analyteName).length} normalizados
+            </p>
+            {editable && (
+              <button
+                onClick={() => reextract.mutate()}
+                disabled={reextract.isPending}
+                className="shrink-0 text-xs text-ink-soft underline underline-offset-2 disabled:opacity-40"
+              >
+                {reextract.isPending ? "reprocesando…" : "↻ reprocesar"}
+              </button>
+            )}
+          </div>
         </>
       )}
-      {report.status === "pending_review" && results.length > 0 && (
+      {editable && results.length > 0 && (
         <div className="flex gap-2">
           <button
             onClick={() => confirm.mutate()}
@@ -175,6 +250,97 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
       >
         Eliminar informe
       </button>
+      {editing && (
+        <EditResultModal
+          key={editing.id}
+          result={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            refreshDetail();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EditResultModal({
+  result,
+  onClose,
+  onSaved,
+}: {
+  result: LabResult;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [value, setValue] = useState(result.value?.toString() ?? "");
+  const [textValue, setTextValue] = useState(result.textValue ?? "");
+  const [unit, setUnit] = useState(result.unit ?? "");
+
+  const save = useMutation({
+    mutationFn: () => {
+      const update: LabResultUpdate = { textValue, unit, reviewed: true };
+      if (value.trim() !== "") update.value = Number(value);
+      return updateLabResult(result.id, update);
+    },
+    onSuccess: onSaved,
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteLabResult(result.id),
+    onSuccess: onSaved,
+  });
+
+  const valueInvalid = value.trim() !== "" && Number.isNaN(Number(value));
+  const nothingLeft = value.trim() === "" && textValue.trim() === "";
+
+  return (
+    <Modal title="Corregir resultado" onClose={onClose}>
+      <p className="mb-4 text-sm font-medium">{result.analyteName ?? result.rawName}</p>
+      <label className="mb-3 block text-sm">
+        <span className="mb-1 block text-xs text-ink-soft">Valor numérico</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-transparent px-3 text-sm"
+        />
+      </label>
+      <label className="mb-3 block text-sm">
+        <span className="mb-1 block text-xs text-ink-soft">Valor textual (neg, +, normal…)</span>
+        <input
+          type="text"
+          value={textValue}
+          onChange={(e) => setTextValue(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-transparent px-3 text-sm"
+        />
+      </label>
+      <label className="mb-4 block text-sm">
+        <span className="mb-1 block text-xs text-ink-soft">Unidad</span>
+        <input
+          type="text"
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-transparent px-3 text-sm"
+        />
+      </label>
+      <button
+        onClick={() => save.mutate()}
+        disabled={save.isPending || valueInvalid || nothingLeft}
+        className="min-h-11 w-full rounded-lg bg-ink text-sm text-paper disabled:opacity-40"
+      >
+        Guardar y marcar revisado
+      </button>
+      <button
+        onClick={() => {
+          if (window.confirm("¿Eliminar este resultado?")) remove.mutate();
+        }}
+        disabled={remove.isPending}
+        className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+      >
+        Eliminar resultado
+      </button>
+    </Modal>
   );
 }
