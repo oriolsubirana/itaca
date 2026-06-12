@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+} from "@headlessui/react";
+import {
   Line,
   LineChart,
   ReferenceArea,
@@ -33,27 +39,45 @@ export function AnalyteChart() {
 
   const data = series.data;
   const reference = data?.points.findLast((p) => p.refMin != null || p.refMax != null);
+  const selectedName = analytes.data.find((a) => a.code === code)?.name ?? "—";
 
   return (
-    <div>
-      <div className="mb-4">
-        <label className="relative block">
-          <select
-            value={code ?? ""}
-            onChange={(e) => setSelected(e.target.value)}
-            className="min-h-11 w-full appearance-none rounded-lg border border-line bg-paper py-2 pl-3 pr-10 text-sm text-ink"
+    <div className="mb-8">
+      <Listbox value={code ?? ""} onChange={setSelected}>
+        <ListboxButton className="group flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border border-line bg-paper px-3 text-left text-sm text-ink outline-none transition-colors data-[focus]:border-ink-soft data-[open]:border-ink-soft">
+          <span className="truncate">{selectedName}</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-4 shrink-0 text-ink-soft transition-transform group-data-[open]:rotate-180"
           >
-            {analytes.data.map((a) => (
-              <option key={a.code} value={a.code}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-soft">
-            ⌄
-          </span>
-        </label>
-      </div>
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </ListboxButton>
+        <ListboxOptions
+          anchor="bottom"
+          transition
+          className="z-50 max-h-72 w-[var(--button-width)] overflow-auto rounded-lg border border-line bg-paper p-1 shadow-lg [--anchor-gap:4px] outline-none data-[closed]:opacity-0 data-[closed]:transition data-[enter]:duration-100 data-[enter]:ease-out data-[leave]:duration-75 data-[leave]:ease-in"
+        >
+          {analytes.data.map((a) => (
+            <ListboxOption
+              key={a.code}
+              value={a.code}
+              className="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm text-ink-soft transition-colors data-[focus]:bg-line data-[selected]:text-ink"
+            >
+              <span className="truncate">{a.name}</span>
+              <span className="text-ink opacity-0 transition-opacity group-data-[selected]:opacity-100">
+                ✓
+              </span>
+            </ListboxOption>
+          ))}
+        </ListboxOptions>
+      </Listbox>
 
       {data && data.points.length > 0 && (
         <>
@@ -88,7 +112,7 @@ export function AnalyteChart() {
               />
             </LineChart>
           </ResponsiveContainer>
-          <p className="mt-1 text-xs text-ink-soft">
+          <p className="mt-1 mb-6 text-xs text-ink-soft">
             {data.name} ({data.unit}) — zona sombreada: rango de referencia
           </p>
         </>
