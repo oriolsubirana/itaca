@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageTitle } from "../components/PageTitle";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
+import { Modal } from "../components/Modal";
 import {
   endFlare,
   getEntry,
@@ -44,9 +45,8 @@ function FlareBanner() {
     void queryClient.invalidateQueries({ queryKey: ["flares"] });
     void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
   };
-  const start = useMutation({ mutationFn: startFlare, onSuccess: invalidate });
   const end = useMutation({ mutationFn: endFlare, onSuccess: invalidate });
-  const [choosing, setChoosing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const active = flares.data?.active;
   if (flares.isPending) return null;
@@ -70,36 +70,83 @@ function FlareBanner() {
 
   return (
     <section className="mb-6">
-      {choosing ? (
-        <div className="flex items-center gap-2">
+      <button
+        onClick={() => setShowModal(true)}
+        className="min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft"
+      >
+        + Registrar brote
+      </button>
+      {showModal && (
+        <FlareModal
+          onClose={() => setShowModal(false)}
+          onSaved={() => {
+            setShowModal(false);
+            invalidate();
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+function FlareModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [severity, setSeverity] = useState<Flare["severity"] | null>(null);
+  const [date, setDate] = useState(today());
+  const [notes, setNotes] = useState("");
+  const save = useMutation({
+    mutationFn: () => startFlare(severity!, date, notes.trim() || undefined),
+    onSuccess: onSaved,
+  });
+
+  return (
+    <Modal title="Registrar brote" onClose={onClose}>
+      <div className="mb-4">
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">Severidad</p>
+        <div className="flex gap-2">
           {(Object.keys(SEVERITY_LABELS) as Flare["severity"][]).map((s) => (
             <button
               key={s}
-              onClick={() => {
-                start.mutate(s);
-                setChoosing(false);
-              }}
-              className="min-h-11 flex-1 rounded-full border border-line text-sm text-ink"
+              onClick={() => setSeverity(s)}
+              className={`min-h-11 flex-1 rounded-full border text-sm ${
+                severity === s ? "border-ink bg-ink text-paper" : "border-line text-ink-soft"
+              }`}
             >
               {SEVERITY_LABELS[s]}
             </button>
           ))}
-          <button
-            onClick={() => setChoosing(false)}
-            className="min-h-11 px-2 text-xs uppercase text-ink-soft"
-          >
-            ✕
-          </button>
         </div>
-      ) : (
-        <button
-          onClick={() => setChoosing(true)}
-          className="min-h-11 text-xs uppercase tracking-wide text-ink-soft"
-        >
-          Registrar brote
-        </button>
-      )}
-    </section>
+      </div>
+
+      <div className="mb-4">
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">Fecha de inicio</p>
+        <input
+          type="date"
+          value={date}
+          max={today()}
+          onChange={(e) => setDate(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base outline-none focus:border-ink-soft"
+        />
+      </div>
+
+      <div className="mb-5">
+        <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">Notas</p>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Opcional"
+          className="w-full rounded-lg border border-line bg-paper px-4 py-2.5 text-base outline-none focus:border-ink-soft"
+        />
+      </div>
+
+      <button
+        onClick={() => save.mutate()}
+        disabled={!severity || !date || save.isPending}
+        className="min-h-12 w-full rounded-lg bg-ink text-sm text-paper disabled:opacity-40"
+      >
+        Registrar
+      </button>
+    </Modal>
   );
 }
 

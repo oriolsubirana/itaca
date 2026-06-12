@@ -46,11 +46,15 @@ export const saveEntry = (date: string, entry: Partial<DiaryEntry>) =>
 
 export const getFlares = () => api<FlaresView>("/health/flares");
 
-export const startFlare = (severity: Flare["severity"]) =>
+export const startFlare = (
+  severity: Flare["severity"],
+  date?: string,
+  notes?: string,
+) =>
   api<Flare>("/health/flares/start", {
     method: "POST",
     headers: json,
-    body: JSON.stringify({ severity }),
+    body: JSON.stringify({ severity, date, notes }),
   });
 
 export const endFlare = () =>
