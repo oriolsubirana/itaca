@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageTitle } from "../components/PageTitle";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
+import { MedicalDocuments } from "../components/MedicalDocuments";
 import { Modal } from "../components/Modal";
 import {
   deleteEntry,
@@ -43,6 +44,12 @@ export function Salud() {
         </h2>
         <AnalyteChart />
         <LabReports />
+      </section>
+      <section className="border-t border-line py-5">
+        <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
+          Documentos clínicos
+        </h2>
+        <MedicalDocuments />
       </section>
       <RecentEntries />
       <FlareSection />

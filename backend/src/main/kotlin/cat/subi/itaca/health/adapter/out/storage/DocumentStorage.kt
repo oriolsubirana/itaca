@@ -13,10 +13,10 @@ import java.nio.file.Path
 import java.util.UUID
 
 /**
- * Port for storing uploaded lab report files. Returns the storage path used
- * to retrieve the content later.
+ * Port for storing uploaded documents (lab report PDFs, clinical documents...).
+ * Returns the storage path used to retrieve the content later.
  */
-interface LabFileStorage {
+interface DocumentStorage {
     fun store(
         filename: String,
         content: ByteArray,
@@ -25,27 +25,33 @@ interface LabFileStorage {
     fun load(path: String): ByteArray
 }
 
+/** A stored file's bytes plus its original filename (plain class: ByteArray needs no equals). */
+class StoredFile(
+    val filename: String,
+    val content: ByteArray,
+)
+
 @Configuration
-class LabFileStorageConfig {
+class DocumentStorageConfig {
     @Bean
     @ConditionalOnProperty("supabase.url")
-    fun supabaseLabFileStorage(
+    fun supabaseDocumentStorage(
         @Value("\${supabase.url}") supabaseUrl: String,
         @Value("\${supabase.service-key}") serviceKey: String,
         @Value("\${supabase.bucket:lab-reports}") bucket: String,
-    ): LabFileStorage = SupabaseLabFileStorage(supabaseUrl, serviceKey, bucket)
+    ): DocumentStorage = SupabaseDocumentStorage(supabaseUrl, serviceKey, bucket)
 
     @Bean
-    @ConditionalOnMissingBean(LabFileStorage::class)
-    fun localLabFileStorage(
+    @ConditionalOnMissingBean(DocumentStorage::class)
+    fun localDocumentStorage(
         @Value("\${itaca.storage.local-dir:./data/lab-reports}") localDir: String,
-    ): LabFileStorage = LocalLabFileStorage(localDir)
+    ): DocumentStorage = LocalDocumentStorage(localDir)
 }
 
 /** Default storage for local development: plain files under a local directory. */
-class LocalLabFileStorage(
+class LocalDocumentStorage(
     localDir: String,
-) : LabFileStorage {
+) : DocumentStorage {
     private val root = Path.of(localDir)
 
     override fun store(
@@ -62,12 +68,12 @@ class LocalLabFileStorage(
 }
 
 /** Supabase Storage via its REST API (production). Active when supabase.url is set. */
-class SupabaseLabFileStorage(
+class SupabaseDocumentStorage(
     supabaseUrl: String,
     private val serviceKey: String,
     private val bucket: String,
-) : LabFileStorage {
-    private val log = LoggerFactory.getLogger(SupabaseLabFileStorage::class.java)
+) : DocumentStorage {
+    private val log = LoggerFactory.getLogger(SupabaseDocumentStorage::class.java)
     private val client = RestClient.builder().baseUrl("$supabaseUrl/storage/v1").build()
 
     override fun store(
@@ -83,7 +89,7 @@ class SupabaseLabFileStorage(
             .body(content)
             .retrieve()
             .toBodilessEntity()
-        log.info("Stored lab report in Supabase bucket {}: {}", bucket, path)
+        log.info("Stored document in Supabase bucket {}: {}", bucket, path)
         return path
     }
 

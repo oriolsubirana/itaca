@@ -148,10 +148,11 @@ prepared by `.claude/hooks/session-start.sh`.
   so any Jackson can bind them.
 - Per-request model override: `.options(AnthropicChatOptions.builder().model(...))`
   (pass the Builder itself, not `.build()`).
-- Storage port `LabFileStorage`: local files by default; Supabase impl activates
-  when the SUPABASE_URL env var exists (relaxed binding to `supabase.url` —
-  do NOT add a `supabase.url:` default to application.yml or the conditional
-  always matches).
+- Storage port `DocumentStorage` (shared by lab reports and clinical documents):
+  local files by default; Supabase impl activates when the SUPABASE_URL env var
+  exists (relaxed binding to `supabase.url` — do NOT add a `supabase.url:` default
+  to application.yml or the conditional always matches). `loadFile` returns a
+  `StoredFile(filename, content)`.
 - Only CONFIRMED lab reports feed analyte series; review gate is mandatory.
 - Spring Data derived `deleteBy...` loads and deletes row by row → StaleObjectState
   when jobs race; use `@Modifying @Query` bulk deletes and serialize concurrent

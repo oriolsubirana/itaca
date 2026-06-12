@@ -5,7 +5,8 @@ import cat.subi.itaca.health.adapter.out.persistence.LabReportEntity
 import cat.subi.itaca.health.adapter.out.persistence.LabReportRepository
 import cat.subi.itaca.health.adapter.out.persistence.LabResultEntity
 import cat.subi.itaca.health.adapter.out.persistence.LabResultRepository
-import cat.subi.itaca.health.adapter.out.storage.LabFileStorage
+import cat.subi.itaca.health.adapter.out.storage.DocumentStorage
+import cat.subi.itaca.health.adapter.out.storage.StoredFile
 import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
@@ -43,12 +44,6 @@ data class LabReportDetail(
     val results: List<LabResultDto>,
 )
 
-/** The stored PDF bytes plus the original filename (plain class: ByteArray needs no equals). */
-class LabReportFile(
-    val filename: String,
-    val content: ByteArray,
-)
-
 /** Partial update; null means "leave as is", empty string clears textValue/unit. */
 data class LabResultUpdate(
     val date: String? = null,
@@ -67,7 +62,7 @@ data class LabResultUpdate(
 class LabReportService(
     private val reports: LabReportRepository,
     private val results: LabResultRepository,
-    private val storage: LabFileStorage,
+    private val storage: DocumentStorage,
     private val extractor: LabReportExtractor,
     private val matcher: AnalyteMatcher,
     private val jdbc: JdbcTemplate,
@@ -89,10 +84,10 @@ class LabReportService(
     }
 
     /** Loads the stored PDF (with its original filename) so the UI can display it. */
-    fun loadFile(reportId: Long): LabReportFile {
+    fun loadFile(reportId: Long): StoredFile {
         val report = reports.findById(reportId).orElseThrow { NoSuchElementException("Lab report $reportId not found") }
         val path = checkNotNull(report.storagePath) { "Report $reportId has no stored file" }
-        return LabReportFile(report.filename ?: "informe.pdf", storage.load(path))
+        return StoredFile(report.filename ?: "informe.pdf", storage.load(path))
     }
 
     /** Executed by the JobRunr handler, with retries on failure. */

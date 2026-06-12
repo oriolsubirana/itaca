@@ -72,6 +72,13 @@ class SchemaAndSeedIntegrationTest {
     }
 
     @Test
+    fun `clinical document tables exist and start empty`() {
+        assertEquals(0, count("medical_documents"))
+        assertEquals(0, count("medical_diagnoses"))
+        assertEquals(0, count("medical_medications"))
+    }
+
+    @Test
     fun `the Modulith event registry has its table`() {
         assertEquals(0, count("event_publication"))
     }
