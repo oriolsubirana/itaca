@@ -17,6 +17,14 @@ import {
 } from "recharts";
 import { getAnalyteSeries, getAnalytesWithData } from "../api/labs";
 
+const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** "2024-02-01" -> "feb '24": month + year so points from different years don't collide. */
+function formatTick(date: string): string {
+  const [year, month] = date.split("-");
+  return `${MONTHS_ES[Number(month) - 1]} '${year.slice(2)}`;
+}
+
 /**
  * Per-analyte evolution with the reference range shaded — only confirmed
  * reports feed this chart.
@@ -81,12 +89,16 @@ export function AnalyteChart() {
 
       {data && data.points.length > 0 && (
         <>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer
+            width="100%"
+            height={220}
+            className="[&_.recharts-wrapper]:outline-none [&_svg]:outline-none"
+          >
             <LineChart data={data.points} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 11, fill: "#6b6963" }}
-                tickFormatter={(d: string) => d.slice(5)}
+                tickFormatter={formatTick}
                 stroke="#e8e6e1"
               />
               <YAxis tick={{ fontSize: 11, fill: "#6b6963" }} stroke="#e8e6e1" width={48} />
