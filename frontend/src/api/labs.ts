@@ -43,6 +43,7 @@ export interface AnalyteRef {
   code: string;
   name: string;
   canonicalUnit: string;
+  category: string | null;
 }
 
 export interface AnalyteSeriesPoint {

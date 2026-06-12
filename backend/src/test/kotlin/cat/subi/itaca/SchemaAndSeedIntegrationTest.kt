@@ -79,6 +79,13 @@ class SchemaAndSeedIntegrationTest {
     }
 
     @Test
+    fun `every analyte is assigned a panel category`() {
+        val uncategorized =
+            jdbc.queryForObject("SELECT count(*) FROM analytes WHERE category IS NULL", Int::class.java)
+        assertEquals(0, uncategorized)
+    }
+
+    @Test
     fun `clinical document tables exist and start empty`() {
         assertEquals(0, count("medical_documents"))
         assertEquals(0, count("medical_diagnoses"))

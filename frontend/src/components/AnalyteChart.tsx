@@ -16,8 +16,19 @@ import {
   YAxis,
 } from "recharts";
 import { getAnalyteSeries, getAnalytesWithData } from "../api/labs";
+import type { AnalyteRef } from "../api/labs";
 
 const MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** Groups analytes into their panels, preserving the backend's category-then-name order. */
+function groupByCategory(analytes: AnalyteRef[]): [string, AnalyteRef[]][] {
+  const groups = new Map<string, AnalyteRef[]>();
+  for (const a of analytes) {
+    const key = a.category ?? "Otros";
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(a);
+  }
+  return [...groups.entries()];
+}
 
 /** "2024-02-01" -> "feb '24": month + year so points from different years don't collide. */
 function formatTick(date: string): string {
@@ -72,17 +83,24 @@ export function AnalyteChart() {
           transition
           className="z-50 max-h-72 w-[var(--button-width)] overflow-auto rounded-lg border border-line bg-paper p-1 shadow-lg [--anchor-gap:4px] outline-none data-[closed]:opacity-0 data-[closed]:transition data-[enter]:duration-100 data-[enter]:ease-out data-[leave]:duration-75 data-[leave]:ease-in"
         >
-          {analytes.data.map((a) => (
-            <ListboxOption
-              key={a.code}
-              value={a.code}
-              className="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm text-ink-soft transition-colors data-[focus]:bg-line data-[selected]:text-ink"
-            >
-              <span className="truncate">{a.name}</span>
-              <span className="text-ink opacity-0 transition-opacity group-data-[selected]:opacity-100">
-                ✓
-              </span>
-            </ListboxOption>
+          {groupByCategory(analytes.data).map(([category, items]) => (
+            <div key={category}>
+              <p className="px-3 pt-3 pb-1 text-[11px] uppercase tracking-wide text-ink-soft first:pt-1">
+                {category}
+              </p>
+              {items.map((a) => (
+                <ListboxOption
+                  key={a.code}
+                  value={a.code}
+                  className="group flex cursor-pointer items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm text-ink-soft transition-colors data-[focus]:bg-line data-[selected]:text-ink"
+                >
+                  <span className="truncate">{a.name}</span>
+                  <span className="text-ink opacity-0 transition-opacity group-data-[selected]:opacity-100">
+                    ✓
+                  </span>
+                </ListboxOption>
+              ))}
+            </div>
           ))}
         </ListboxOptions>
       </Listbox>

@@ -45,11 +45,11 @@ class LabResultQueries(
     fun analytesWithData(): List<AnalyteRef> =
         jdbc.query(
             """
-            SELECT DISTINCT a.id, a.code, a.name, a.canonical_unit
+            SELECT DISTINCT a.id, a.code, a.name, a.canonical_unit, a.category
             FROM analytes a
             JOIN lab_results lr ON lr.analyte_id = a.id AND lr.value IS NOT NULL
             JOIN lab_reports r ON r.id = lr.lab_report_id AND r.status = 'confirmed'
-            ORDER BY a.name
+            ORDER BY a.category NULLS LAST, a.name
             """.trimIndent(),
         ) { rs, _ ->
             AnalyteRef(
@@ -57,6 +57,7 @@ class LabResultQueries(
                 rs.getString("code"),
                 rs.getString("name"),
                 rs.getString("canonical_unit"),
+                rs.getString("category"),
             )
         }
 

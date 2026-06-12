@@ -24,6 +24,10 @@ databaseChangeLog:
   - include:
       file: db/changelog/029-health-analytes-catalan-synonyms.sql
   - include:
+      file: db/changelog/032-health-categories-schema.sql
+  - include:
+      file: db/changelog/033-health-analyte-categories-seed.sql
+  - include:
       file: db/changelog/030-finance-schema.sql
   - include:
       file: db/changelog/031-finance-seed.sql

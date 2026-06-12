@@ -8,6 +8,7 @@ data class AnalyteRef(
     val code: String,
     val name: String,
     val canonicalUnit: String,
+    val category: String? = null,
 )
 
 private val PER_FIELD_UNIT = Regex("gesic|hpf|/gf|/feld", RegexOption.IGNORE_CASE)
