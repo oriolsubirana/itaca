@@ -121,6 +121,7 @@ class StravaApiClient(
             "ride", "virtualride", "mountainbikeride", "gravelride", "ebikeride" -> "bike"
             "run", "trailrun", "virtualrun" -> "run"
             "hike" -> "hike"
+            "weighttraining", "workout", "crossfit", "highintensityintervaltraining" -> "gym"
             else -> "other"
         }
 

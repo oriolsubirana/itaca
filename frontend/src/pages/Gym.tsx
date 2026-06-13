@@ -100,7 +100,7 @@ function fmtDuration(s: number): string {
   const sec = s % 60;
   return h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
 }
-const ACT_LABEL: Record<ActivityType, string> = { bike: "Bici", run: "Correr", hike: "Hike", other: "Actividad" };
+const ACT_LABEL: Record<ActivityType, string> = { bike: "Bici", run: "Correr", hike: "Hike", gym: "Gimnasio", other: "Actividad" };
 
 function ActIcon({ type }: { type: ActivityType }) {
   const common = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, className: "size-[22px] shrink-0 text-ink" } as const;
@@ -121,16 +121,30 @@ function ActIcon({ type }: { type: ActivityType }) {
       </svg>
     );
   }
+  if (type === "gym") {
+    return (
+      <svg {...common}>
+        <path d="M4 10v4M7 8v8M17 8v8M20 10v4M7 12h10" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "hike") {
+    return (
+      <svg {...common}>
+        <path d="M3 19l5-9 4 5 3-5 6 9z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
   return (
     <svg {...common}>
-      <path d="M3 19l5-9 4 5 3-5 6 9z" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="7.5" />
     </svg>
   );
 }
 
 function activityLine(a: ActivityItem): string {
   const parts: string[] = [];
-  if (a.distanceKm != null) parts.push(`${fmt1(a.distanceKm)} km`);
+  if (a.distanceKm != null && a.distanceKm > 0) parts.push(`${fmt1(a.distanceKm)} km`);
   if (a.durationS != null) parts.push(fmtDuration(a.durationS));
   if (a.elevationM != null && a.elevationM > 0) parts.push(`${Math.round(a.elevationM)} m D+`);
   if (a.avgHr != null) parts.push(`${Math.round(a.avgHr)} ppm`);
@@ -262,11 +276,11 @@ function Actividades() {
 function ActivityDetailModal({ activity, onClose }: { activity: ActivityItem; onClose: () => void }) {
   const a = activity;
   const stats: [string, string][] = [];
-  if (a.distanceKm != null) stats.push(["Distancia", `${fmt1(a.distanceKm)} km`]);
+  if (a.distanceKm != null && a.distanceKm > 0) stats.push(["Distancia", `${fmt1(a.distanceKm)} km`]);
   if (a.durationS != null) stats.push(["Duración", fmtDuration(a.durationS)]);
-  if (a.elevationM != null) stats.push(["Desnivel", `${Math.round(a.elevationM)} m`]);
+  if (a.elevationM != null && a.elevationM > 0) stats.push(["Desnivel", `${Math.round(a.elevationM)} m`]);
   if (a.avgHr != null) stats.push(["FC media", `${Math.round(a.avgHr)} ppm`]);
-  if (a.avgSpeedKmh != null) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
+  if (a.avgSpeedKmh != null && a.avgSpeedKmh > 0) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
   return (
     <Modal title={`${ACT_LABEL[a.type]} · ${shortDate(a.date)}`} onClose={onClose}>
       {a.name && <p className="mb-4 text-sm text-ink-soft">{a.name}</p>}

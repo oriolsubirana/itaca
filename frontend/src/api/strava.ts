@@ -1,6 +1,6 @@
 import { api } from "./client";
 
-export type ActivityType = "bike" | "run" | "hike" | "other";
+export type ActivityType = "bike" | "run" | "hike" | "gym" | "other";
 
 export interface ActivityItem {
   id: number;

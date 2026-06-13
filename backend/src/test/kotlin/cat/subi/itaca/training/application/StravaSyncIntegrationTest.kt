@@ -87,6 +87,34 @@ class StravaSyncIntegrationTest {
         assertEquals(1, accounts.count())
     }
 
+    @Test
+    fun `maps a Strava weight-training session to the gym type`() {
+        stubToken()
+        wireMock.stubFor(
+            get(urlPathEqualTo("/athlete/activities")).willReturn(
+                aResponse().withHeader("Content-Type", "application/json").withBody(
+                    """
+                    [{"id": 2001, "name":"Fuerza", "sport_type":"WeightTraining",
+                      "start_date":"2026-06-10T18:00:00Z", "distance": 0.0, "moving_time": 3720,
+                      "average_heartrate": 87.0}]
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        accounts.save(StravaAccountEntity(refreshToken = "rt", expiresAt = Instant.now().minusSeconds(3600)))
+
+        strava.sync()
+
+        assertEquals(
+            "gym",
+            queries
+                .view()
+                .activities
+                .single()
+                .type,
+        )
+    }
+
     private fun stubToken() {
         wireMock.stubFor(
             post(urlPathEqualTo("/oauth/token")).willReturn(
