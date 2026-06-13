@@ -98,26 +98,34 @@ export function Chat() {
 
   return (
     <div className="flex min-h-[calc(100dvh-9.5rem)] flex-col">
-      <header className="sticky top-0 z-10 -mx-5 mb-4 flex items-center gap-2 bg-paper/95 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur">
-        {(["general", "workout"] as const).map((m) => (
+      <header className="sticky top-0 z-10 -mx-5 mb-4 flex items-center justify-between gap-2 border-b border-line bg-paper/95 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur">
+        <div className="flex items-center gap-2.5">
+          <span className="size-2 rounded-full bg-ink" />
+          <span className="text-[17px] font-medium tracking-tight text-ink">Ítaca</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {(["general", "workout"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => switchMode(m)}
+              className={`min-h-9 rounded-full border px-3 text-[13px] ${
+                mode === m ? "border-ink bg-ink text-paper" : "border-line text-ink-soft"
+              }`}
+            >
+              {m === "general" ? "General" : "Entreno"}
+            </button>
+          ))}
           <button
-            key={m}
-            onClick={() => switchMode(m)}
-            className={`min-h-11 rounded-full border px-4 text-sm ${
-              mode === m
-                ? "border-ink bg-ink text-paper"
-                : "border-line text-ink-soft"
-            }`}
+            onClick={resetSession}
+            aria-label="Nueva sesión"
+            className="flex size-9 items-center justify-center text-ink-soft"
           >
-            {m === "general" ? "General" : "Entreno"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-[18px]">
+              <path d="M4 12a8 8 0 1 1 2.3 5.6" strokeLinecap="round" />
+              <path d="M4 17v-4h4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
-        ))}
-        <button
-          onClick={resetSession}
-          className="ml-auto min-h-11 px-2 text-xs uppercase tracking-wide text-ink-soft"
-        >
-          Nueva sesión
-        </button>
+        </div>
       </header>
 
       <div
@@ -169,7 +177,7 @@ export function Chat() {
             </div>
           )}
           <form
-            className="flex items-end gap-2 border-t border-line pt-3"
+            className="flex items-center gap-2.5 border-t border-line pt-3"
             onSubmit={(e) => {
               e.preventDefault();
               void send(input);
@@ -178,17 +186,19 @@ export function Chat() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={mode === "workout" ? "jalón 45 por 12…" : "Escribe…"}
+              placeholder={mode === "workout" ? "jalón 45 por 12…" : "Escribe a Ítaca…"}
               enterKeyHint="send"
-              className="min-h-11 flex-1 rounded-lg border border-line bg-paper px-4 text-base outline-none focus:border-ink-soft"
+              className="h-12 flex-1 rounded-full border border-line bg-paper px-4 text-[15px] outline-none focus:border-ink/40"
             />
             <button
               type="submit"
               disabled={!input.trim() || !!pending}
-              className="flex size-11 items-center justify-center rounded-lg bg-ink text-paper disabled:opacity-40"
+              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-40"
               aria-label="Enviar"
             >
-              ↑
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5">
+                <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </form>
         </div>
@@ -219,19 +229,21 @@ function Bubble({
   if (role === "USER") {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[85%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-sm leading-relaxed text-paper">
+        <p className="max-w-[80%] rounded-2xl rounded-br-md bg-ink px-3.5 py-2.5 text-[14.5px] leading-snug text-paper">
           {text}
         </p>
       </div>
     );
   }
   return (
-    <div
-      className={`markdown max-w-[92%] text-sm leading-relaxed ${
-        error ? "text-red-800" : "text-ink"
-      }`}
-    >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+    <div className="flex justify-start">
+      <div
+        className={`markdown max-w-[88%] text-pretty rounded-2xl rounded-bl-md bg-[#f1efea] px-3.5 py-2.5 text-[14.5px] leading-relaxed ${
+          error ? "text-red-800" : "text-ink"
+        }`}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+      </div>
     </div>
   );
 }
