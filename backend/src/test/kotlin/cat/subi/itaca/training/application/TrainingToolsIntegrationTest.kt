@@ -25,6 +25,21 @@ class TrainingToolsIntegrationTest {
     @Autowired
     lateinit var queries: TrainingQueries
 
+    @Autowired
+    lateinit var history: TrainingHistoryQueries
+
+    @Test
+    fun `gym history exposes sessions and per-exercise progression`() {
+        assertEquals(3, history.sessions().size)
+        assertEquals(10, history.exercises().size)
+        val jalon = history.exercises().single { it.name == "Jalón al pecho" }
+        val prog = history.exerciseProgression(jalon.id)
+        assertEquals("3×6-8", prog.target)
+        assertEquals(45.0, prog.lastWeight)
+        assertEquals(12, prog.lastReps)
+        assertEquals(47.5, prog.suggestedWeight, "12 reps exceed the 8-rep target -> +2.5 kg")
+    }
+
     @Test
     fun `home summary reflects the last completed session and the next rotation`() {
         val summary = queries.homeSummary()
