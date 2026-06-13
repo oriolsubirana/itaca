@@ -183,7 +183,7 @@ function Actividades() {
         <SecLabel>Actividades</SecLabel>
         <div className="rounded-md border border-line px-5 py-7 text-center">
           <p className="mb-4 text-sm text-ink-soft">
-            Conecta Strava para ver tus rutas de bici, carrera y hike (importadas de Garmin).
+            Conecta Strava para ver tus rutas de bici, carrera y hike (importadas de Strava).
           </p>
           <button onClick={() => connectStrava()} className="h-11 rounded-full bg-ink px-5 text-sm font-medium text-paper">
             Conectar Strava
