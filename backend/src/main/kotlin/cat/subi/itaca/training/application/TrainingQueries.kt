@@ -36,6 +36,12 @@ data class WorkoutRow(
     val completed: Boolean,
 )
 
+data class TrainingSummaryDto(
+    val lastWorkoutDate: String?,
+    val lastWorkoutRoutine: String?,
+    val nextRoutine: String,
+)
+
 /**
  * Read side of the training context (light CQRS): plain SQL projections.
  */
@@ -71,6 +77,20 @@ class TrainingQueries(
                 ?.let { rotation[(rotation.indexOf(it) + 1) % rotation.size] }
                 ?: rotation.first()
         return routineByName(next)!!
+    }
+
+    /** Home dashboard glance: the last completed session and what's next in the rotation. */
+    fun homeSummary(): TrainingSummaryDto {
+        val last =
+            jdbc
+                .query(
+                    """
+                    SELECT w.date, r.name FROM workouts w JOIN routines r ON r.id = w.routine_id
+                    WHERE w.completed ORDER BY w.date DESC, w.id DESC LIMIT 1
+                    """.trimIndent(),
+                    { rs, _ -> rs.getDate("date").toLocalDate().toString() to rs.getString("name") },
+                ).firstOrNull()
+        return TrainingSummaryDto(last?.first, last?.second, nextRoutineInRotation().second)
     }
 
     fun exercisesOfRoutine(routineId: Long): List<RoutineExerciseRow> =

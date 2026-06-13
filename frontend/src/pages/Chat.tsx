@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -28,14 +29,16 @@ interface Pending {
 }
 
 export function Chat() {
-  const [mode, setMode] = useState<ChatMode>(
-    () => (localStorage.getItem("itaca.chat.mode") as ChatMode) ?? "general",
+  // Home can deep-link here with a seeded prompt and/or workout mode (?seed=&workout=).
+  const search = useSearch({ from: "/chat" });
+  const [mode, setMode] = useState<ChatMode>(() =>
+    search.workout ? "workout" : (localStorage.getItem("itaca.chat.mode") as ChatMode) ?? "general",
   );
   const [sessionId, setSessionId] = useState<number | null>(() => {
     const stored = localStorage.getItem(sessionKey(mode));
     return stored ? Number(stored) : null;
   });
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(search.seed ?? "");
   const [pending, setPending] = useState<Pending | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();

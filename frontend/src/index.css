@@ -24,6 +24,15 @@ body {
   margin: 0;
 }
 
+/* Horizontal chip rows scroll without a visible scrollbar. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Animated "thinking" indicator while waiting for the first chunk */
 .typing span {
   width: 5px;

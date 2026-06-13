@@ -22,6 +22,17 @@ class TrainingToolsIntegrationTest {
     @Autowired
     lateinit var tools: TrainingTools
 
+    @Autowired
+    lateinit var queries: TrainingQueries
+
+    @Test
+    fun `home summary reflects the last completed session and the next rotation`() {
+        val summary = queries.homeSummary()
+        assertEquals("2026-06-09", summary.lastWorkoutDate)
+        assertEquals("Push", summary.lastWorkoutRoutine)
+        assertEquals("Pull", summary.nextRoutine)
+    }
+
     @Test
     fun `full workout flow with rotation, progression and previous-session comparison`() {
         val started = tools.startWorkout(null)
