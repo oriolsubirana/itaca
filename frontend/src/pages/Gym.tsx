@@ -42,7 +42,7 @@ export function Gym() {
   return (
     <div>
       <header className="mb-2 border-b border-line pb-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Gym</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">Entreno</h1>
       </header>
       <div className="space-y-9 pt-5">
         <Proxima />
@@ -192,28 +192,29 @@ function SessionDetailModal({ session, onClose }: { session: SessionSummary; onC
 
 function GymLine({ progression }: { progression: ExerciseProgression }) {
   const pts = progression.points;
-  if (pts.length < 2) {
-    return <p className="mt-3 text-[13px] text-ink-soft">Aún no hay suficiente histórico para la gráfica.</p>;
-  }
+  if (pts.length === 0) return null;
   const W = 320;
   const H = 124;
   const pl = 6;
   const pr = 40;
   const pt = 18;
   const pb = 22;
+  const single = pts.length === 1;
   const vals = pts.map((p) => p.weight);
   let mn = Math.min(...vals);
   let mx = Math.max(...vals);
   const pad = (mx - mn) * 0.28 || 2;
   mn -= pad;
   mx += pad;
-  const x = (i: number) => pl + i * ((W - pl - pr) / (pts.length - 1));
+  const x = (i: number) => (single ? W / 2 : pl + i * ((W - pl - pr) / (pts.length - 1)));
   const y = (v: number) => pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb);
   const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.weight).toFixed(1)}`).join(" ");
   const li = pts.length - 1;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full select-none" style={{ overflow: "visible" }}>
-      <polyline points={line} fill="none" stroke="#1c1c1a" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+      {!single && (
+        <polyline points={line} fill="none" stroke="#1c1c1a" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+      )}
       {pts.map((p, i) => (
         <circle
           key={i}
@@ -228,10 +229,12 @@ function GymLine({ progression }: { progression: ExerciseProgression }) {
       <text x={x(li)} y={y(pts[li].weight) - 9} textAnchor="middle" fill="#1c1c1a" style={{ fontSize: 11, fontWeight: 600 }}>
         {fmtKg(pts[li].weight)}
       </text>
-      <text x={x(0)} y={H - 5} textAnchor="start" fill="#6b6963" style={{ fontSize: 10 }}>
-        {shortDate(pts[0].date)}
-      </text>
-      <text x={x(li)} y={H - 5} textAnchor="end" fill="#6b6963" style={{ fontSize: 10 }}>
+      {!single && (
+        <text x={x(0)} y={H - 5} textAnchor="start" fill="#6b6963" style={{ fontSize: 10 }}>
+          {shortDate(pts[0].date)}
+        </text>
+      )}
+      <text x={x(li)} y={H - 5} textAnchor={single ? "middle" : "end"} fill="#6b6963" style={{ fontSize: 10 }}>
         {shortDate(pts[li].date)}
       </text>
     </svg>

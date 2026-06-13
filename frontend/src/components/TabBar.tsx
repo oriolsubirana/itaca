@@ -25,7 +25,7 @@ const tabs: { to: string; label: string; icon: ReactNode }[] = [
   },
   {
     to: "/gym",
-    label: "Gym",
+    label: "Entreno",
     icon: (
       <path d="M2.5 12h3m13 0h3M7 8v8m10-8v8M7 12h10" strokeLinecap="round" />
     ),
