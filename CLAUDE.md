@@ -32,8 +32,13 @@ integration point, configuration property, annotation or artifact name:
   Spring Modulith 2.1 · Spring MVC + virtual threads (NO WebFlux) · JPA/Hibernate ·
   Liquibase · JobRunr (same Postgres, no broker) · springdoc · Spring AI 2.0 (phase 2)
 - Frontend: React 19 · Vite · TypeScript · TanStack Router/Query · Tailwind v4 ·
-  vite-plugin-pwa · Recharts. Mobile-first (90% phone usage), bottom tab bar, ≥44px
-  touch targets. Aesthetic: Margaret Howell — warm neutrals, clean type, zero noise.
+  Headless UI · vite-plugin-pwa · Recharts. Mobile-first (90% phone usage), bottom
+  tab bar, ≥44px touch targets. Aesthetic: Margaret Howell — warm neutrals, clean
+  type, zero noise. **Interactive components (dropdowns, dialogs, popovers, tabs,
+  switches...) always use Headless UI primitives** styled with Tailwind
+  data-attributes (`data-focus`/`data-selected`/`data-open`) — never raw
+  `<select>`/`role="dialog"` reimplementations, and no styled component libraries
+  (Material UI etc.: their style engines fight Tailwind and the aesthetic).
   Page width: chat/reading pages stay `max-w-2xl` (line-length readability);
   dashboard pages (Home/Salud/Gym/Finanzas, phases 3-5) use a wider responsive
   grid (`max-w-5xl`+, multi-column cards, Recharts in ResponsiveContainer) — move
@@ -58,6 +63,9 @@ integration point, configuration property, annotation or artifact name:
   warning at apply time. Upstream issue, harmless until Gradle 10; do not chase it —
   Renovate will bring the fixed release.
 - ESLint 10 flat config: react-hooks flat preset is `configs.flat.recommended`.
+- Boot 4 split MockMvc test support: dependency `spring-boot-starter-webmvc-test`,
+  annotation `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc`
+  (the old `...test.autoconfigure.web.servlet` package is gone).
 
 ## Architecture rules
 
@@ -106,7 +114,7 @@ prepared by `.claude/hooks/session-start.sh`.
 
 1. ✅ Skeleton (modules, schema+seeds, compose, CI)
 2. ✅ Chat + workout mode end-to-end (Spring AI 2.0-RC2, training tools, SSE, mobile UI)
-3. Health (chat+form diary, lab pipeline with JobRunr)
+3. ✅ Health (diary+flares via chat and form; lab pipeline: upload → JobRunr → claude-haiku extraction → review → per-analyte chart)
 4. Home/dashboard · 5. Finance (CSV import) · 6. Ingestion (`/api/ingest`)
 
 ### Chat architecture (phase 2)
@@ -124,4 +132,34 @@ prepared by `.claude/hooks/session-start.sh`.
 - `adapter/in` packages need `@file:Suppress("ktlint:standard:package-name")`
   (`in` is a Kotlin keyword).
 - Mocking `ChatModel` in tests: also stub `getOptions()`/`getDefaultOptions()`.
+- Persistent user memory: `chat_memories` table + `save_memory`/`forget_memory`
+  tools; `ChatService` injects all memories into the system prompt. The prompt
+  forbids claiming "anotado" without a write-tool call in the same turn.
+- Spring AI autoconfigures beans named `chatMemory`/`chatMemoryRepository` —
+  do not name your own beans that (our JPA repo is `UserMemoryRepository`).
 - JPA + JdbcTemplate read-side in one transaction: `saveAndFlush` before reading.
+
+### Health pipeline notes (phase 3)
+
+- JobRunr jobs use the JobRequest/JobRequestHandler pattern (no lambda bytecode
+  analysis, Kotlin-safe). `JobRequestScheduler` is autoconfigured by the starter.
+- PDF to Claude: `.user { it.text(prompt).media(pdfMimeType, ByteArrayResource(bytes)) }`;
+  structured output via `.entity(Class)` — extraction DTOs use `var` + defaults
+  so any Jackson can bind them.
+- Per-request model override: `.options(AnthropicChatOptions.builder().model(...))`
+  (pass the Builder itself, not `.build()`).
+- Storage port `DocumentStorage` (shared by lab reports and clinical documents):
+  local files by default; Supabase impl activates when the SUPABASE_URL env var
+  exists (relaxed binding to `supabase.url` — do NOT add a `supabase.url:` default
+  to application.yml or the conditional always matches). `loadFile` returns a
+  `StoredFile(filename, content)`.
+- Only CONFIRMED lab reports feed analyte series; review gate is mandatory.
+- Analyte normalization is two-tier: a cheap deterministic `AnalyteMatcher`
+  (canonical-form exact match: accent-fold, decoration-strip, synonyms) runs
+  first; `SemanticAnalyteMatcher` (Claude, "Normalizar con IA" button) maps the
+  multilingual long tail to canonical codes. Define a canonical analyte once — the
+  model handles the language variants, so don't chase per-language synonyms. The
+  unit guard and review gate remain backstops over both.
+- Spring Data derived `deleteBy...` loads and deletes row by row → StaleObjectState
+  when jobs race; use `@Modifying @Query` bulk deletes and serialize concurrent
+  extraction jobs with a `PESSIMISTIC_WRITE` row lock taken AFTER the slow API call.

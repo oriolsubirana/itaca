@@ -1,6 +1,10 @@
 spring:
   application:
     name: itaca
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
   threads:
     virtual:
       enabled: true
@@ -50,6 +54,14 @@ itaca:
   security:
     # Static bearer token for the whole API. Empty = no auth (development only).
     token: ${ITACA_API_TOKEN:}
+  storage:
+    # Local fallback when Supabase is not configured
+    local-dir: ${ITACA_STORAGE_DIR:./data/lab-reports}
+  extraction:
+    model: claude-haiku-4-5
+
+# Supabase storage activates itself when the SUPABASE_URL env var is set
+# (relaxed binding maps it to supabase.url); otherwise local files are used.
 
 server:
   port: 8080

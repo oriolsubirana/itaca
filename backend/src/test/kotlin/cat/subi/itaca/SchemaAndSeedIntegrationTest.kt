@@ -45,9 +45,26 @@ class SchemaAndSeedIntegrationTest {
 
     @Test
     fun `the analyte dictionary covers the key IBD markers`() {
-        assertEquals(32, count("analytes"))
+        assertEquals(59, count("analytes"))
         val codes = jdbc.queryForList("SELECT code FROM analytes", String::class.java)
-        assertTrue(codes.containsAll(listOf("fecal_calprotectin", "crp", "esr", "ferritin", "vitamin_d")))
+        val expected = listOf("fecal_calprotectin", "mch", "lipase", "hba1c", "semen_concentration", "prothrombin_time")
+        assertTrue(codes.containsAll(expected))
+    }
+
+    @Test
+    fun `the analyte dictionary includes German and Catalan synonyms for Swiss and Catalan labs`() {
+        val viaGerman =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM analytes WHERE 'Hämatokrit' = ANY(synonyms)",
+                Int::class.java,
+            )
+        assertEquals(1, viaGerman)
+        val viaCatalan =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM analytes WHERE 'leucòcits' = ANY(synonyms)",
+                Int::class.java,
+            )
+        assertEquals(1, viaCatalan)
     }
 
     @Test
@@ -59,6 +76,20 @@ class SchemaAndSeedIntegrationTest {
                 String::class.java,
             )
         assertEquals("CHF", neonCurrency)
+    }
+
+    @Test
+    fun `every analyte is assigned a panel category`() {
+        val uncategorized =
+            jdbc.queryForObject("SELECT count(*) FROM analytes WHERE category IS NULL", Int::class.java)
+        assertEquals(0, uncategorized)
+    }
+
+    @Test
+    fun `clinical document tables exist and start empty`() {
+        assertEquals(0, count("medical_documents"))
+        assertEquals(0, count("medical_diagnoses"))
+        assertEquals(0, count("medical_medications"))
     }
 
     @Test

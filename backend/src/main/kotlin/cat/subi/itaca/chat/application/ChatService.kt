@@ -32,6 +32,7 @@ class ChatService(
     private val sessions: ChatSessionRepository,
     private val messages: ChatMessageRepository,
     private val tools: List<ChatTools>,
+    private val memoryTools: MemoryTools,
 ) {
     fun createSession(mode: String): SessionDto {
         require(mode in VALID_MODES) { "Invalid mode: $mode" }
@@ -69,7 +70,7 @@ class ChatService(
         @Suppress("SpreadOperator") // ChatClient only offers a vararg overload for tool objects
         return chatClient
             .prompt()
-            .system(SystemPrompts.forMode(session.mode))
+            .system(SystemPrompts.forMode(session.mode, memoryTools.allMemories()))
             .messages(history)
             .tools(*tools.toTypedArray())
             .stream()

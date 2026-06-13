@@ -13,5 +13,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     throw new Error(`API ${response.status}: ${path}`);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return (await response.json()) as T;
+}
+
+/** Fetches a binary response (e.g. a PDF) with the same auth as `api`. */
+export async function apiBlob(path: string): Promise<Blob> {
+  const headers = new Headers();
+  if (API_TOKEN) headers.set("Authorization", `Bearer ${API_TOKEN}`);
+  const response = await fetch(`/api${path}`, { headers });
+  if (!response.ok) throw new Error(`API ${response.status}: ${path}`);
+  return response.blob();
 }

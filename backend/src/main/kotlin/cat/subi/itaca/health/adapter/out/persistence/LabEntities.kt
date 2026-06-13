@@ -1,0 +1,90 @@
+package cat.subi.itaca.health.adapter.out.persistence
+
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
+import jakarta.persistence.LockModeType
+import jakarta.persistence.Table
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+
+@Entity
+@Table(name = "lab_reports")
+class LabReportEntity(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long? = null,
+    @Column(nullable = false)
+    var date: LocalDate,
+    var laboratory: String? = null,
+    var filename: String? = null,
+    @Column(name = "storage_path")
+    val storagePath: String? = null,
+    @Column(nullable = false)
+    var status: String = "pending_review",
+    var category: String? = null,
+    @Column(nullable = false)
+    var extracting: Boolean = false,
+    @Column(name = "created_at", nullable = false)
+    val createdAt: Instant = Instant.now(),
+)
+
+@Entity
+@Table(name = "lab_results")
+class LabResultEntity(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long? = null,
+    @Column(name = "lab_report_id", nullable = false)
+    val labReportId: Long,
+    @Column(name = "analyte_id")
+    var analyteId: Long? = null,
+    @Column(name = "raw_name", nullable = false)
+    val rawName: String,
+    @Column(name = "result_date")
+    var resultDate: LocalDate? = null,
+    var value: BigDecimal? = null,
+    @Column(name = "text_value")
+    var textValue: String? = null,
+    var unit: String? = null,
+    @Column(name = "ref_min")
+    var refMin: BigDecimal? = null,
+    @Column(name = "ref_max")
+    var refMax: BigDecimal? = null,
+    @Column(nullable = false)
+    var reviewed: Boolean = false,
+)
+
+interface LabReportRepository : JpaRepository<LabReportEntity, Long> {
+    /** Review queue order: pending first, then most recent report date. */
+    @Query(
+        """
+        SELECT r FROM LabReportEntity r
+        ORDER BY CASE WHEN r.status = 'pending_review' THEN 0 ELSE 1 END,
+                 r.date DESC, r.createdAt DESC
+        """,
+    )
+    fun findForList(): List<LabReportEntity>
+
+    /** Row lock to serialize concurrent extraction jobs for the same report. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM LabReportEntity r WHERE r.id = :id")
+    fun lockById(id: Long): LabReportEntity?
+}
+
+interface LabResultRepository : JpaRepository<LabResultEntity, Long> {
+    fun findByLabReportIdOrderById(labReportId: Long): List<LabResultEntity>
+
+    // Bulk delete: the derived deleteBy loads and deletes row by row, which
+    // fails the optimistic row-count check when two jobs race on one report.
+    @Modifying
+    @Query("DELETE FROM LabResultEntity r WHERE r.labReportId = :labReportId")
+    fun deleteByLabReportId(labReportId: Long)
+}
