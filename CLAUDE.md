@@ -154,6 +154,12 @@ prepared by `.claude/hooks/session-start.sh`.
   to application.yml or the conditional always matches). `loadFile` returns a
   `StoredFile(filename, content)`.
 - Only CONFIRMED lab reports feed analyte series; review gate is mandatory.
+- Analyte normalization is two-tier: a cheap deterministic `AnalyteMatcher`
+  (canonical-form exact match: accent-fold, decoration-strip, synonyms) runs
+  first; `SemanticAnalyteMatcher` (Claude, "Normalizar con IA" button) maps the
+  multilingual long tail to canonical codes. Define a canonical analyte once — the
+  model handles the language variants, so don't chase per-language synonyms. The
+  unit guard and review gate remain backstops over both.
 - Spring Data derived `deleteBy...` loads and deletes row by row → StaleObjectState
   when jobs race; use `@Modifying @Query` bulk deletes and serialize concurrent
   extraction jobs with a `PESSIMISTIC_WRITE` row lock taken AFTER the slow API call.

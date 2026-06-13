@@ -30,6 +30,10 @@ class LabNormalizationController(
     @PostMapping("/lab-reports/renormalize")
     fun renormalizeAll(): RenormalizeResult = normalization.renormalizeAll()
 
+    /** Deterministic pass plus a semantic (AI) pass for the multilingual long tail. */
+    @PostMapping("/lab-reports/renormalize/ai")
+    fun semanticRenormalize(): RenormalizeResult = normalization.semanticRenormalize()
+
     @ExceptionHandler(NoSuchElementException::class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     fun notFound(e: NoSuchElementException): Map<String, String?> = mapOf("error" to e.message)

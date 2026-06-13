@@ -117,6 +117,9 @@ export const renormalizeLabReport = (id: number) =>
 export const renormalizeAllLabReports = () =>
   api<{ changed: number; total: number }>("/health/lab-reports/renormalize", { method: "POST" });
 
+export const semanticRenormalizeLabReports = () =>
+  api<{ changed: number; total: number }>("/health/lab-reports/renormalize/ai", { method: "POST" });
+
 export const updateLabResult = (id: number, update: LabResultUpdate) =>
   api<LabResult>(`/health/lab-results/${id}`, {
     method: "PATCH",

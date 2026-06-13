@@ -11,6 +11,7 @@ import {
   reextractLabReport,
   renormalizeAllLabReports,
   renormalizeLabReport,
+  semanticRenormalizeLabReports,
   setLabReportCategory,
   updateLabResult,
   uploadLabReports,
@@ -45,17 +46,16 @@ export function LabReports() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["lab-reports"] }),
   });
   const [renormCount, setRenormCount] = useState<number | null>(null);
-  const renormalizeAll = useMutation({
-    mutationFn: renormalizeAllLabReports,
-    onSuccess: (data) => {
-      void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
-      void queryClient.invalidateQueries({ queryKey: ["lab-report"] });
-      void queryClient.invalidateQueries({ queryKey: ["analytes"] });
-      void queryClient.invalidateQueries({ queryKey: ["analyte-series"] });
-      setRenormCount(data.changed);
-      setTimeout(() => setRenormCount(null), 4000);
-    },
-  });
+  const onRenormalized = (data: { changed: number }) => {
+    void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
+    void queryClient.invalidateQueries({ queryKey: ["lab-report"] });
+    void queryClient.invalidateQueries({ queryKey: ["analytes"] });
+    void queryClient.invalidateQueries({ queryKey: ["analyte-series"] });
+    setRenormCount(data.changed);
+    setTimeout(() => setRenormCount(null), 4000);
+  };
+  const renormalizeAll = useMutation({ mutationFn: renormalizeAllLabReports, onSuccess: onRenormalized });
+  const semanticRenormalize = useMutation({ mutationFn: semanticRenormalizeLabReports, onSuccess: onRenormalized });
 
   const all = reports.data ?? [];
   const present = CATEGORY_ORDER.filter((c) => all.some((r) => r.category === c));
@@ -86,17 +86,26 @@ export function LabReports() {
           {upload.isPending ? "Subiendo…" : "+ Subir analítica"}
         </button>
         {all.length > 0 && (
-          <button
-            onClick={() => renormalizeAll.mutate()}
-            disabled={renormalizeAll.isPending}
-            className="min-h-11 text-sm text-ink-soft underline underline-offset-2 disabled:opacity-40"
-          >
-            {renormalizeAll.isPending
-              ? "Re-normalizando…"
-              : renormCount != null
-                ? `Re-normalizado (${renormCount})`
-                : "↻ Re-normalizar histórico"}
-          </button>
+          <>
+            <button
+              onClick={() => renormalizeAll.mutate()}
+              disabled={renormalizeAll.isPending || semanticRenormalize.isPending}
+              className="min-h-11 text-sm text-ink-soft underline underline-offset-2 disabled:opacity-40"
+            >
+              {renormalizeAll.isPending ? "Re-normalizando…" : "↻ Re-normalizar"}
+            </button>
+            <button
+              onClick={() => semanticRenormalize.mutate()}
+              disabled={semanticRenormalize.isPending || renormalizeAll.isPending}
+              className="min-h-11 text-sm text-ink-soft underline underline-offset-2 disabled:opacity-40"
+            >
+              {semanticRenormalize.isPending
+                ? "Normalizando con IA…"
+                : renormCount != null
+                  ? `Normalizado (${renormCount})`
+                  : "✨ Normalizar con IA"}
+            </button>
+          </>
         )}
       </div>
 
