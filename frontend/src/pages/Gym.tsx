@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Modal } from "../components/Modal";
 import {
@@ -13,6 +13,7 @@ import {
   type ExerciseProgression,
   type SessionSummary,
 } from "../api/training";
+import { connectStrava, getActivities, syncStrava, type ActivityItem, type ActivityType } from "../api/strava";
 
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const DIA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
@@ -90,18 +91,195 @@ function Proxima() {
   );
 }
 
-// Strava activities arrive in a later slice; until then this is a connect placeholder.
+function fmt1(n: number): string {
+  return n.toFixed(1).replace(".", ",");
+}
+function fmtDuration(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
+}
+const ACT_LABEL: Record<ActivityType, string> = { bike: "Bici", run: "Correr", hike: "Hike", other: "Actividad" };
+
+function ActIcon({ type }: { type: ActivityType }) {
+  const common = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, className: "size-[22px] shrink-0 text-ink" } as const;
+  if (type === "bike") {
+    return (
+      <svg {...common}>
+        <circle cx="6" cy="17" r="3.2" />
+        <circle cx="18" cy="17" r="3.2" />
+        <path d="M6 17l4-7h5l3 7M9 7h3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (type === "run") {
+    return (
+      <svg {...common}>
+        <circle cx="15" cy="5" r="1.6" />
+        <path d="M13 9l-3 2 2 3-2 5M13 9l3 1 2-1M12 14l3 1 1 4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <path d="M3 19l5-9 4 5 3-5 6 9z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function activityLine(a: ActivityItem): string {
+  const parts: string[] = [];
+  if (a.distanceKm != null) parts.push(`${fmt1(a.distanceKm)} km`);
+  if (a.durationS != null) parts.push(fmtDuration(a.durationS));
+  if (a.elevationM != null && a.elevationM > 0) parts.push(`${Math.round(a.elevationM)} m D+`);
+  if (a.avgHr != null) parts.push(`${Math.round(a.avgHr)} ppm`);
+  return parts.join(" · ");
+}
+
+function BikeVolume({ series }: { series: { label: string; km: number }[] }) {
+  const max = Math.max(1, ...series.map((s) => s.km));
+  return (
+    <div className="mt-2">
+      <div className="flex h-16 items-end gap-2">
+        {series.map((s, i) => (
+          <div key={i} className="flex h-full flex-1 items-end justify-center">
+            <div
+              className={`w-full max-w-[22px] rounded-sm ${i === series.length - 1 ? "bg-ink" : "bg-line"}`}
+              style={{ height: `${Math.max(4, (s.km / max) * 100)}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1.5 flex gap-2">
+        {series.map((s, i) => (
+          <span
+            key={i}
+            className={`flex-1 text-center text-[10px] ${i === series.length - 1 ? "text-ink" : "text-ink-soft"}`}
+          >
+            {s.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Actividades() {
+  const queryClient = useQueryClient();
+  const view = useQuery({ queryKey: ["activities"], queryFn: getActivities });
+  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState<ActivityItem | null>(null);
+  const sync = useMutation({
+    mutationFn: syncStrava,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["activities"] }),
+  });
+
+  const v = view.data;
+
+  if (v && !v.connected) {
+    return (
+      <section>
+        <SecLabel>Actividades</SecLabel>
+        <div className="rounded-md border border-line px-5 py-7 text-center">
+          <p className="mb-4 text-sm text-ink-soft">
+            Conecta Strava para ver tus rutas de bici, carrera y hike (importadas de Garmin).
+          </p>
+          <button onClick={() => connectStrava()} className="h-11 rounded-full bg-ink px-5 text-sm font-medium text-paper">
+            Conectar Strava
+          </button>
+        </div>
+      </section>
+    );
+  }
+  if (!v) return null;
+
+  const summary: string[] = [];
+  if (v.weekBikeKm > 0) summary.push(`Bici ${Math.round(v.weekBikeKm)} km`);
+  if (v.weekRunKm > 0) summary.push(`Correr ${Math.round(v.weekRunKm)} km`);
+  if (v.weekHikes > 0) summary.push(`${v.weekHikes} hike${v.weekHikes > 1 ? "s" : ""}`);
+  if (v.weekMovingTimeS > 0) summary.push(fmtDuration(v.weekMovingTimeS));
+  const visible = showAll ? v.activities : v.activities.slice(0, 4);
+
   return (
     <section>
-      <SecLabel>Actividades · Strava</SecLabel>
-      <div className="rounded-md border border-line px-5 py-7 text-center">
-        <p className="text-sm text-ink-soft">
-          Aquí verás tus rutas de bici, carrera y hike importadas de Strava.
-        </p>
-        <p className="mt-1 text-[12.5px] text-ink-soft/80">Conexión con Strava · próximamente</p>
+      <SecLabel>
+        <span className="flex w-full items-end justify-between">
+          Actividades · Strava
+          <button
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+            className="text-[12px] normal-case tracking-normal text-ink-soft underline underline-offset-2 disabled:opacity-40"
+          >
+            {sync.isPending ? "Sincronizando…" : "↻ Sincronizar"}
+          </button>
+        </span>
+      </SecLabel>
+      <p className="text-[15px] leading-relaxed text-ink">
+        <span className="text-ink-soft">Esta semana · </span>
+        {summary.length ? summary.join(" · ") : "Sin actividad"}
+      </p>
+      {v.activities.some((a) => a.type === "bike") && (
+        <div className="mt-5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[11px] uppercase tracking-wide text-ink-soft">Volumen bici</span>
+            <span className="text-[11px] text-ink-soft">km / semana</span>
+          </div>
+          <BikeVolume series={v.bikeWeekly} />
+        </div>
+      )}
+      <div className="mt-6">
+        {v.activities.length === 0 && (
+          <p className="text-sm text-ink-soft">Sin actividades aún · sincroniza para traerlas.</p>
+        )}
+        {visible.map((a) => (
+          <button
+            key={a.id}
+            onClick={() => setOpen(a)}
+            className="flex min-h-11 w-full items-center gap-3 border-b border-line py-3 text-left last:border-b-0"
+          >
+            <ActIcon type={a.type} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] text-ink">
+                <span className="capitalize">{weekday(a.date)}</span> {shortDate(a.date)} · {ACT_LABEL[a.type]}
+              </span>
+              <span className="mt-0.5 block truncate text-[13px] tabular-nums text-ink-soft">{activityLine(a)}</span>
+            </span>
+            <IChevRight />
+          </button>
+        ))}
       </div>
+      {v.activities.length > 4 && (
+        <button onClick={() => setShowAll((x) => !x)} className="mt-3 text-[13px] text-ink-soft">
+          {showAll ? "Mostrar menos" : `Mostrar todas (${v.activities.length})`}
+        </button>
+      )}
+      {open && <ActivityDetailModal activity={open} onClose={() => setOpen(null)} />}
     </section>
+  );
+}
+
+function ActivityDetailModal({ activity, onClose }: { activity: ActivityItem; onClose: () => void }) {
+  const a = activity;
+  const stats: [string, string][] = [];
+  if (a.distanceKm != null) stats.push(["Distancia", `${fmt1(a.distanceKm)} km`]);
+  if (a.durationS != null) stats.push(["Duración", fmtDuration(a.durationS)]);
+  if (a.elevationM != null) stats.push(["Desnivel", `${Math.round(a.elevationM)} m`]);
+  if (a.avgHr != null) stats.push(["FC media", `${Math.round(a.avgHr)} ppm`]);
+  if (a.avgSpeedKmh != null) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
+  return (
+    <Modal title={`${ACT_LABEL[a.type]} · ${shortDate(a.date)}`} onClose={onClose}>
+      {a.name && <p className="mb-4 text-sm text-ink-soft">{a.name}</p>}
+      <div className="grid grid-cols-2 gap-x-6">
+        {stats.map(([k, val]) => (
+          <div key={k} className="flex items-baseline justify-between border-b border-line py-3">
+            <span className="text-[13px] text-ink-soft">{k}</span>
+            <span className="text-base tabular-nums text-ink">{val}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-ink-soft">Importado de Strava · solo lectura.</p>
+    </Modal>
   );
 }
 

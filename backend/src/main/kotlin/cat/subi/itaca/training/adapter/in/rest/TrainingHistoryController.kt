@@ -3,6 +3,8 @@
 
 package cat.subi.itaca.training.adapter.`in`.rest
 
+import cat.subi.itaca.training.application.ActivitiesView
+import cat.subi.itaca.training.application.ActivityQueries
 import cat.subi.itaca.training.application.ExerciseProgressionDto
 import cat.subi.itaca.training.application.ExerciseRef
 import cat.subi.itaca.training.application.SessionDetailDto
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/training")
 class TrainingHistoryController(
     private val queries: TrainingHistoryQueries,
+    private val activityQueries: ActivityQueries,
 ) {
     @GetMapping("/sessions")
     fun sessions(): List<SessionSummaryDto> = queries.sessions()
@@ -37,6 +40,9 @@ class TrainingHistoryController(
     fun progression(
         @PathVariable id: Long,
     ): ExerciseProgressionDto = queries.exerciseProgression(id)
+
+    @GetMapping("/activities")
+    fun activities(): ActivitiesView = activityQueries.view()
 
     @ExceptionHandler(NoSuchElementException::class)
     @ResponseStatus(HttpStatus.NOT_FOUND)

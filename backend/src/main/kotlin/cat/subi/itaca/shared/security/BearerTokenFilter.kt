@@ -31,7 +31,7 @@ class BearerTokenFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        if (!enabled || isAuthorized(request)) {
+        if (!enabled || isPublic(request) || isAuthorized(request)) {
             filterChain.doFilter(request, response)
             return
         }
@@ -40,9 +40,16 @@ class BearerTokenFilter(
         response.writer.write("""{"error":"Unauthorized"}""")
     }
 
+    // OAuth redirects arrive as browser navigations without the bearer token.
+    private fun isPublic(request: HttpServletRequest): Boolean = PUBLIC_PATHS.any { request.requestURI.startsWith(it) }
+
     private fun isAuthorized(request: HttpServletRequest): Boolean {
         val header = request.getHeader("Authorization") ?: return false
         val token = header.removePrefix("Bearer ").trim()
         return MessageDigest.isEqual(token.toByteArray(), configuredToken.toByteArray())
+    }
+
+    private companion object {
+        val PUBLIC_PATHS = listOf("/api/strava/connect", "/api/strava/callback")
     }
 }

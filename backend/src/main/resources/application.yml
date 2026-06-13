@@ -59,6 +59,18 @@ itaca:
     local-dir: ${ITACA_STORAGE_DIR:./data/lab-reports}
   extraction:
     model: claude-haiku-4-5
+  strava:
+    # Garmin -> Strava bridge: register an app at strava.com/settings/api.
+    client-id: ${STRAVA_CLIENT_ID:}
+    client-secret: ${STRAVA_CLIENT_SECRET:}
+    # Single-user shortcut: a refresh token obtained once by hand seeds the account
+    # on first sync, so prod can skip the OAuth web flow (no callback domain needed).
+    refresh-token: ${STRAVA_REFRESH_TOKEN:}
+    redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:8080/api/strava/callback}
+    app-url: ${ITACA_APP_URL:http://localhost:5173}
+    # Overridable so tests can point the OAuth/API calls at a stub.
+    auth-base: ${STRAVA_AUTH_BASE:https://www.strava.com}
+    api-base: ${STRAVA_API_BASE:https://www.strava.com/api/v3}
 
 # Supabase storage activates itself when the SUPABASE_URL env var is set
 # (relaxed binding maps it to supabase.url); otherwise local files are used.
