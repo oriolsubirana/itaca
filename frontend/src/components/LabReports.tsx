@@ -9,7 +9,6 @@ import {
   getLabReports,
   openLabReportFile,
   reextractLabReport,
-  renormalizeAllLabReports,
   renormalizeLabReport,
   semanticRenormalizeLabReports,
   setLabReportCategory,
@@ -54,7 +53,6 @@ export function LabReports() {
     setRenormCount(data.changed);
     setTimeout(() => setRenormCount(null), 4000);
   };
-  const renormalizeAll = useMutation({ mutationFn: renormalizeAllLabReports, onSuccess: onRenormalized });
   const semanticRenormalize = useMutation({ mutationFn: semanticRenormalizeLabReports, onSuccess: onRenormalized });
 
   const all = reports.data ?? [];
@@ -86,26 +84,17 @@ export function LabReports() {
           {upload.isPending ? "Subiendo…" : "+ Subir analítica"}
         </button>
         {all.length > 0 && (
-          <>
-            <button
-              onClick={() => renormalizeAll.mutate()}
-              disabled={renormalizeAll.isPending || semanticRenormalize.isPending}
-              className="min-h-11 text-sm text-ink-soft underline underline-offset-2 disabled:opacity-40"
-            >
-              {renormalizeAll.isPending ? "Re-normalizando…" : "↻ Re-normalizar"}
-            </button>
-            <button
-              onClick={() => semanticRenormalize.mutate()}
-              disabled={semanticRenormalize.isPending || renormalizeAll.isPending}
-              className="min-h-11 text-sm text-ink-soft underline underline-offset-2 disabled:opacity-40"
-            >
-              {semanticRenormalize.isPending
-                ? "Normalizando con IA…"
-                : renormCount != null
-                  ? `Normalizado (${renormCount})`
-                  : "✨ Normalizar con IA"}
-            </button>
-          </>
+          <button
+            onClick={() => semanticRenormalize.mutate()}
+            disabled={semanticRenormalize.isPending}
+            className="min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft disabled:opacity-40"
+          >
+            {semanticRenormalize.isPending
+              ? "Normalizando…"
+              : renormCount != null
+                ? `Normalizado · ${renormCount}`
+                : "✨ Normalizar"}
+          </button>
         )}
       </div>
 
