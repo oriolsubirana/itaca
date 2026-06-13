@@ -15,9 +15,16 @@ export interface ActivityItem {
   avgSpeedKmh: number | null;
 }
 
-export interface BikeWeek {
+export interface VolumeWeek {
   label: string;
-  km: number;
+  value: number;
+  sub: string;
+}
+
+export interface SportVolume {
+  unit: string;
+  ytd: string;
+  weeks: VolumeWeek[];
 }
 
 export interface ActivitiesView {
@@ -27,7 +34,7 @@ export interface ActivitiesView {
   weekRunKm: number;
   weekHikes: number;
   weekMovingTimeS: number;
-  bikeWeekly: BikeWeek[];
+  volume: Record<string, SportVolume>;
 }
 
 export const getActivities = () => api<ActivitiesView>("/training/activities");

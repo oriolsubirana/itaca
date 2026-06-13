@@ -2,6 +2,8 @@ package cat.subi.itaca.training.application
 
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
+import java.time.LocalDate
+import kotlin.math.roundToLong
 
 data class ActivityDto(
     val id: Long,
@@ -16,9 +18,16 @@ data class ActivityDto(
     val avgSpeedKmh: Double?,
 )
 
-data class BikeWeek(
+data class VolumeWeek(
     val label: String,
-    val km: Double,
+    val value: Double,
+    val sub: String,
+)
+
+data class SportVolume(
+    val unit: String,
+    val ytd: String,
+    val weeks: List<VolumeWeek>,
 )
 
 data class ActivitiesView(
@@ -28,7 +37,8 @@ data class ActivitiesView(
     val weekRunKm: Double,
     val weekHikes: Int,
     val weekMovingTimeS: Int,
-    val bikeWeekly: List<BikeWeek>,
+    // Per-sport weekly volume (bike/run/hike in km, gym in hours) for the clickable bars + YTD.
+    val volume: Map<String, SportVolume>,
 )
 
 private val MES = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
@@ -40,7 +50,7 @@ class ActivityQueries(
 ) {
     fun view(): ActivitiesView {
         val connected = jdbc.queryForObject("SELECT count(*) FROM strava_account", Int::class.java)!! > 0
-        return ActivitiesView(connected, recent(), weekBike(), weekRun(), weekHikes(), weekMoving(), bikeWeekly())
+        return ActivitiesView(connected, recent(), weekBike(), weekRun(), weekHikes(), weekMoving(), volume())
     }
 
     private fun recent(): List<ActivityDto> =
@@ -90,25 +100,141 @@ class ActivityQueries(
             Int::class.java,
         )!!
 
-    private fun bikeWeekly(): List<BikeWeek> =
-        jdbc.query(
-            """
-            SELECT g.wk, COALESCE(sum(a.distance_m) / 1000.0, 0) AS km
-            FROM generate_series(
-                date_trunc('week', now()) - interval '7 weeks', date_trunc('week', now()), interval '1 week'
-            ) g(wk)
-            LEFT JOIN activities a ON date_trunc('week', a.start_date) = g.wk AND a.type = 'bike'
-            GROUP BY g.wk ORDER BY g.wk
-            """.trimIndent(),
-        ) { rs, _ ->
-            val d = rs.getTimestamp("wk").toLocalDateTime().toLocalDate()
-            BikeWeek("${d.dayOfMonth} ${MES[d.monthValue - 1]}", rs.getDouble("km"))
+    private fun volume(): Map<String, SportVolume> = VOLUME_SPORTS.associateWith { sportVolume(it) }
+
+    private fun sportVolume(type: String): SportVolume {
+        val hours = type == GYM
+        return SportVolume(if (hours) "h" else "km", ytd(type, hours), weeksFor(type, hours))
+    }
+
+    private fun weeksFor(
+        type: String,
+        hours: Boolean,
+    ): List<VolumeWeek> {
+        val rows =
+            jdbc.query(
+                """
+                SELECT g.wk,
+                       count(a.id) AS n,
+                       COALESCE(sum(a.distance_m), 0) AS dist_m,
+                       COALESCE(sum(a.elevation_m), 0) AS elev_m,
+                       COALESCE(sum(a.moving_time_s), 0) AS secs
+                FROM generate_series(
+                    date_trunc('week', now()) - interval '7 weeks', date_trunc('week', now()), interval '1 week'
+                ) g(wk)
+                LEFT JOIN activities a ON date_trunc('week', a.start_date) = g.wk AND a.type = ?
+                GROUP BY g.wk ORDER BY g.wk
+                """.trimIndent(),
+                { rs, _ ->
+                    WeekAgg(
+                        date = rs.getTimestamp("wk").toLocalDateTime().toLocalDate(),
+                        n = rs.getInt("n"),
+                        km = rs.getBigDecimal("dist_m").toDouble() / METERS_PER_KM,
+                        elevM = rs.getBigDecimal("elev_m").toDouble(),
+                        secs = rs.getLong("secs"),
+                    )
+                },
+                type,
+            )
+        var lastMonth = -1
+        return rows.mapIndexed { i, w ->
+            val label =
+                if (i == rows.lastIndex) {
+                    "esta"
+                } else {
+                    val withMonth = w.date.monthValue != lastMonth
+                    lastMonth = w.date.monthValue
+                    if (withMonth) "${w.date.dayOfMonth} ${MES[w.date.monthValue - 1]}" else "${w.date.dayOfMonth}"
+                }
+            val value = if (hours) round1(w.secs / SECONDS_PER_HOUR) else w.km.roundToLong().toDouble()
+            VolumeWeek(label, value, subFor(type, w))
+        }
+    }
+
+    private fun subFor(
+        type: String,
+        w: WeekAgg,
+    ): String =
+        when (type) {
+            "run" -> distanceSub(w, "carrera", "carreras", withElev = false)
+            "hike" -> distanceSub(w, "hike", "hikes")
+            GYM -> gymSub(w)
+            else -> distanceSub(w, "salida", "salidas")
         }
 
+    private fun distanceSub(
+        w: WeekAgg,
+        one: String,
+        many: String,
+        withElev: Boolean = true,
+    ): String {
+        if (w.n == 0) return "Sin $many esta semana"
+        val base = "${count(w.n, one, many)} · ${fmt1(w.km)} km"
+        return if (withElev) base + elev(w.elevM) else base
+    }
+
+    private fun gymSub(w: WeekAgg): String =
+        if (w.n == 0) {
+            "Sin sesiones esta semana"
+        } else {
+            "${count(w.n, "sesión", "sesiones")} · ${fmt1(w.secs / SECONDS_PER_HOUR)}h"
+        }
+
+    private fun ytd(
+        type: String,
+        hours: Boolean,
+    ): String {
+        val column = if (hours) "moving_time_s" else "distance_m"
+        val total =
+            jdbc.queryForObject(
+                """
+                SELECT COALESCE(sum($column), 0) FROM activities
+                WHERE type = ? AND start_date >= date_trunc('year', now())
+                """.trimIndent(),
+                Double::class.java,
+                type,
+            )!!
+        val value = if (hours) total / SECONDS_PER_HOUR else total / METERS_PER_KM
+        return "${groupInt(value.roundToLong())} ${if (hours) "h" else "km"}"
+    }
+
+    private fun count(
+        n: Int,
+        one: String,
+        many: String,
+    ): String = "$n ${if (n == 1) one else many}"
+
+    private fun elev(m: Double): String = if (m > 0) " · ${groupInt(m.roundToLong())} m D+" else ""
+
+    private fun fmt1(d: Double): String = (round1(d)).toString().replace('.', ',')
+
+    private fun round1(d: Double): Double = (d * ONE_DECIMAL).roundToLong() / ONE_DECIMAL
+
+    private fun groupInt(n: Long): String =
+        n
+            .toString()
+            .reversed()
+            .chunked(GROUP_SIZE)
+            .joinToString(" ")
+            .reversed()
+
     private fun isoDate(ts: java.sql.Timestamp): String = ts.toLocalDateTime().toLocalDate().toString()
+
+    private data class WeekAgg(
+        val date: LocalDate,
+        val n: Int,
+        val km: Double,
+        val elevM: Double,
+        val secs: Long,
+    )
 
     private companion object {
         const val METERS_PER_KM = 1000.0
         const val MS_TO_KMH = 3.6
+        const val SECONDS_PER_HOUR = 3600.0
+        const val ONE_DECIMAL = 10.0
+        const val GROUP_SIZE = 3
+        const val GYM = "gym"
+        val VOLUME_SPORTS = listOf("bike", "run", "hike", "gym")
     }
 }

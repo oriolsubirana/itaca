@@ -13,7 +13,7 @@ import {
   type ExerciseProgression,
   type SessionSummary,
 } from "../api/training";
-import { connectStrava, getActivities, syncStrava, type ActivityItem, type ActivityType } from "../api/strava";
+import { connectStrava, getActivities, syncStrava, type ActivityItem, type ActivityType, type SportVolume } from "../api/strava";
 
 const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const DIA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
@@ -167,29 +167,93 @@ function activityLine(a: ActivityItem): string {
   return parts.join(" · ");
 }
 
-function BikeVolume({ series }: { series: { label: string; km: number }[] }) {
-  const max = Math.max(1, ...series.map((s) => s.km));
+const VOL_SPORTS: { key: string; label: string }[] = [
+  { key: "bike", label: "Bici" },
+  { key: "run", label: "Correr" },
+  { key: "hike", label: "Hike" },
+  { key: "gym", label: "Gym" },
+];
+const fmtNum = (n: number): string => String(n).replace(".", ",");
+
+// Per-sport weekly volume: sport chips, year-to-date total, and clickable weeks
+// that reveal the selected week's value and breakdown.
+function VolumenSemanal({ volume }: { volume: Record<string, SportVolume> }) {
+  const [sport, setSport] = useState("bike");
+  // Default to the current (last) week. All sports share the same 8-week window,
+  // so the selected index stays valid when switching sport — no reset needed.
+  const [wi, setWi] = useState(() => (volume["bike"]?.weeks.length ?? 1) - 1);
+  const v: SportVolume | undefined = volume[sport];
+
+  if (!v || v.weeks.length === 0) return null;
+  const weeks = v.weeks;
+  const selIdx = Math.min(wi, weeks.length - 1);
+  const sel = weeks[selIdx];
+  const max = Math.max(1, ...weeks.map((w) => w.value));
+
   return (
-    <div className="mt-2">
-      <div className="flex h-16 items-end gap-2">
-        {series.map((s, i) => (
-          <div key={i} className="flex h-full flex-1 items-end justify-center">
-            <div
-              className={`w-full max-w-[22px] rounded-sm ${i === series.length - 1 ? "bg-ink" : "bg-line"}`}
-              style={{ height: `${Math.max(4, (s.km / max) * 100)}%` }}
-            />
+    <div>
+      <div className="flex gap-1.5">
+        {VOL_SPORTS.map(({ key, label }) => {
+          const active = key === sport;
+          return (
+            <button
+              key={key}
+              onClick={() => setSport(key)}
+              className={`h-9 flex-1 rounded-full text-[13px] transition-colors ${active ? "bg-ink text-paper" : "border border-line text-ink-soft hover:text-ink"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[26px] font-semibold leading-none tabular-nums text-ink">
+            {fmtNum(sel.value)}
+            <span className="ml-1.5 text-[14px] font-normal text-ink-soft">{v.unit}</span>
           </div>
+          <div className="mt-1.5 text-[13px] text-ink-soft">
+            {sel.label === "esta" ? "Semana actual" : `Semana del ${sel.label}`}
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="whitespace-nowrap text-[11px] uppercase tracking-[0.08em] text-ink-soft">
+            YTD {new Date().getFullYear()}
+          </div>
+          <div className="mt-0.5 whitespace-nowrap text-[15px] tabular-nums text-ink">{v.ytd}</div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex h-16 items-end gap-2">
+        {weeks.map((w, i) => (
+          <button
+            key={i}
+            onClick={() => setWi(i)}
+            aria-label={`Semana ${w.label}`}
+            className="group flex h-full flex-1 items-end justify-center"
+          >
+            <div
+              className={`w-full max-w-[24px] rounded-sm transition-colors ${i === selIdx ? "bg-ink" : "bg-line group-hover:bg-ink-soft/40"}`}
+              style={{ height: `${Math.max(3, (w.value / max) * 100)}%` }}
+            />
+          </button>
         ))}
       </div>
       <div className="mt-1.5 flex gap-2">
-        {series.map((s, i) => (
-          <span
+        {weeks.map((w, i) => (
+          <button
             key={i}
-            className={`flex-1 text-center text-[10px] ${i === series.length - 1 ? "text-ink" : "text-ink-soft"}`}
+            onClick={() => setWi(i)}
+            className={`flex-1 text-center text-[10px] transition-colors ${i === selIdx ? "text-ink" : "text-ink-soft hover:text-ink"}`}
           >
-            {s.label}
-          </span>
+            {w.label}
+          </button>
         ))}
+      </div>
+
+      <div className="mt-3 border-t border-line pt-3">
+        <p className="text-[13px] text-ink">{sel.sub}</p>
       </div>
     </div>
   );
@@ -249,13 +313,9 @@ function Actividades() {
         <span className="text-ink-soft">Esta semana · </span>
         {summary.length ? summary.join(" · ") : "Sin actividad"}
       </p>
-      {v.activities.some((a) => a.type === "bike") && (
+      {v.activities.length > 0 && (
         <div className="mt-5">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[11px] uppercase tracking-wide text-ink-soft">Volumen bici</span>
-            <span className="text-[11px] text-ink-soft">km / semana</span>
-          </div>
-          <BikeVolume series={v.bikeWeekly} />
+          <VolumenSemanal volume={v.volume} />
         </div>
       )}
       <div className="mt-6">

@@ -68,6 +68,12 @@ class StravaSyncIntegrationTest {
         assertEquals(42.3, bike.distanceKm)
         assertEquals(setOf("bike", "run", "hike"), view.activities.map { it.type }.toSet())
 
+        val bikeVol = view.volume.getValue("bike")
+        assertEquals(8, bikeVol.weeks.size)
+        assertEquals("esta", bikeVol.weeks.last().label)
+        assertEquals("km", bikeVol.unit)
+        assertEquals("h", view.volume.getValue("gym").unit)
+
         // A second sync of the same data must not duplicate.
         assertEquals(0, strava.sync().imported)
         assertEquals(3, activities.count().toInt())
