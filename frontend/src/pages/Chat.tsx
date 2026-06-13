@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
@@ -38,7 +38,7 @@ export function Chat() {
     const stored = localStorage.getItem(sessionKey(mode));
     return stored ? Number(stored) : null;
   });
-  const [input, setInput] = useState(search.seed ?? "");
+  const [input, setInput] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -67,32 +67,42 @@ export function Chat() {
     setPending(null);
   }
 
-  async function send(text: string) {
-    const content = text.trim();
-    if (!content || pending) return;
-    setInput("");
-    setPending({ user: content, assistant: "" });
-    try {
-      let id = sessionId;
-      if (id === null) {
-        const session = await createSession(mode);
-        id = session.id;
-        localStorage.setItem(sessionKey(mode), String(id));
-        setSessionId(id);
+  const send = useCallback(
+    async (text: string) => {
+      const content = text.trim();
+      if (!content || pending) return;
+      setInput("");
+      setPending({ user: content, assistant: "" });
+      try {
+        let id = sessionId;
+        if (id === null) {
+          const session = await createSession(mode);
+          id = session.id;
+          localStorage.setItem(sessionKey(mode), String(id));
+          setSessionId(id);
+        }
+        await streamMessage(id, content, {
+          onChunk: (chunk) => setPending((p) => p && { ...p, assistant: p.assistant + chunk }),
+          onError: (message) => setPending((p) => p && { ...p, assistant: message, failed: true }),
+        });
+        await queryClient.invalidateQueries({ queryKey: ["chat", id] });
+      } catch {
+        setPending((p) => p && { ...p, assistant: "No he podido conectar.", failed: true });
+        return;
       }
-      await streamMessage(id, content, {
-        onChunk: (chunk) =>
-          setPending((p) => p && { ...p, assistant: p.assistant + chunk }),
-        onError: (message) =>
-          setPending((p) => p && { ...p, assistant: message, failed: true }),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["chat", id] });
-    } catch {
-      setPending((p) => p && { ...p, assistant: "No he podido conectar.", failed: true });
-      return;
-    }
-    setPending(null);
-  }
+      setPending(null);
+    },
+    [pending, sessionId, mode, queryClient],
+  );
+
+  // A seeded prompt from Home (?seed=) is sent automatically, so it lands as a
+  // real message in the thread instead of just prefilling the input.
+  const sentSeed = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!search.seed || sentSeed.current === search.seed) return;
+    sentSeed.current = search.seed;
+    void send(search.seed);
+  }, [search.seed, send]);
 
   const messages = history.data ?? [];
 
