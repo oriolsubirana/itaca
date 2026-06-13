@@ -40,7 +40,7 @@ export function Chat() {
   });
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
   const queryClient = useQueryClient();
 
   const history = useQuery({
@@ -49,9 +49,16 @@ export function Chat() {
     enabled: sessionId !== null,
   });
 
+  // Stick to the bottom while streaming, but only if the user hasn't scrolled up
+  // to read — instant scrollTop (no smooth) so it follows without jerky jumps.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [history.data, pending]);
+    const onScroll = () => {
+      const el = document.scrollingElement;
+      if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   function switchMode(next: ChatMode) {
     setMode(next);
@@ -105,6 +112,12 @@ export function Chat() {
   }, [search.seed, send]);
 
   const messages = history.data ?? [];
+
+  useEffect(() => {
+    if (!stick.current) return;
+    const el = document.scrollingElement as HTMLElement | null;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, pending?.user, pending?.assistant]);
 
   return (
     <div className="flex min-h-[calc(100dvh-9.5rem)] flex-col">
@@ -167,7 +180,6 @@ export function Chat() {
             )}
           </>
         )}
-        <div ref={bottomRef} />
       </div>
 
       <div className="fixed inset-x-0 bottom-14 bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
