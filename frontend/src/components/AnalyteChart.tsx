@@ -109,10 +109,30 @@ export function AnalyteChart() {
 
       {data && data.points.length > 0 && (
         <>
+          <div className="mt-5 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-3xl font-semibold leading-none tracking-tight tabular-nums text-ink">
+                {data.points[data.points.length - 1].value}
+                <span className="ml-1.5 text-base font-normal text-ink-soft">{data.unit}</span>
+              </div>
+              <div className="mt-2 text-xs text-ink-soft">
+                Último · {data.points[data.points.length - 1].date.slice(0, 7)}
+                {data.points.length > 1 && ` · anterior ${data.points[data.points.length - 2].value}`}
+              </div>
+            </div>
+            {reference?.refMax != null && (
+              <div className="text-right text-xs leading-snug text-ink-soft">
+                <div className="uppercase tracking-wide">Rango ref.</div>
+                <div className="tabular-nums text-ink/70">
+                  {reference.refMin ?? 0}–{reference.refMax} {data.unit}
+                </div>
+              </div>
+            )}
+          </div>
           <ResponsiveContainer
             width="100%"
-            height={220}
-            className="[&_.recharts-wrapper]:outline-none [&_svg]:outline-none"
+            height={200}
+            className="mt-3 [&_.recharts-wrapper]:outline-none [&_svg]:outline-none"
           >
             <LineChart data={data.points} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <XAxis
@@ -144,8 +164,8 @@ export function AnalyteChart() {
               />
             </LineChart>
           </ResponsiveContainer>
-          <p className="mt-1 mb-6 text-xs text-ink-soft">
-            {data.name} ({data.unit}) — zona sombreada: rango de referencia
+          <p className="mt-1 mb-2 text-xs text-ink-soft">
+            {data.name} — zona sombreada: rango de referencia
           </p>
         </>
       )}

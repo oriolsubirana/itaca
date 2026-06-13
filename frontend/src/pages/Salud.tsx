@@ -1,6 +1,7 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PageTitle } from "../components/PageTitle";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
@@ -8,7 +9,6 @@ import { Modal } from "../components/Modal";
 import {
   deleteEntry,
   deleteFlare,
-  endFlare,
   getEntry,
   getFlares,
   getSummary,
@@ -20,80 +20,259 @@ import {
   type Flare,
 } from "../api/health";
 
+const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const DIA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+/** "13 jun" */
+function shortDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${d.getDate()} ${MES[d.getMonth()]}`;
+}
+
+/** "13 jun 2026" */
+function shortDateY(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${d.getDate()} ${MES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function weekday(iso: string): string {
+  return DIA[new Date(`${iso}T00:00:00`).getDay()];
+}
+
+function daysSince(iso: string): number {
+  return Math.max(1, Math.round((Date.now() - new Date(`${iso}T00:00:00`).getTime()) / 86400000));
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function IChevRight({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className={`size-4 ${className}`}>
+      <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="mb-3 flex items-end justify-between">
+      <h2 className="text-xs uppercase tracking-[0.12em] text-ink-soft">{children}</h2>
+      {action}
+    </div>
+  );
 }
 
 export function Salud() {
+  const headerDate = `${weekday(today())}. ${shortDate(today())}`;
+  return (
+    <div>
+      <header className="mb-3 flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">Salud</h1>
+        <span className="text-sm text-ink-soft">{headerDate}</span>
+      </header>
+      <TabGroup>
+        <TabList className="flex gap-6 border-b border-line">
+          {["Diario", "Analíticas y documentos"].map((label) => (
+            <Tab
+              key={label}
+              className="-mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-soft outline-none transition-colors data-[selected]:border-ink data-[selected]:text-ink"
+            >
+              {label}
+            </Tab>
+          ))}
+        </TabList>
+        <TabPanels>
+          <TabPanel>
+            <DiarioTab />
+          </TabPanel>
+          <TabPanel>
+            <ArchivoTab />
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
+    </div>
+  );
+}
+
+// ── Diario tab ──────────────────────────────────────────────────────────────
+
+function DiarioTab() {
+  return (
+    <div className="space-y-8 pt-5">
+      <FlareBanner />
+      <TodayCard />
+      <RecentDiary />
+      <BrotesSection />
+    </div>
+  );
+}
+
+function FlareBanner() {
+  const queryClient = useQueryClient();
+  const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
+  const [editing, setEditing] = useState(false);
+  const active = flares.data?.active;
+  if (!active) return null;
+
+  const onSaved = () => {
+    setEditing(false);
+    void queryClient.invalidateQueries({ queryKey: ["flares"] });
+    void queryClient.invalidateQueries({ queryKey: ["health-summary"] });
+  };
+
   return (
     <>
-      <PageTitle>Salud</PageTitle>
-      <ActiveFlareAlert />
-      <TodaySection />
-      <section className="border-t border-line py-5">
-        <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
-          Analíticas
-        </h2>
-        <AnalyteChart />
-        <LabReports />
-      </section>
-      <section className="border-t border-line py-5">
-        <h2 className="mb-4 text-xs uppercase tracking-[0.15em] text-ink-soft">
-          Documentos clínicos
-        </h2>
-        <MedicalDocuments />
-      </section>
-      <RecentEntries />
-      <FlareSection />
+      <button
+        onClick={() => setEditing(true)}
+        className="flex w-full items-start gap-3 rounded-md border border-clinical/35 bg-clinical/[0.04] px-4 py-3 text-left"
+      >
+        <span className="mt-[6px] size-[7px] shrink-0 rounded-full bg-clinical" />
+        <span>
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.1em] text-clinical">
+            Brote activo
+          </span>
+          <span className="mt-0.5 block text-sm text-ink">
+            {cap(SEVERITY_LABELS[active.severity])} · desde {shortDate(active.startDate)} ·{" "}
+            {daysSince(active.startDate)} días
+          </span>
+        </span>
+      </button>
+      {editing && <FlareModal flare={active} onClose={() => setEditing(false)} onSaved={onSaved} />}
     </>
   );
 }
 
-/** Critical state only: shown at the top exclusively while a flare is active. */
-function ActiveFlareAlert() {
-  const queryClient = useQueryClient();
-  const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
-  const end = useMutation({
-    mutationFn: endFlare,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["flares"] }),
-  });
-
-  const active = flares.data?.active;
-  if (!active) return null;
-
+function Stat({ v, l, alert }: { v: ReactNode; l: string; alert?: boolean }) {
   return (
-    <section className="mb-6 flex min-h-12 items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-      <p className="text-sm text-red-900">
-        Brote {SEVERITY_LABELS[active.severity]} desde el {active.startDate}
-      </p>
-      <button
-        onClick={() => end.mutate()}
-        disabled={end.isPending}
-        className="min-h-11 px-2 text-xs uppercase tracking-wide text-red-900"
-      >
-        Finalizar
-      </button>
-    </section>
+    <div className="border-b border-r border-line px-3 py-3">
+      <div className={`text-[22px] font-medium leading-none tabular-nums ${alert ? "text-clinical" : "text-ink"}`}>
+        {v}
+      </div>
+      <div className="mt-1.5 text-[10.5px] uppercase tracking-wide text-ink-soft">{l}</div>
+    </div>
   );
 }
 
-/** Rare event: lives at the bottom with its history and the register action. */
-function FlareSection() {
+function TodayCard() {
+  const date = today();
+  const [showModal, setShowModal] = useState(false);
+  const entry = useQuery({ queryKey: ["diary", date], queryFn: () => getEntry(date) });
+
+  const e = entry.data;
+  if (!e) return null;
+  const logged = !isEmptyEntry(e);
+
+  return (
+    <div>
+      <SectionLabel>Hoy</SectionLabel>
+      {logged ? (
+        <>
+          <div className="grid grid-cols-3 border-l border-t border-line">
+            <Stat v={e.bristol ?? "—"} l="Bristol" />
+            <Stat v={e.bowelMovements ?? "—"} l="Deposic." />
+            <Stat v={e.pain ?? "—"} l="Dolor" />
+            <Stat v={e.urgency ?? "—"} l="Urgencia" />
+            <Stat v={e.stress ?? "—"} l="Estrés" />
+            <Stat v={e.blood ? "Sí" : "No"} l="Sangre" alert={e.blood} />
+          </div>
+          {e.notes && <p className="mt-3 text-sm leading-relaxed text-ink/75">{e.notes}</p>}
+          <button
+            onClick={() => setShowModal(true)}
+            className="mt-4 h-12 w-full rounded-md border border-ink/85 text-sm font-medium text-ink transition-colors hover:bg-ink hover:text-paper"
+          >
+            Editar registro de hoy
+          </button>
+        </>
+      ) : (
+        <div className="rounded-md border border-line px-5 py-7 text-center">
+          <p className="mb-4 text-sm text-ink-soft">Aún no has registrado tus síntomas de hoy.</p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="h-12 w-full rounded-md bg-ink text-sm font-medium text-paper"
+          >
+            Registrar hoy
+          </button>
+        </div>
+      )}
+      {showModal && <DiaryModal date={date} initial={e} onClose={() => setShowModal(false)} />}
+    </div>
+  );
+}
+
+const COLLAPSED = 5;
+
+function RecentDiary() {
+  const summary = useQuery({ queryKey: ["health-summary"], queryFn: () => getSummary(30) });
+  const [editing, setEditing] = useState<DiaryEntry | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const entries = summary.data?.recentEntries ?? [];
+  const visible = showAll ? entries : entries.slice(0, COLLAPSED);
+
+  return (
+    <div>
+      <SectionLabel>Diario · últimos 30 días</SectionLabel>
+      {entries.length === 0 && <p className="text-sm text-ink-soft">Sin registros todavía.</p>}
+      {visible.map((e) => (
+        <button
+          key={e.date}
+          onClick={() => setEditing(e)}
+          className="flex min-h-11 w-full items-center justify-between gap-3 border-b border-line py-3 text-left"
+          aria-label={`Editar el ${shortDate(e.date)}`}
+        >
+          <span className="min-w-0">
+            <span className="block text-sm capitalize text-ink">
+              {weekday(e.date)}. {shortDate(e.date)}
+            </span>
+            <span className="mt-0.5 block truncate text-[13px] text-ink-soft">
+              {entrySummary(e) || "Sin datos"}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2.5 pl-3">
+            {e.blood && <span className="size-1.5 rounded-full bg-clinical" aria-label="Sangre" />}
+            <IChevRight className="text-ink-soft" />
+          </span>
+        </button>
+      ))}
+      {entries.length > COLLAPSED && (
+        <button onClick={() => setShowAll((v) => !v)} className="mt-3 text-[13px] text-ink-soft">
+          {showAll ? "Mostrar menos" : `Mostrar todos (${entries.length})`}
+        </button>
+      )}
+      {editing && <DiaryModal date={editing.date} initial={editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function Severity({ s }: { s: Flare["severity"] }) {
+  const dot = s === "severe" ? "bg-clinical" : s === "moderate" ? "bg-ink" : "bg-ink-soft";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs uppercase tracking-wide ${
+        s === "severe" ? "text-clinical" : "text-ink"
+      }`}
+    >
+      <span className={`size-1.5 rounded-full ${dot}`} />
+      {SEVERITY_LABELS[s]}
+    </span>
+  );
+}
+
+function BrotesSection() {
   const queryClient = useQueryClient();
   const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Flare | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const recent = flares.data?.recent ?? [];
   const hasActive = flares.data?.active != null;
+  const visible = showAll ? recent : recent.slice(0, 3);
 
   const onSaved = () => {
     setShowCreate(false);
@@ -103,58 +282,71 @@ function FlareSection() {
   };
 
   return (
-    <section className="border-t border-line py-5">
-      <h2 className="mb-3 text-xs uppercase tracking-[0.15em] text-ink-soft">
-        Brotes
-      </h2>
-      {recent.length === 0 ? (
-        <p className="mb-3 text-sm text-ink-soft">Ninguno registrado.</p>
-      ) : (
-        <ul className="mb-4">
-          {recent.map((f) => (
-            <li key={f.id} className="border-b border-line last:border-b-0">
-              <button
-                onClick={() => setEditing(f)}
-                className="w-full py-3 text-left"
-                aria-label={`Editar brote del ${formatDate(f.startDate)}`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="whitespace-nowrap text-sm">
-                    {formatDate(f.startDate)} — {f.endDate ? formatDate(f.endDate) : "en curso"}
-                  </span>
-                  <span
-                    className={`shrink-0 text-xs uppercase tracking-wide ${
-                      f.severity === "severe" ? "text-red-800" : "text-ink-soft"
-                    }`}
-                  >
-                    {SEVERITY_LABELS[f.severity]}
-                  </span>
-                </div>
-                {f.notes && (
-                  <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-soft">
-                    {f.notes}
-                  </p>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div>
+      <SectionLabel>Brotes</SectionLabel>
+      {recent.length === 0 && <p className="mb-3 text-sm text-ink-soft">Ninguno registrado.</p>}
+      {visible.map((f) => (
+        <button
+          key={f.id}
+          onClick={() => setEditing(f)}
+          className="block w-full border-b border-line py-3.5 text-left"
+          aria-label={`Editar brote del ${shortDateY(f.startDate)}`}
+        >
+          <span className="flex items-center justify-between gap-3">
+            <span className="text-sm text-ink">
+              {shortDateY(f.startDate)} — {f.endDate ? shortDateY(f.endDate) : "en curso"}
+            </span>
+            <Severity s={f.severity} />
+          </span>
+          {f.notes && (
+            <span className="mt-1.5 line-clamp-2 block text-[13px] leading-relaxed text-ink-soft">{f.notes}</span>
+          )}
+        </button>
+      ))}
+      {recent.length > 3 && (
+        <button onClick={() => setShowAll((v) => !v)} className="mt-3 text-[13px] text-ink-soft">
+          {showAll ? "Mostrar menos" : `Mostrar todos (${recent.length})`}
+        </button>
       )}
       {!hasActive && (
         <button
           onClick={() => setShowCreate(true)}
-          className="min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft"
+          className="mt-4 min-h-11 rounded-full border border-line px-5 text-sm text-ink-soft"
         >
           + Registrar brote
         </button>
       )}
       {showCreate && <FlareModal onClose={() => setShowCreate(false)} onSaved={onSaved} />}
-      {editing && (
-        <FlareModal flare={editing} onClose={() => setEditing(null)} onSaved={onSaved} />
-      )}
-    </section>
+      {editing && <FlareModal flare={editing} onClose={() => setEditing(null)} onSaved={onSaved} />}
+    </div>
   );
 }
+
+// ── Analíticas y documentos tab ─────────────────────────────────────────────
+
+function ArchivoTab() {
+  return (
+    <div className="space-y-9 pt-5">
+      <div>
+        <SectionLabel>Analíticas</SectionLabel>
+        <AnalyteChart />
+      </div>
+      <div>
+        <SectionLabel>Informes de laboratorio</SectionLabel>
+        <LabReports />
+      </div>
+      <div>
+        <SectionLabel>Documentos clínicos</SectionLabel>
+        <MedicalDocuments />
+      </div>
+      <p className="border-t border-line pt-3 text-[11.5px] leading-relaxed text-ink-soft">
+        Ítaca registra y muestra tus datos clínicos. No los interpreta ni ofrece consejo médico.
+      </p>
+    </div>
+  );
+}
+
+// ── Flare modal (create / edit) ─────────────────────────────────────────────
 
 function FlareModal({
   flare,
@@ -266,6 +458,8 @@ function FlareModal({
   );
 }
 
+// ── Diary entry helpers + modal ─────────────────────────────────────────────
+
 function isEmptyEntry(e: DiaryEntry): boolean {
   return (
     e.bristol == null &&
@@ -286,52 +480,6 @@ function entrySummary(e: DiaryEntry): string {
   if (e.urgency != null && e.urgency > 0) parts.push(`urgencia ${e.urgency}`);
   if (e.stress != null && e.stress > 0) parts.push(`estrés ${e.stress}`);
   return parts.join(" · ");
-}
-
-function TodaySection() {
-  const date = today();
-  const [showModal, setShowModal] = useState(false);
-  const entry = useQuery({
-    queryKey: ["diary", date],
-    queryFn: () => getEntry(date),
-  });
-
-  if (!entry.data) return null;
-  const empty = isEmptyEntry(entry.data);
-
-  return (
-    <section className="border-t border-line py-5">
-      <h2 className="mb-3 text-xs uppercase tracking-[0.15em] text-ink-soft">
-        Hoy
-      </h2>
-      <div className="flex items-center gap-3">
-        <p className="flex-1 text-sm leading-relaxed">
-          {empty ? (
-            <span className="text-ink-soft">Sin registrar todavía.</span>
-          ) : (
-            <>
-              {entrySummary(entry.data)}
-              {entry.data.blood && (
-                <span
-                  className="ml-2 inline-block size-2 rounded-full bg-red-800"
-                  aria-label="Sangre"
-                />
-              )}
-            </>
-          )}
-        </p>
-        <button
-          onClick={() => setShowModal(true)}
-          className="min-h-11 shrink-0 rounded-full border border-line px-5 text-sm text-ink-soft"
-        >
-          {empty ? "+ Registrar día" : "Editar"}
-        </button>
-      </div>
-      {showModal && (
-        <DiaryModal date={date} initial={entry.data} onClose={() => setShowModal(false)} />
-      )}
-    </section>
-  );
 }
 
 function DiaryModal({
@@ -365,7 +513,7 @@ function DiaryModal({
   };
 
   return (
-    <Modal title={date === today() ? "Diario de hoy" : `Diario del ${formatDate(date)}`} onClose={onClose}>
+    <Modal title={date === today() ? "Diario de hoy" : `Diario del ${shortDateY(date)}`} onClose={onClose}>
       <Field label="Bristol">
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -373,9 +521,7 @@ function DiaryModal({
               key={n}
               onClick={() => set("bristol", form.bristol === n ? null : n)}
               className={`size-11 rounded-full border text-sm ${
-                form.bristol === n
-                  ? "border-ink bg-ink text-paper"
-                  : "border-line text-ink-soft"
+                form.bristol === n ? "border-ink bg-ink text-paper" : "border-line text-ink-soft"
               }`}
             >
               {n}
@@ -385,10 +531,7 @@ function DiaryModal({
       </Field>
 
       <Field label={`Deposiciones${form.bowelMovements != null ? ` · ${form.bowelMovements}` : ""}`}>
-        <Stepper
-          value={form.bowelMovements ?? 0}
-          onChange={(v) => set("bowelMovements", v)}
-        />
+        <Stepper value={form.bowelMovements ?? 0} onChange={(v) => set("bowelMovements", v)} />
       </Field>
 
       <Slider label="Dolor" value={form.pain} onChange={(v) => set("pain", v)} />
@@ -399,7 +542,7 @@ function DiaryModal({
         <button
           onClick={() => set("blood", !form.blood)}
           className={`min-h-11 rounded-full border px-5 text-sm ${
-            form.blood ? "border-red-800 bg-red-800 text-paper" : "border-line text-ink-soft"
+            form.blood ? "border-clinical bg-clinical text-paper" : "border-line text-ink-soft"
           }`}
         >
           {form.blood ? "Sí" : "No"}
@@ -437,7 +580,7 @@ function DiaryModal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="mb-4">
       <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">{label}</p>
@@ -486,47 +629,5 @@ function Slider({
         className="w-full accent-[#1c1c1a]"
       />
     </Field>
-  );
-}
-
-function RecentEntries() {
-  const summary = useQuery({
-    queryKey: ["health-summary"],
-    queryFn: () => getSummary(30),
-  });
-  const [editing, setEditing] = useState<DiaryEntry | null>(null);
-  const entries = summary.data?.recentEntries ?? [];
-
-  return (
-    <section className="border-t border-line py-5">
-      <h2 className="mb-3 text-xs uppercase tracking-[0.15em] text-ink-soft">
-        Últimos 30 días
-      </h2>
-      {entries.length === 0 && (
-        <p className="text-sm text-ink-soft">Sin registros todavía.</p>
-      )}
-      <ul>
-        {entries.map((e) => (
-          <li key={e.date} className="border-b border-line last:border-b-0">
-            <button
-              onClick={() => setEditing(e)}
-              className="flex min-h-11 w-full items-center gap-4 py-3 text-left text-sm"
-              aria-label={`Editar el ${formatDate(e.date)}`}
-            >
-              <span className="w-24 shrink-0 text-ink-soft">{e.date.slice(5)}</span>
-              <span className="flex-1">
-                {e.bristol != null && `Bristol ${e.bristol}`}
-                {e.bowelMovements != null && ` · ${e.bowelMovements} dep.`}
-                {e.pain != null && e.pain > 0 && ` · dolor ${e.pain}`}
-              </span>
-              {e.blood && <span className="size-2 rounded-full bg-red-800" aria-label="Sangre" />}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {editing && (
-        <DiaryModal date={editing.date} initial={editing} onClose={() => setEditing(null)} />
-      )}
-    </section>
   );
 }
