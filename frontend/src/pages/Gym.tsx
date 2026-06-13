@@ -94,7 +94,7 @@ function Proxima() {
 function Actividades() {
   return (
     <section>
-      <SecLabel>Actividades · Garmin</SecLabel>
+      <SecLabel>Actividades · Strava</SecLabel>
       <div className="rounded-md border border-line px-5 py-7 text-center">
         <p className="text-sm text-ink-soft">
           Aquí verás tus rutas de bici, carrera y hike importadas de Strava.
