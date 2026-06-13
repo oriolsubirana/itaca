@@ -73,6 +73,20 @@ class StravaSyncIntegrationTest {
         assertEquals(3, activities.count().toInt())
     }
 
+    @Test
+    fun `bootstraps the account from the configured refresh token when none is stored`() {
+        stubToken()
+        stubActivities()
+        // No account saved: the env-configured refresh token must seed it on sync.
+        assertEquals(0, accounts.count())
+        assertTrue(strava.isConnected())
+
+        val result = strava.sync()
+
+        assertEquals(3, result.imported)
+        assertEquals(1, accounts.count())
+    }
+
     private fun stubToken() {
         wireMock.stubFor(
             post(urlPathEqualTo("/oauth/token")).willReturn(
@@ -120,6 +134,7 @@ class StravaSyncIntegrationTest {
         fun properties(registry: DynamicPropertyRegistry) {
             registry.add("itaca.strava.client-id") { "test-id" }
             registry.add("itaca.strava.client-secret") { "test-secret" }
+            registry.add("itaca.strava.refresh-token") { "rt-seed" }
             registry.add("itaca.strava.auth-base") { wireMock.baseUrl() }
             registry.add("itaca.strava.api-base") { wireMock.baseUrl() }
         }

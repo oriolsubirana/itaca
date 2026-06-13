@@ -63,6 +63,9 @@ itaca:
     # Garmin -> Strava bridge: register an app at strava.com/settings/api.
     client-id: ${STRAVA_CLIENT_ID:}
     client-secret: ${STRAVA_CLIENT_SECRET:}
+    # Single-user shortcut: a refresh token obtained once by hand seeds the account
+    # on first sync, so prod can skip the OAuth web flow (no callback domain needed).
+    refresh-token: ${STRAVA_REFRESH_TOKEN:}
     redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:8080/api/strava/callback}
     app-url: ${ITACA_APP_URL:http://localhost:5173}
     # Overridable so tests can point the OAuth/API calls at a stub.

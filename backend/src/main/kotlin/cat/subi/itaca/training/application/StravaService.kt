@@ -27,12 +27,13 @@ class StravaService(
     private val accounts: StravaAccountRepository,
     private val activities: ActivityRepository,
     @Value("\${itaca.strava.app-url:}") val appUrl: String,
+    @Value("\${itaca.strava.refresh-token:}") private val seedRefreshToken: String,
 ) {
     private val log = LoggerFactory.getLogger(StravaService::class.java)
 
     fun authorizeUrl(): String = client.authorizeUrl()
 
-    fun isConnected(): Boolean = accounts.count() > 0
+    fun isConnected(): Boolean = accounts.count() > 0 || seedRefreshToken.isNotBlank()
 
     /** Exchanges the OAuth code for tokens and stores the (single) account. */
     @Transactional
@@ -71,7 +72,7 @@ class StravaService(
     }
 
     private fun validAccessToken(): String {
-        val account = accounts.findTop1ByOrderByIdDesc() ?: error("Strava is not connected")
+        val account = accounts.findTop1ByOrderByIdDesc() ?: seedAccount()
         if (account.accessToken == null || account.expiresAt.isBefore(Instant.now().plusSeconds(REFRESH_MARGIN_S))) {
             val token = client.refresh(account.refreshToken)
             account.accessToken = token.accessToken
@@ -81,6 +82,18 @@ class StravaService(
             accounts.save(account)
         }
         return account.accessToken!!
+    }
+
+    /**
+     * Bootstraps the single account from the configured refresh token (env) when
+     * none was created via the web connect flow. Expiry is in the past so the
+     * caller refreshes immediately. Single-user prod can skip OAuth entirely:
+     * obtain a refresh token once by hand and set itaca.strava.refresh-token.
+     */
+    private fun seedAccount(): StravaAccountEntity {
+        if (seedRefreshToken.isBlank()) error("Strava is not connected")
+        log.info("Bootstrapping Strava account from configured refresh token")
+        return accounts.save(StravaAccountEntity(refreshToken = seedRefreshToken, expiresAt = Instant.EPOCH))
     }
 
     private fun toEntity(a: StravaActivity) =
