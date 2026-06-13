@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 data class ActivityDto(
     val id: Long,
     val type: String,
+    val sport: String?,
     val date: String,
     val name: String?,
     val distanceKm: Double?,
@@ -45,13 +46,14 @@ class ActivityQueries(
     private fun recent(): List<ActivityDto> =
         jdbc.query(
             """
-            SELECT id, type, name, start_date, distance_m, moving_time_s, elevation_m, avg_hr, avg_speed_ms
+            SELECT id, type, sport, name, start_date, distance_m, moving_time_s, elevation_m, avg_hr, avg_speed_ms
             FROM activities ORDER BY start_date DESC LIMIT 20
             """.trimIndent(),
         ) { rs, _ ->
             ActivityDto(
                 id = rs.getLong("id"),
                 type = rs.getString("type"),
+                sport = rs.getString("sport"),
                 date = isoDate(rs.getTimestamp("start_date")),
                 name = rs.getString("name"),
                 distanceKm = rs.getBigDecimal("distance_m")?.toDouble()?.div(METERS_PER_KM),

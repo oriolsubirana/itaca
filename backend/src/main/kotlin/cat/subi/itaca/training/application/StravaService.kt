@@ -100,6 +100,7 @@ class StravaService(
         ActivityEntity(
             stravaId = a.stravaId,
             type = a.type,
+            sport = a.sport,
             name = a.name,
             startDate = a.startDate,
             distanceM = a.distanceM,
@@ -114,6 +115,7 @@ class StravaService(
         a: StravaActivity,
     ) {
         e.type = a.type
+        e.sport = a.sport
         e.name = a.name
         e.startDate = a.startDate
         e.distanceM = a.distanceM

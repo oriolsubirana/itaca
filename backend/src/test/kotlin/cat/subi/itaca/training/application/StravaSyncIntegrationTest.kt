@@ -105,14 +105,9 @@ class StravaSyncIntegrationTest {
 
         strava.sync()
 
-        assertEquals(
-            "gym",
-            queries
-                .view()
-                .activities
-                .single()
-                .type,
-        )
+        val act = queries.view().activities.single()
+        assertEquals("gym", act.type)
+        assertEquals("WeightTraining", act.sport)
     }
 
     private fun stubToken() {

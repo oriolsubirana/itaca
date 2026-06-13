@@ -102,6 +102,22 @@ function fmtDuration(s: number): string {
 }
 const ACT_LABEL: Record<ActivityType, string> = { bike: "Bici", run: "Correr", hike: "Hike", gym: "Gimnasio", other: "Actividad" };
 
+// Spanish names for the long-tail Strava sport_types that fall outside our buckets.
+const SPORT_ES: Record<string, string> = {
+  Pilates: "Pilates", Yoga: "Yoga", Swim: "Natación", Walk: "Caminar", Elliptical: "Elíptica",
+  StairStepper: "Escaladora", Rowing: "Remo", Kayaking: "Kayak", Canoeing: "Canoa", Surfing: "Surf",
+  Skateboard: "Skate", Soccer: "Fútbol", Tennis: "Tenis", Golf: "Golf", RockClimbing: "Escalada",
+};
+// "WeightTraining" -> "Weight Training", left untouched if already a single word.
+const deCamel = (s: string): string => s.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+// Known buckets keep their Spanish label; everything else is named by its real Strava sport.
+function actLabel(a: ActivityItem): string {
+  if (a.type !== "other") return ACT_LABEL[a.type];
+  if (!a.sport) return ACT_LABEL.other;
+  return SPORT_ES[a.sport] ?? deCamel(a.sport);
+}
+
 function ActIcon({ type }: { type: ActivityType }) {
   const common = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, className: "size-[22px] shrink-0 text-ink" } as const;
   if (type === "bike") {
@@ -255,7 +271,7 @@ function Actividades() {
             <ActIcon type={a.type} />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] text-ink">
-                <span className="capitalize">{weekday(a.date)}</span> {shortDate(a.date)} · {ACT_LABEL[a.type]}
+                <span className="capitalize">{weekday(a.date)}</span> {shortDate(a.date)} · {actLabel(a)}
               </span>
               <span className="mt-0.5 block truncate text-[13px] tabular-nums text-ink-soft">{activityLine(a)}</span>
             </span>
@@ -282,7 +298,7 @@ function ActivityDetailModal({ activity, onClose }: { activity: ActivityItem; on
   if (a.avgHr != null) stats.push(["FC media", `${Math.round(a.avgHr)} ppm`]);
   if (a.avgSpeedKmh != null && a.avgSpeedKmh > 0) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
   return (
-    <Modal title={`${ACT_LABEL[a.type]} · ${shortDate(a.date)}`} onClose={onClose}>
+    <Modal title={`${actLabel(a)} · ${shortDate(a.date)}`} onClose={onClose}>
       {a.name && <p className="mb-4 text-sm text-ink-soft">{a.name}</p>}
       <div className="grid grid-cols-2 gap-x-6">
         {stats.map(([k, val]) => (

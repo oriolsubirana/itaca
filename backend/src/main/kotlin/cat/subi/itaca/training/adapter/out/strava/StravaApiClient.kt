@@ -20,6 +20,7 @@ data class StravaToken(
 data class StravaActivity(
     val stravaId: Long,
     val type: String,
+    val sport: String?,
     val name: String?,
     val startDate: Instant,
     val distanceM: BigDecimal?,
@@ -76,9 +77,11 @@ class StravaApiClient(
                 .retrieve()
                 .body(LIST_OF_MAPS) ?: emptyList()
         return rows.map { row ->
+            val sport = row["sport_type"] as? String ?: row["type"] as? String
             StravaActivity(
                 stravaId = (row["id"] as Number).toLong(),
-                type = mapType(row["sport_type"] as? String ?: row["type"] as? String),
+                type = mapType(sport),
+                sport = sport,
                 name = row["name"] as? String,
                 startDate = Instant.parse(row["start_date"] as String),
                 distanceM = num(row["distance"]),

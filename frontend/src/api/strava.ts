@@ -5,6 +5,7 @@ export type ActivityType = "bike" | "run" | "hike" | "gym" | "other";
 export interface ActivityItem {
   id: number;
   type: ActivityType;
+  sport: string | null;
   date: string;
   name: string | null;
   distanceKm: number | null;

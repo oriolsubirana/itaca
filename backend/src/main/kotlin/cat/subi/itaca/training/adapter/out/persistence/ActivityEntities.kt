@@ -38,6 +38,8 @@ class ActivityEntity(
     val stravaId: Long,
     @Column(nullable = false)
     var type: String,
+    // Raw Strava sport_type (e.g. "Pilates"), kept so the UI can name long-tail activities.
+    var sport: String? = null,
     var name: String? = null,
     @Column(name = "start_date", nullable = false)
     var startDate: Instant,
