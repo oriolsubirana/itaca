@@ -93,6 +93,22 @@ class FinanceImportIntegrationTest {
     }
 
     @Test
+    fun `monthly income counts checking accounts only, not investment inflows`() {
+        val finpension = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'finpension'", Long::class.java)!!
+        // A positive movement in an investment account is internal wealth, not monthly income.
+        jdbc.update(
+            "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?, ?, ?, ?)",
+            finpension,
+            java.sql.Date.valueOf(java.time.LocalDate.of(2026, 8, 1)),
+            java.math.BigDecimal("999.00"),
+            "aportación",
+            "income",
+        )
+
+        assertEquals(0.0, queries.month("2026-08", "CHF").ingresos)
+    }
+
+    @Test
     fun `a file that does not match the account format is rejected, not parsed`() {
         val service = FinanceImportService(jdbc, PdfTextExtractor { REPORT })
         val finpension = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'finpension'", Long::class.java)!!

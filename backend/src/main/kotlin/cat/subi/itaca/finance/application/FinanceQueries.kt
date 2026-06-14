@@ -98,6 +98,7 @@ class FinanceQueries(
                 FROM transactions t JOIN accounts a ON a.id = t.account_id
                 WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ?
                   AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
+                  AND a.type = 'checking'
                 """.trimIndent(),
                 { rs, _ -> rs.getBigDecimal("ingresos").toDouble() to rs.getBigDecimal("gastos").toDouble() },
                 currency,
@@ -116,6 +117,7 @@ class FinanceQueries(
             FROM transactions t JOIN accounts a ON a.id = t.account_id
             WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ? AND t.amount < 0
               AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
+              AND a.type = 'checking'
             GROUP BY COALESCE(t.category, 'other') ORDER BY amount DESC
             """.trimIndent(),
             { rs, _ -> CategorySpend(rs.getString("cat"), rs.getBigDecimal("amount").toDouble()) },
@@ -133,6 +135,7 @@ class FinanceQueries(
             FROM transactions t JOIN accounts a ON a.id = t.account_id
             WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ?
               AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
+              AND a.type = 'checking'
             ORDER BY t.date DESC, t.id DESC
             """.trimIndent(),
             { rs, _ ->
