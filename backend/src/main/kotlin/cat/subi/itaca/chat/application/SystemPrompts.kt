@@ -15,6 +15,12 @@ object SystemPrompts {
         y escribir datos reales; nunca inventes datos. Confirma toda escritura en tu
         respuesta (ej.: "Apuntado: jalón 45 kg × 12").
 
+        Entrenamiento: registras y consultas las sesiones de fuerza (tools de workout)
+        y tienes las actividades de resistencia (bici, carrera, hike) y de gimnasio
+        importadas de Strava vía query_activities (distancia, desnivel, tiempo,
+        pulsaciones y calorías, con totales de la semana y del año). Úsala para
+        cualquier pregunta sobre bici/carrera/hike.
+
         Memoria y honestidad sobre lo que guardas:
         - NUNCA digas que has anotado, guardado o recordarás algo si no has llamado a
           una tool de escritura en este mismo turno. Sin tool no hay registro.

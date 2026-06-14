@@ -66,6 +66,31 @@ data class WorkoutSummary(
     val sets: List<SetLine>,
 )
 
+data class ActivityLine(
+    val date: String,
+    val type: String,
+    val name: String?,
+    val distanceKm: Double?,
+    val durationMin: Int?,
+    val elevationM: Double?,
+    val avgHr: Double?,
+    val calories: Int?,
+)
+
+data class SportTotals(
+    val sport: String,
+    val thisWeek: String,
+    val ytdDistance: String?,
+    val ytdElevation: String?,
+    val ytdTime: String,
+)
+
+data class ActivitiesSummary(
+    val connected: Boolean,
+    val recent: List<ActivityLine>,
+    val totals: List<SportTotals>,
+)
+
 /**
  * Chat tools of the training context. Claude reads the descriptions to decide
  * when to call them; all writes are confirmed back as structured data so the
@@ -76,6 +101,7 @@ class TrainingTools(
     private val queries: TrainingQueries,
     private val workouts: WorkoutRepository,
     private val sets: SetRepository,
+    private val activityQueries: ActivityQueries,
 ) : ChatTools {
     private val progression = ProgressionPolicy()
 
@@ -220,6 +246,50 @@ class TrainingTools(
             .recentWorkouts(limit ?: DEFAULT_QUERY_LIMIT)
             .map { WorkoutSummary(it.date.toString(), it.routineName, it.completed, queries.setsOfWorkout(it.id)) }
 
+    @Tool(
+        name = "query_activities",
+        description =
+            "Returns endurance and gym activities imported from Strava (types: bike, run, hike, gym): " +
+                "recent sessions with date, distance (km), duration (min), elevation (m), average heart rate " +
+                "and calories, plus per-sport totals for this week and year-to-date (distance, elevation, time). " +
+                "Use for ANY question about cycling/running/hiking/gym volume, distance, elevation, pace, " +
+                "heart rate or calories. Optionally filter the recent list by sport.",
+    )
+    fun queryActivities(
+        @ToolParam(description = "Optional sport filter: bike, run, hike or gym", required = false) sport: String?,
+        @ToolParam(description = "How many recent activities to return (default 10)", required = false) limit: Int?,
+    ): ActivitiesSummary {
+        val view = activityQueries.view()
+        val filter = sport?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+        val recent =
+            view.activities
+                .filter { filter == null || it.type == filter }
+                .take(limit ?: DEFAULT_ACTIVITY_LIMIT)
+                .map {
+                    ActivityLine(
+                        date = it.date,
+                        type = it.type,
+                        name = it.name,
+                        distanceKm = it.distanceKm,
+                        durationMin = it.durationS?.let { s -> s / SECONDS_PER_MINUTE },
+                        elevationM = it.elevationM,
+                        avgHr = it.avgHr,
+                        calories = it.calories,
+                    )
+                }
+        val totals =
+            view.volume.map { (sportKey, v) ->
+                SportTotals(
+                    sport = sportKey,
+                    thisWeek = "${v.weeks.last().value} ${v.unit}".replace('.', ','),
+                    ytdDistance = v.ytd.distance,
+                    ytdElevation = v.ytd.elevation,
+                    ytdTime = v.ytd.time,
+                )
+            }
+        return ActivitiesSummary(view.connected, recent, totals)
+    }
+
     private fun planFor(routineId: Long): List<ExercisePlan> =
         queries.exercisesOfRoutine(routineId).map { row ->
             val last = queries.lastTopSetOf(row.exerciseId)
@@ -243,5 +313,7 @@ class TrainingTools(
     companion object {
         private const val TARGET_TOP_REPS = 8
         private const val DEFAULT_QUERY_LIMIT = 5
+        private const val DEFAULT_ACTIVITY_LIMIT = 10
+        private const val SECONDS_PER_MINUTE = 60
     }
 }
