@@ -9,6 +9,8 @@ data class FinanceAccount(
     val type: String,
     val currency: String,
     val balance: Double,
+    // Has a statement/report parser (others use a manual balance or are derived).
+    val importable: Boolean,
 )
 
 data class FinanceOverview(
@@ -48,6 +50,11 @@ class FinanceQueries(
 ) {
     fun overview(): FinanceOverview = FinanceOverview(monthOrder(), accounts())
 
+    // Accounts with a parser in FinanceImportService; the rest use a manual balance or are derived.
+    private companion object {
+        val IMPORTABLE = setOf("Neon", "finpension")
+    }
+
     private fun monthOrder(): List<String> =
         jdbc.queryForList(
             "SELECT DISTINCT to_char(date, 'YYYY-MM') AS m FROM transactions ORDER BY m",
@@ -68,12 +75,14 @@ class FinanceQueries(
             FROM accounts a ORDER BY a.currency, a.name
             """.trimIndent(),
         ) { rs, _ ->
+            val name = rs.getString("name")
             FinanceAccount(
                 id = rs.getLong("id"),
-                name = rs.getString("name"),
+                name = name,
                 type = rs.getString("type"),
                 currency = rs.getString("currency"),
                 balance = rs.getBigDecimal("balance").toDouble(),
+                importable = name in IMPORTABLE,
             )
         }
 

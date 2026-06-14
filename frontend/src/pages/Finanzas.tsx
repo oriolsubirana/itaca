@@ -327,7 +327,9 @@ function MovDetailModal({ tx, currency, onClose }: { tx: FinanceTx; currency: st
 
 function ImportModal({ accounts, onClose }: { accounts: FinanceAccount[]; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const [acc, setAcc] = useState(accounts[0]?.id ?? 0);
+  // Only accounts with a parser; the rest (savings, investment) use a manual balance.
+  const importable = accounts.filter((a) => a.importable);
+  const [acc, setAcc] = useState(importable[0]?.id ?? 0);
   const [file, setFile] = useState<File | null>(null);
   const mutation = useMutation({
     mutationFn: () => importFinance(acc, file!),
@@ -342,8 +344,11 @@ function ImportModal({ accounts, onClose }: { accounts: FinanceAccount[]; onClos
   return (
     <Modal title="Importar extracto" onClose={onClose}>
       <label className="mb-2 block text-[13px] uppercase tracking-[0.08em] text-ink-soft">Cuenta</label>
+      <p className="mb-2 text-[12px] leading-relaxed text-ink-soft">
+        Solo Neon (CSV) y finpension (PDF) tienen importación. Para el resto, fija el saldo tocando la cuenta.
+      </p>
       <div className="mb-5 space-y-1.5">
-        {accounts.map((a) => (
+        {importable.map((a) => (
           <button
             key={a.id}
             onClick={() => setAcc(a.id)}

@@ -6,6 +6,7 @@ export interface FinanceAccount {
   type: string; // checking | savings | investment
   currency: string; // CHF | EUR
   balance: number;
+  importable: boolean; // has a statement/report parser
 }
 
 export interface FinanceOverview {
