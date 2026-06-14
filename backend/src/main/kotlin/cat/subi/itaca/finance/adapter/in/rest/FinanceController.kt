@@ -3,19 +3,25 @@
 
 package cat.subi.itaca.finance.adapter.`in`.rest
 
+import cat.subi.itaca.finance.application.FinanceImportService
 import cat.subi.itaca.finance.application.FinanceOverview
 import cat.subi.itaca.finance.application.FinanceQueries
+import cat.subi.itaca.finance.application.ImportResult
 import cat.subi.itaca.finance.application.MonthView
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
-/** Read-only finance dashboard: the months/accounts overview and a month breakdown. */
+/** Finance dashboard: months/accounts overview, a month breakdown, and statement import. */
 @RestController
 @RequestMapping("/api/finance")
 class FinanceController(
     private val queries: FinanceQueries,
+    private val importService: FinanceImportService,
 ) {
     @GetMapping("/overview")
     fun overview(): FinanceOverview = queries.overview()
@@ -25,4 +31,10 @@ class FinanceController(
         @RequestParam month: String,
         @RequestParam currency: String,
     ): MonthView = queries.month(month, currency)
+
+    @PostMapping("/import")
+    fun import(
+        @RequestParam accountId: Long,
+        @RequestPart("file") file: MultipartFile,
+    ): ImportResult = importService.import(accountId, file.bytes)
 }

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../components/Modal";
 import { MES } from "../lib/format";
 import {
   getFinanceMonth,
   getFinanceOverview,
+  importFinance,
   type FinanceAccount,
   type FinanceTx,
   type MonthView,
@@ -276,10 +277,19 @@ function MovDetailModal({ tx, currency, onClose }: { tx: FinanceTx; currency: st
 }
 
 function ImportModal({ accounts, onClose }: { accounts: FinanceAccount[]; onClose: () => void }) {
+  const queryClient = useQueryClient();
   const [acc, setAcc] = useState(accounts[0]?.id ?? 0);
   const [file, setFile] = useState<File | null>(null);
-  const [requested, setRequested] = useState(false);
-  const selected = accounts.find((a) => a.id === acc);
+  const mutation = useMutation({
+    mutationFn: () => importFinance(acc, file!),
+    onSuccess: (r) => {
+      if (r.imported) {
+        void queryClient.invalidateQueries({ queryKey: ["finance-overview"] });
+        void queryClient.invalidateQueries({ queryKey: ["finance-month"] });
+      }
+    },
+  });
+  const result = mutation.data;
   return (
     <Modal title="Importar extracto" onClose={onClose}>
       <label className="mb-2 block text-[13px] uppercase tracking-[0.08em] text-ink-soft">Cuenta</label>
@@ -306,16 +316,25 @@ function ImportModal({ accounts, onClose }: { accounts: FinanceAccount[]; onClos
         <span className="text-xs text-ink-soft">{file ? "Listo" : "Formato CSV del banco"}</span>
       </label>
       <button
-        disabled={!file}
-        onClick={() => setRequested(true)}
+        disabled={!file || mutation.isPending}
+        onClick={() => mutation.mutate()}
         className="h-12 w-full rounded-md bg-ink text-[15px] font-medium text-paper hover:bg-ink/90 disabled:opacity-30"
       >
-        Importar movimientos
+        {mutation.isPending ? "Importando…" : "Importar movimientos"}
       </button>
-      {requested && (
+      {mutation.isError && (
+        <p className="mt-3 text-[13px] text-clinical">No se pudo importar el archivo.</p>
+      )}
+      {result && (
         <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
-          La importación de <span className="text-ink">{selected?.name}</span> estará disponible en cuanto configuremos
-          el parser de su formato CSV. El archivo aún no se procesa.
+          {result.imported ? (
+            <>
+              ✓ Importado · <span className="text-ink">{result.account}</span>{" "}
+              {result.value?.toLocaleString("de-DE", { minimumFractionDigits: 2 })} CHF al {result.date}
+            </>
+          ) : (
+            result.message
+          )}
         </p>
       )}
     </Modal>

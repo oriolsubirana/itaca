@@ -9,7 +9,7 @@ SELECT a.id, v.date, v.balance
 FROM accounts a, (VALUES
     ('Neon',       '2026-06-14'::date,  3240.50),
     ('Revolut',    '2026-06-14'::date,   580.00),
-    ('finpension', '2026-06-14'::date, 21450.00),
+    ('finpension', '2024-05-28'::date,  6800.00),
     ('Sabadell',   '2026-06-14'::date,  2180.00),
     ('MyInvestor', '2026-06-14'::date,  9650.00)
 ) AS v(name, date, balance)
