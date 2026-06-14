@@ -4,7 +4,8 @@ import { Sparkline } from "../components/Sparkline";
 import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
-import { daysSince, routineLabel, today } from "../lib/format";
+import { getFinanceMonth, getFinanceOverview } from "../api/finance";
+import { daysSince, monthName, routineLabel, signed, today } from "../lib/format";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -217,10 +218,47 @@ function EntrenoBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) =
 }
 
 function FinanzasBlock() {
+  const navigate = useNavigate();
+  const overview = useQuery({ queryKey: ["finance-overview"], queryFn: getFinanceOverview });
+  const months = overview.data?.monthOrder ?? [];
+  const month = months[months.length - 1];
+  const chf = useQuery({
+    queryKey: ["finance-month", month, "CHF"],
+    queryFn: () => getFinanceMonth(month!, "CHF"),
+    enabled: !!month,
+  });
+  const eur = useQuery({
+    queryKey: ["finance-month", month, "EUR"],
+    queryFn: () => getFinanceMonth(month!, "EUR"),
+    enabled: !!month,
+  });
+
+  const label = month ? monthName(month) : "";
+  const netChf = chf.data ? chf.data.ingresos + chf.data.gastos : null;
+  const netEur = eur.data ? eur.data.ingresos + eur.data.gastos : null;
+
   return (
-    <section className="flex items-center justify-between">
-      <span className="text-xs uppercase tracking-[0.13em] text-ink-soft">Finanzas</span>
-      <span className="text-[12.5px] text-ink-soft/80">Próximamente</span>
+    <section>
+      <SecHead title="Finanzas" onClick={() => void navigate({ to: "/finanzas" })} />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-soft">Neto · {label}</div>
+          <div
+            className={`mt-1.5 text-2xl font-semibold leading-none tabular-nums ${netChf != null && netChf >= 0 ? "text-income" : "text-ink"}`}
+          >
+            {netChf != null ? signed(netChf) : "—"}
+            <span className="ml-1.5 text-sm font-normal text-ink-soft">CHF</span>
+          </div>
+        </div>
+        {netEur != null && (
+          <div className="text-right">
+            <div className={`text-base tabular-nums ${netEur >= 0 ? "text-income" : "text-ink"}`}>
+              {signed(netEur)} <span className="text-xs text-ink-soft">EUR</span>
+            </div>
+            <div className="mt-0.5 text-[11px] text-ink-soft">neto · {label.toLowerCase()}</div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../components/Modal";
-import { MES } from "../lib/format";
+import { MES, money, signed } from "../lib/format";
 import {
   getFinanceMonth,
   getFinanceOverview,
@@ -22,13 +22,6 @@ const TYPE_ES: Record<string, string> = { checking: "Corriente", savings: "Ahorr
 const catLabel = (c: string) => CAT_ES[c] ?? c;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// 1234.5 -> "1.234,50"
-function money(n: number): string {
-  return Math.abs(n).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function signed(n: number): string {
-  return (n > 0 ? "+" : n < 0 ? "−" : "") + money(n);
-}
 function txDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   return `${d.getDate()} ${MES[d.getMonth()]}`;

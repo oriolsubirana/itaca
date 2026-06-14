@@ -35,3 +35,20 @@ export function daysSince(iso: string): number {
 export function routineLabel(name: string): string {
   return name === "Leg" ? "Pierna" : name;
 }
+
+/** Amount as "1.234,50" (de-DE grouping), absolute value. */
+export function money(n: number): string {
+  return Math.abs(n).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Signed amount, e.g. "+1.234,50" / "−845,30". */
+export function signed(n: number): string {
+  return (n > 0 ? "+" : n < 0 ? "−" : "") + money(n);
+}
+
+/** Month key "2026-06" -> "Junio". */
+export function monthName(key: string): string {
+  const [y, m] = key.split("-");
+  const name = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("es-ES", { month: "long" });
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
