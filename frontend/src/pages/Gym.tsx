@@ -180,7 +180,10 @@ const fmtNum = (n: number): string => String(n).replace(".", ",");
 // Per-sport weekly volume: sport chips, year-to-date total, and clickable weeks
 // that reveal the selected week's value and breakdown.
 function VolumenSemanal({ volume }: { volume: Record<string, SportVolume> }) {
-  const [sport, setSport] = useState("bike");
+  // Default to the first sport that has any volume, so a non-cyclist doesn't open on an empty "Bici" chart.
+  const [sport, setSport] = useState(
+    () => (VOL_SPORTS.find(({ key }) => volume[key]?.weeks.some((w) => w.value > 0)) ?? VOL_SPORTS[0]).key,
+  );
   // Default to the current (last) week. All sports share the same 8-week window,
   // so the selected index stays valid when switching sport — no reset needed.
   const [wi, setWi] = useState(() => (volume["bike"]?.weeks.length ?? 1) - 1);
@@ -451,14 +454,18 @@ function SessionDetailModal({ session, onClose }: { session: SessionSummary; onC
       <p className={`mb-1 text-xs uppercase tracking-wide ${session.completed ? "text-ink" : "text-ink-soft"}`}>
         {session.completed ? "Completado" : "A medias"}
       </p>
-      {d?.durationS != null && (
-        <p className="mb-4 text-[13px] tabular-nums text-ink-soft">
-          Strava · {fmtDuration(d.durationS)}
-          {d.avgHr != null ? ` · ${d.avgHr} ppm` : ""}
-          {d.calories != null && d.calories > 0 ? ` · ${d.calories} kcal` : ""}
-        </p>
-      )}
-      {d?.durationS == null && <div className="mb-4" />}
+      {(() => {
+        const parts = [
+          d?.durationS != null ? fmtDuration(d.durationS) : null,
+          d?.avgHr != null ? `${d.avgHr} ppm` : null,
+          d?.calories != null && d.calories > 0 ? `${d.calories} kcal` : null,
+        ].filter(Boolean);
+        return parts.length ? (
+          <p className="mb-4 text-[13px] tabular-nums text-ink-soft">Strava · {parts.join(" · ")}</p>
+        ) : (
+          <div className="mb-4" />
+        );
+      })()}
       {d?.exercises.length ? (
         d.exercises.map((e) => (
           <div key={e.name} className="border-b border-line py-3 last:border-b-0">

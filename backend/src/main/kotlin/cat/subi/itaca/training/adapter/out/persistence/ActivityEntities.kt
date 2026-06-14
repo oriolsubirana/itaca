@@ -55,6 +55,9 @@ class ActivityEntity(
     var avgSpeedMs: BigDecimal? = null,
     // Fetched lazily from the Strava activity detail endpoint (not in the list response).
     var calories: Int? = null,
+    // True once the detail call ran, so genuinely calorie-less activities are not re-fetched.
+    @Column(name = "calories_fetched", nullable = false)
+    var caloriesFetched: Boolean = false,
 )
 
 interface StravaAccountRepository : JpaRepository<StravaAccountEntity, Long> {

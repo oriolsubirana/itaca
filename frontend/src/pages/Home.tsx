@@ -22,6 +22,10 @@ function daysSince(iso: string): number {
   return Math.max(1, Math.round((Date.now() - new Date(`${iso}T00:00:00`).getTime()) / 86400000));
 }
 
+function routineLabel(name: string): string {
+  return name === "Leg" ? "Pierna" : name;
+}
+
 const SUGGESTIONS: { label: string; seed: string; workout?: boolean }[] = [
   { label: "Registrar el día", seed: "Quiero registrar el día de hoy" },
   { label: "Empezar entrenamiento", seed: "Empiezo entreno", workout: true },
@@ -203,10 +207,12 @@ function EntrenoBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) =
       <div className="flex items-end justify-between gap-3">
         <div>
           <div className="text-[11px] uppercase tracking-wide text-ink-soft">Toca hoy</div>
-          <div className="mt-1.5 text-2xl font-medium leading-none text-ink">{s?.nextRoutine ?? "—"}</div>
+          <div className="mt-1.5 text-2xl font-medium leading-none text-ink">
+            {s?.nextRoutine ? routineLabel(s.nextRoutine) : "—"}
+          </div>
           {s?.lastWorkoutDate && s.lastWorkoutRoutine && (
             <div className="mt-2 text-[13px] text-ink-soft">
-              Última sesión · {s.lastWorkoutRoutine} · hace {daysSince(s.lastWorkoutDate)} días
+              Última sesión · {routineLabel(s.lastWorkoutRoutine)} · hace {daysSince(s.lastWorkoutDate)} días
             </div>
           )}
         </div>

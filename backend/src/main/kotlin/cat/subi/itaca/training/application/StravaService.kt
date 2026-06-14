@@ -62,14 +62,20 @@ class StravaService(
             val entity =
                 activities.findByStravaId(a.stravaId)?.also { update(it, a) }
                     ?: toEntity(a).also { imported++ }
-            // Backfill calories from the detail endpoint when missing; a failure must not abort the sync.
-            if (entity.calories == null) {
-                runCatching { client.calories(token, a.stravaId) }.getOrNull()?.let { entity.calories = it }
+            // Backfill calories from the detail endpoint once; a failure must not abort the sync
+            // (it leaves caloriesFetched false so the next sync retries). A successful call marks
+            // it fetched even when Strava reports no calories, so we never re-fetch needlessly.
+            if (!entity.caloriesFetched) {
+                runCatching { client.calories(token, a.stravaId) }.onSuccess {
+                    entity.calories = it
+                    entity.caloriesFetched = true
+                }
             }
             activities.save(entity)
         }
         log.info("Strava sync: {} fetched, {} new", fetched.size, imported)
-        // Newly imported gym activities may match a same-day strength workout.
+        // Flush the JPA writes so the JdbcTemplate linker sees them, then link same-day workouts.
+        activities.flush()
         linker.linkByDate()
         return SyncResult(imported, activities.count().toInt())
     }

@@ -161,7 +161,7 @@ class ActivityQueries(
                     lastMonth = w.date.monthValue
                     if (withMonth) "${w.date.dayOfMonth} ${MES[w.date.monthValue - 1]}" else "${w.date.dayOfMonth}"
                 }
-            val value = if (hours) round1(w.secs / SECONDS_PER_HOUR) else w.km.roundToLong().toDouble()
+            val value = round1(if (hours) w.secs / SECONDS_PER_HOUR else w.km)
             VolumeWeek(label, value, subFor(type, w))
         }
     }

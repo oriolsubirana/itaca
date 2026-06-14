@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -31,6 +31,7 @@ interface Pending {
 export function Chat() {
   // Home can deep-link here with a seeded prompt and/or workout mode (?seed=&workout=).
   const search = useSearch({ from: "/chat" });
+  const navigate = useNavigate();
   const [mode, setMode] = useState<ChatMode>(() =>
     search.workout ? "workout" : (localStorage.getItem("itaca.chat.mode") as ChatMode) ?? "general",
   );
@@ -109,7 +110,9 @@ export function Chat() {
     if (!search.seed || sentSeed.current === search.seed) return;
     sentSeed.current = search.seed;
     void send(search.seed);
-  }, [search.seed, send]);
+    // Drop the seed from the URL so a reload/re-navigation doesn't resend it.
+    void navigate({ to: "/chat", search: {}, replace: true });
+  }, [search.seed, send, navigate]);
 
   const messages = history.data ?? [];
 
