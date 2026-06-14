@@ -54,6 +54,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/031-finance-seed.sql
   - include:
+      file: db/changelog/032-finance-seed-transactions.sql
+  - include:
       file: db/changelog/040-chat-schema.sql
   - include:
       file: db/changelog/041-chat-memories.sql
