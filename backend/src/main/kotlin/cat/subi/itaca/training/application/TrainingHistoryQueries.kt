@@ -29,6 +29,7 @@ data class SessionDetailDto(
     // From the linked Strava gym activity (same day), when present.
     val durationS: Int? = null,
     val avgHr: Int? = null,
+    val calories: Int? = null,
 )
 
 data class ProgressionPointDto(
@@ -79,7 +80,7 @@ class TrainingHistoryQueries(
             jdbc
                 .query(
                     """
-                    SELECT w.date, r.name, w.completed, a.moving_time_s, a.avg_hr
+                    SELECT w.date, r.name, w.completed, a.moving_time_s, a.avg_hr, a.calories
                     FROM workouts w JOIN routines r ON r.id = w.routine_id
                     LEFT JOIN activities a ON a.strava_id = w.strava_id
                     WHERE w.id = ?
@@ -91,6 +92,7 @@ class TrainingHistoryQueries(
                             completed = rs.getBoolean("completed"),
                             durationS = rs.getObject("moving_time_s") as? Int,
                             avgHr = rs.getBigDecimal("avg_hr")?.toDouble()?.roundToInt(),
+                            calories = rs.getObject("calories") as? Int,
                         )
                     },
                     id,
@@ -102,7 +104,16 @@ class TrainingHistoryQueries(
             byExercise.map { (name, rows) ->
                 SessionExerciseDto(name, rows.joinToString(" · ") { "${fmtW(it.weight)}×${it.reps}" })
             }
-        return SessionDetailDto(id, meta.date, meta.routine, meta.completed, exercises, meta.durationS, meta.avgHr)
+        return SessionDetailDto(
+            id,
+            meta.date,
+            meta.routine,
+            meta.completed,
+            exercises,
+            meta.durationS,
+            meta.avgHr,
+            meta.calories,
+        )
     }
 
     fun exercises(): List<ExerciseRef> =
@@ -148,6 +159,7 @@ class TrainingHistoryQueries(
         val completed: Boolean,
         val durationS: Int?,
         val avgHr: Int?,
+        val calories: Int?,
     )
 
     private data class SetRow(

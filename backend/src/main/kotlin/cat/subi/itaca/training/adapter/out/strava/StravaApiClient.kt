@@ -93,6 +93,21 @@ class StravaApiClient(
         }
     }
 
+    /** Calories live only on the activity detail endpoint, not on the list response. */
+    fun calories(
+        accessToken: String,
+        stravaId: Long,
+    ): Int? {
+        val row =
+            api
+                .get()
+                .uri("/activities/{id}", stravaId)
+                .header("Authorization", "Bearer $accessToken")
+                .retrieve()
+                .body(MAP) ?: return null
+        return (row["calories"] as? Number)?.toInt()
+    }
+
     private fun token(form: LinkedMultiValueMap<String, String>): StravaToken {
         form.add("client_id", clientId)
         form.add("client_secret", clientSecret)

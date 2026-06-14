@@ -157,6 +157,14 @@ class StravaSyncIntegrationTest {
                 ),
             ),
         )
+        // Calories come only from the activity detail endpoint.
+        wireMock.stubFor(
+            get(urlPathEqualTo("/activities/3001")).willReturn(
+                aResponse()
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("""{"id": 3001, "calories": 480.0}"""),
+            ),
+        )
         val routineId = jdbc.queryForObject("SELECT id FROM routines ORDER BY id LIMIT 1", Long::class.java)!!
         val routineName = jdbc.queryForObject("SELECT name FROM routines WHERE id = ?", String::class.java, routineId)!!
         val workout =
@@ -168,19 +176,15 @@ class StravaSyncIntegrationTest {
 
         strava.sync()
 
-        // Feed: the gym activity carries the routine of the linked workout.
-        assertEquals(
-            routineName,
-            queries
-                .view()
-                .activities
-                .single { it.type == "gym" }
-                .routine,
-        )
-        // Session detail: the workout carries the Strava duration + HR.
+        // Feed: the gym activity carries the routine of the linked workout + its calories.
+        val gym = queries.view().activities.single { it.type == "gym" }
+        assertEquals(routineName, gym.routine)
+        assertEquals(480, gym.calories)
+        // Session detail: the workout carries the Strava duration, HR and calories.
         val detail = history.sessionDetail(workout.id!!)
         assertEquals(3720, detail.durationS)
         assertEquals(128, detail.avgHr)
+        assertEquals(480, detail.calories)
     }
 
     private fun stubToken() {

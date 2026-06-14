@@ -59,14 +59,14 @@ class StravaService(
         val fetched = client.activities(token, ACTIVITIES_PER_SYNC)
         var imported = 0
         fetched.forEach { a ->
-            val existing = activities.findByStravaId(a.stravaId)
-            if (existing == null) {
-                activities.save(toEntity(a))
-                imported++
-            } else {
-                update(existing, a)
-                activities.save(existing)
+            val entity =
+                activities.findByStravaId(a.stravaId)?.also { update(it, a) }
+                    ?: toEntity(a).also { imported++ }
+            // Backfill calories from the detail endpoint when missing; a failure must not abort the sync.
+            if (entity.calories == null) {
+                runCatching { client.calories(token, a.stravaId) }.getOrNull()?.let { entity.calories = it }
             }
+            activities.save(entity)
         }
         log.info("Strava sync: {} fetched, {} new", fetched.size, imported)
         // Newly imported gym activities may match a same-day strength workout.

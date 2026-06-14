@@ -363,6 +363,7 @@ function ActivityDetailModal({ activity, onClose }: { activity: ActivityItem; on
   if (a.elevationM != null && a.elevationM > 0) stats.push(["Desnivel", `${Math.round(a.elevationM)} m`]);
   if (a.avgHr != null) stats.push(["FC media", `${Math.round(a.avgHr)} ppm`]);
   if (a.avgSpeedKmh != null && a.avgSpeedKmh > 0) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
+  if (a.calories != null && a.calories > 0) stats.push(["Calorías", `${a.calories} kcal`]);
   return (
     <Modal title={`${actLabel(a)} · ${shortDate(a.date)}`} onClose={onClose}>
       {a.name && <p className="mb-4 text-sm text-ink-soft">{a.name}</p>}
@@ -454,6 +455,7 @@ function SessionDetailModal({ session, onClose }: { session: SessionSummary; onC
         <p className="mb-4 text-[13px] tabular-nums text-ink-soft">
           Strava · {fmtDuration(d.durationS)}
           {d.avgHr != null ? ` · ${d.avgHr} ppm` : ""}
+          {d.calories != null && d.calories > 0 ? ` · ${d.calories} kcal` : ""}
         </p>
       )}
       {d?.durationS == null && <div className="mb-4" />}

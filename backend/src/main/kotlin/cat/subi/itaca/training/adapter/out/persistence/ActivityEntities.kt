@@ -53,6 +53,8 @@ class ActivityEntity(
     var avgHr: BigDecimal? = null,
     @Column(name = "avg_speed_ms")
     var avgSpeedMs: BigDecimal? = null,
+    // Fetched lazily from the Strava activity detail endpoint (not in the list response).
+    var calories: Int? = null,
 )
 
 interface StravaAccountRepository : JpaRepository<StravaAccountEntity, Long> {

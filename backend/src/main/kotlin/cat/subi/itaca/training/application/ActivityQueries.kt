@@ -16,6 +16,7 @@ data class ActivityDto(
     val elevationM: Double?,
     val avgHr: Double?,
     val avgSpeedKmh: Double?,
+    val calories: Int?,
     // Routine name of the linked strength workout (gym activities only), when present.
     val routine: String? = null,
 )
@@ -65,7 +66,7 @@ class ActivityQueries(
         jdbc.query(
             """
             SELECT a.id, a.type, a.sport, a.name, a.start_date, a.distance_m, a.moving_time_s,
-                   a.elevation_m, a.avg_hr, a.avg_speed_ms, r.name AS routine
+                   a.elevation_m, a.avg_hr, a.avg_speed_ms, a.calories, r.name AS routine
             FROM activities a
             LEFT JOIN workouts w ON w.strava_id = a.strava_id
             LEFT JOIN routines r ON r.id = w.routine_id
@@ -83,6 +84,7 @@ class ActivityQueries(
                 elevationM = rs.getBigDecimal("elevation_m")?.toDouble(),
                 avgHr = rs.getBigDecimal("avg_hr")?.toDouble(),
                 avgSpeedKmh = rs.getBigDecimal("avg_speed_ms")?.toDouble()?.times(MS_TO_KMH),
+                calories = rs.getObject("calories") as? Int,
                 routine = rs.getString("routine"),
             )
         }
