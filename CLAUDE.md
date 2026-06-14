@@ -14,7 +14,7 @@ logged by chat). This project doubles as an architecture gym: enterprise-grade q
 ## Docs over memory (strict)
 
 This project runs the newest version of everything (Boot 4.1, Modulith 2.1,
-Spring AI 2.0-RC, Testcontainers 2.x, Tailwind 4, ESLint 10, Vite 8...). Claude's
+Spring AI 2.0, Testcontainers 2.x, Tailwind 4, ESLint 10, Vite 8...). Claude's
 training knowledge skews to OLDER versions of these libraries, so for ANY
 integration point, configuration property, annotation or artifact name:
 
@@ -55,8 +55,8 @@ integration point, configuration property, annotation or artifact name:
   `org.testcontainers.postgresql` (no `SELF` generic); the old
   `org.testcontainers.containers` package is a deprecated shim.
 - Kotlin 2.2.x cannot emit JVM 25 bytecode: toolchain/runtime Java 25, `jvmTarget` 24.
-- Spring AI 2.0 GA is not out yet (latest: `2.0.0-RC2` on Maven Central). Check
-  before phase 2. Spring AI 2.0 API differs from 1.x — always check current docs.
+- Spring AI 2.0 reached GA (`2.0.0` on Maven Central). Its API differs from 1.x
+  — always check current docs.
 - No `io.spring.dependency-management`: use `platform(SpringBootPlugin.BOM_COORDINATES)`.
 - detekt 1.x's embedded analyzer rejects JVM target 25: its tasks pin `jvmTarget = "21"`.
 - detekt 1.23.8 triggers Gradle's `ReportingExtension.file(String)` deprecation
@@ -113,7 +113,7 @@ prepared by `.claude/hooks/session-start.sh`.
 ## Roadmap
 
 1. ✅ Skeleton (modules, schema+seeds, compose, CI)
-2. ✅ Chat + workout mode end-to-end (Spring AI 2.0-RC2, training tools, SSE, mobile UI)
+2. ✅ Chat + workout mode end-to-end (Spring AI 2.0, training tools, SSE, mobile UI)
 3. ✅ Health (diary+flares via chat and form; lab pipeline: upload → JobRunr → claude-haiku extraction → review → per-analyte chart)
 4. Home/dashboard · 5. Finance (CSV import) · 6. Ingestion (`/api/ingest`)
 
