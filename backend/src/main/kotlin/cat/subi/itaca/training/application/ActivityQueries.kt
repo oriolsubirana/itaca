@@ -16,6 +16,8 @@ data class ActivityDto(
     val elevationM: Double?,
     val avgHr: Double?,
     val avgSpeedKmh: Double?,
+    // Routine name of the linked strength workout (gym activities only), when present.
+    val routine: String? = null,
 )
 
 data class VolumeWeek(
@@ -62,8 +64,12 @@ class ActivityQueries(
     private fun recent(): List<ActivityDto> =
         jdbc.query(
             """
-            SELECT id, type, sport, name, start_date, distance_m, moving_time_s, elevation_m, avg_hr, avg_speed_ms
-            FROM activities ORDER BY start_date DESC LIMIT 20
+            SELECT a.id, a.type, a.sport, a.name, a.start_date, a.distance_m, a.moving_time_s,
+                   a.elevation_m, a.avg_hr, a.avg_speed_ms, r.name AS routine
+            FROM activities a
+            LEFT JOIN workouts w ON w.strava_id = a.strava_id
+            LEFT JOIN routines r ON r.id = w.routine_id
+            ORDER BY a.start_date DESC LIMIT 20
             """.trimIndent(),
         ) { rs, _ ->
             ActivityDto(
@@ -77,6 +83,7 @@ class ActivityQueries(
                 elevationM = rs.getBigDecimal("elevation_m")?.toDouble(),
                 avgHr = rs.getBigDecimal("avg_hr")?.toDouble(),
                 avgSpeedKmh = rs.getBigDecimal("avg_speed_ms")?.toDouble()?.times(MS_TO_KMH),
+                routine = rs.getString("routine"),
             )
         }
 

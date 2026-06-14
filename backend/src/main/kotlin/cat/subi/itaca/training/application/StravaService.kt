@@ -26,6 +26,7 @@ class StravaService(
     private val client: StravaApiClient,
     private val accounts: StravaAccountRepository,
     private val activities: ActivityRepository,
+    private val linker: WorkoutActivityLinker,
     @Value("\${itaca.strava.app-url:}") val appUrl: String,
     @Value("\${itaca.strava.refresh-token:}") private val seedRefreshToken: String,
 ) {
@@ -68,6 +69,8 @@ class StravaService(
             }
         }
         log.info("Strava sync: {} fetched, {} new", fetched.size, imported)
+        // Newly imported gym activities may match a same-day strength workout.
+        linker.linkByDate()
         return SyncResult(imported, activities.count().toInt())
     }
 

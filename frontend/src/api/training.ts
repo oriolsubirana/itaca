@@ -27,6 +27,8 @@ export interface SessionDetail {
   routine: string;
   completed: boolean;
   exercises: SessionExercise[];
+  durationS: number | null;
+  avgHr: number | null;
 }
 
 export interface ExerciseRef {

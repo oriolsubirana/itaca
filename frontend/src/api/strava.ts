@@ -13,6 +13,7 @@ export interface ActivityItem {
   elevationM: number | null;
   avgHr: number | null;
   avgSpeedKmh: number | null;
+  routine: string | null;
 }
 
 export interface VolumeWeek {

@@ -10,6 +10,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/014-training-activity-sport.sql
   - include:
+      file: db/changelog/015-training-workout-strava-link.sql
+  - include:
       file: db/changelog/020-health-schema.sql
   - include:
       file: db/changelog/021-health-analytes-seed.sql

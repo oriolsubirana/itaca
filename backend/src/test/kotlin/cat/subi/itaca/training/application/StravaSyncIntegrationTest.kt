@@ -4,6 +4,8 @@ import cat.subi.itaca.TestcontainersConfiguration
 import cat.subi.itaca.training.adapter.out.persistence.ActivityRepository
 import cat.subi.itaca.training.adapter.out.persistence.StravaAccountEntity
 import cat.subi.itaca.training.adapter.out.persistence.StravaAccountRepository
+import cat.subi.itaca.training.adapter.out.persistence.WorkoutEntity
+import cat.subi.itaca.training.adapter.out.persistence.WorkoutRepository
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.get
@@ -16,9 +18,11 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import java.time.Instant
+import java.time.LocalDate
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -38,10 +42,24 @@ class StravaSyncIntegrationTest {
     @Autowired
     lateinit var activities: ActivityRepository
 
+    @Autowired
+    lateinit var workouts: WorkoutRepository
+
+    @Autowired
+    lateinit var history: TrainingHistoryQueries
+
+    @Autowired
+    lateinit var jdbc: JdbcTemplate
+
+    private var createdWorkoutId: Long? = null
+
     @AfterEach
     fun clean() {
         activities.deleteAll()
         accounts.deleteAll()
+        // Remove only our own workout, leaving the seed data intact for other tests.
+        createdWorkoutId?.let { workouts.deleteById(it) }
+        createdWorkoutId = null
     }
 
     @Test
@@ -124,6 +142,45 @@ class StravaSyncIntegrationTest {
         val act = queries.view().activities.single()
         assertEquals("gym", act.type)
         assertEquals("WeightTraining", act.sport)
+    }
+
+    @Test
+    fun `links a gym activity to the same-day strength workout`() {
+        stubToken()
+        wireMock.stubFor(
+            get(urlPathEqualTo("/athlete/activities")).willReturn(
+                aResponse().withHeader("Content-Type", "application/json").withBody(
+                    """
+                    [{"id": 3001, "name":"Fuerza", "sport_type":"WeightTraining",
+                      "start_date":"2026-06-10T18:00:00Z", "moving_time": 3720, "average_heartrate": 128.0}]
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        val routineId = jdbc.queryForObject("SELECT id FROM routines ORDER BY id LIMIT 1", Long::class.java)!!
+        val routineName = jdbc.queryForObject("SELECT name FROM routines WHERE id = ?", String::class.java, routineId)!!
+        val workout =
+            workouts.save(
+                WorkoutEntity(date = LocalDate.of(2026, 6, 10), routineId = routineId, completed = true),
+            )
+        createdWorkoutId = workout.id
+        accounts.save(StravaAccountEntity(refreshToken = "rt", expiresAt = Instant.now().minusSeconds(3600)))
+
+        strava.sync()
+
+        // Feed: the gym activity carries the routine of the linked workout.
+        assertEquals(
+            routineName,
+            queries
+                .view()
+                .activities
+                .single { it.type == "gym" }
+                .routine,
+        )
+        // Session detail: the workout carries the Strava duration + HR.
+        val detail = history.sessionDetail(workout.id!!)
+        assertEquals(3720, detail.durationS)
+        assertEquals(128, detail.avgHr)
     }
 
     private fun stubToken() {

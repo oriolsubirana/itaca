@@ -5,6 +5,7 @@ import cat.subi.itaca.training.domain.Reps
 import cat.subi.itaca.training.domain.Weight
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
+import kotlin.math.roundToInt
 
 data class SessionSummaryDto(
     val id: Long,
@@ -25,6 +26,9 @@ data class SessionDetailDto(
     val routine: String,
     val completed: Boolean,
     val exercises: List<SessionExerciseDto>,
+    // From the linked Strava gym activity (same day), when present.
+    val durationS: Int? = null,
+    val avgHr: Int? = null,
 )
 
 data class ProgressionPointDto(
@@ -75,14 +79,18 @@ class TrainingHistoryQueries(
             jdbc
                 .query(
                     """
-                    SELECT w.date, r.name, w.completed
-                    FROM workouts w JOIN routines r ON r.id = w.routine_id WHERE w.id = ?
+                    SELECT w.date, r.name, w.completed, a.moving_time_s, a.avg_hr
+                    FROM workouts w JOIN routines r ON r.id = w.routine_id
+                    LEFT JOIN activities a ON a.strava_id = w.strava_id
+                    WHERE w.id = ?
                     """.trimIndent(),
                     { rs, _ ->
-                        Triple(
-                            rs.getDate("date").toLocalDate().toString(),
-                            rs.getString("name"),
-                            rs.getBoolean("completed"),
+                        SessionMeta(
+                            date = rs.getDate("date").toLocalDate().toString(),
+                            routine = rs.getString("name"),
+                            completed = rs.getBoolean("completed"),
+                            durationS = rs.getObject("moving_time_s") as? Int,
+                            avgHr = rs.getBigDecimal("avg_hr")?.toDouble()?.roundToInt(),
                         )
                     },
                     id,
@@ -94,7 +102,7 @@ class TrainingHistoryQueries(
             byExercise.map { (name, rows) ->
                 SessionExerciseDto(name, rows.joinToString(" · ") { "${fmtW(it.weight)}×${it.reps}" })
             }
-        return SessionDetailDto(id, meta.first, meta.second, meta.third, exercises)
+        return SessionDetailDto(id, meta.date, meta.routine, meta.completed, exercises, meta.durationS, meta.avgHr)
     }
 
     fun exercises(): List<ExerciseRef> =
@@ -133,6 +141,14 @@ class TrainingHistoryQueries(
             }
         return ExerciseProgressionDto(exerciseId, name, "3×6-8", points, last?.weight, last?.reps, suggested)
     }
+
+    private data class SessionMeta(
+        val date: String,
+        val routine: String,
+        val completed: Boolean,
+        val durationS: Int?,
+        val avgHr: Int?,
+    )
 
     private data class SetRow(
         val name: String,

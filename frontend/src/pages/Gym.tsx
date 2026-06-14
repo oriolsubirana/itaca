@@ -112,7 +112,9 @@ const SPORT_ES: Record<string, string> = {
 const deCamel = (s: string): string => s.replace(/([a-z])([A-Z])/g, "$1 $2");
 
 // Known buckets keep their Spanish label; everything else is named by its real Strava sport.
+// A gym activity linked to a logged strength session shows its routine ("Gimnasio · Push").
 function actLabel(a: ActivityItem): string {
+  if (a.type === "gym") return a.routine ? `Gimnasio · ${routineLabel(a.routine)}` : ACT_LABEL.gym;
   if (a.type !== "other") return ACT_LABEL[a.type];
   if (!a.sport) return ACT_LABEL.other;
   return SPORT_ES[a.sport] ?? deCamel(a.sport);
@@ -445,9 +447,16 @@ function SessionDetailModal({ session, onClose }: { session: SessionSummary; onC
   const d = detail.data;
   return (
     <Modal title={`${shortDate(session.date)} · ${routineLabel(session.routine)}`} onClose={onClose}>
-      <p className={`mb-4 text-xs uppercase tracking-wide ${session.completed ? "text-ink" : "text-ink-soft"}`}>
+      <p className={`mb-1 text-xs uppercase tracking-wide ${session.completed ? "text-ink" : "text-ink-soft"}`}>
         {session.completed ? "Completado" : "A medias"}
       </p>
+      {d?.durationS != null && (
+        <p className="mb-4 text-[13px] tabular-nums text-ink-soft">
+          Strava · {fmtDuration(d.durationS)}
+          {d.avgHr != null ? ` · ${d.avgHr} ppm` : ""}
+        </p>
+      )}
+      {d?.durationS == null && <div className="mb-4" />}
       {d?.exercises.length ? (
         d.exercises.map((e) => (
           <div key={e.name} className="border-b border-line py-3 last:border-b-0">
