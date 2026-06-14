@@ -44,6 +44,27 @@ class FinanceImportIntegrationTest {
     }
 
     @Test
+    fun `importing a neon csv inserts categorized transactions and keeps transfers out of the view`() {
+        val service = FinanceImportService(jdbc, PdfTextExtractor { "" })
+        val neon = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon'", Long::class.java)!!
+        val csv =
+            """
+            "Date";"Amount";"Original amount";"Original currency";"Exchange rate";"Description";"Subject";"Category";"Tags";"Wise";"Spaces"
+            "2026-07-05";"10000.00";"";"";"";"Nicoll Curtin";"Salarzahlung";"income_salary";"";"no";"no"
+            "2026-07-06";"-6000.00";"";"";"";"saves";"";"finances";"";"no";"yes"
+            "2026-07-10";"-200.00";"";"";"";"Coop";"";"household";"";"no";"no"
+            """.trimIndent()
+
+        assertTrue(service.import(neon, csv.toByteArray()).imported)
+
+        val view = queries.month("2026-07", "CHF")
+        assertEquals(10000.0, view.ingresos)
+        assertEquals(-200.0, view.gastos, "the -6000 savings transfer is excluded")
+        assertTrue(view.categorias.any { it.category == "groceries" })
+        assertTrue(view.tx.none { it.category == "transfers" })
+    }
+
+    @Test
     fun `importing into an account without a known format reports it is unavailable`() {
         val service = FinanceImportService(jdbc, PdfTextExtractor { REPORT })
         val sabadell = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Sabadell'", Long::class.java)!!

@@ -13,8 +13,8 @@ import {
 
 const CAT_ES: Record<string, string> = {
   groceries: "Alimentación", restaurants: "Restaurantes", transport: "Transporte", fuel: "Combustible",
-  housing: "Vivienda", utilities: "Suministros", health: "Salud", subscriptions: "Suscripciones",
-  shopping: "Compras", leisure: "Ocio", income: "Ingresos", transfers: "Transferencias",
+  travel: "Viajes", housing: "Vivienda", utilities: "Suministros", health: "Salud", subscriptions: "Suscripciones",
+  shopping: "Compras", leisure: "Ocio", income: "Ingresos", transfers: "Transferencias", work: "Trabajo",
   investment: "Inversión", fees: "Comisiones", cash: "Efectivo", other: "Otros",
 };
 const TYPE_ES: Record<string, string> = { checking: "Corriente", savings: "Ahorro", investment: "Inversión" };
@@ -311,9 +311,9 @@ function ImportModal({ accounts, onClose }: { accounts: FinanceAccount[]; onClos
       </div>
       <label className="mb-2 block text-[13px] uppercase tracking-[0.08em] text-ink-soft">Archivo</label>
       <label className="mb-5 flex min-h-[88px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-line hover:border-ink/30">
-        <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <span className="text-[15px] text-ink">{file ? file.name : "Selecciona un archivo CSV"}</span>
-        <span className="text-xs text-ink-soft">{file ? "Listo" : "Formato CSV del banco"}</span>
+        <input type="file" accept=".csv,.pdf,text/csv,application/pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <span className="text-[15px] text-ink">{file ? file.name : "Selecciona un archivo"}</span>
+        <span className="text-xs text-ink-soft">{file ? "Listo" : "CSV del banco o PDF de finpension"}</span>
       </label>
       <button
         disabled={!file || mutation.isPending}
@@ -327,14 +327,8 @@ function ImportModal({ accounts, onClose }: { accounts: FinanceAccount[]; onClos
       )}
       {result && (
         <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
-          {result.imported ? (
-            <>
-              ✓ Importado · <span className="text-ink">{result.account}</span>{" "}
-              {result.value?.toLocaleString("de-DE", { minimumFractionDigits: 2 })} CHF al {result.date}
-            </>
-          ) : (
-            result.message
-          )}
+          {result.imported && <span className="text-ink">✓ {result.account} · </span>}
+          {result.message}
         </p>
       )}
     </Modal>
