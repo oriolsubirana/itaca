@@ -93,6 +93,32 @@ class FinanceImportIntegrationTest {
     }
 
     @Test
+    fun `setting a category recategorizes the transaction`() {
+        val neon = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon'", Long::class.java)!!
+        jdbc.update(
+            "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?::date, ?, ?, ?)",
+            neon,
+            "2026-09-01",
+            java.math.BigDecimal("-50.00"),
+            "Sitio raro",
+            "other",
+        )
+        val txId =
+            jdbc.queryForObject("SELECT id FROM transactions WHERE description = 'Sitio raro'", Long::class.java)!!
+
+        accountService.setCategory(txId, "restaurants")
+
+        assertEquals(
+            "restaurants",
+            queries
+                .month("2026-09", "CHF")
+                .tx
+                .single { it.id == txId }
+                .category,
+        )
+    }
+
+    @Test
     fun `monthly income counts checking accounts only, not investment inflows`() {
         val finpension = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'finpension'", Long::class.java)!!
         // A positive movement in an investment account is internal wealth, not monthly income.

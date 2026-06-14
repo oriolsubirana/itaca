@@ -24,6 +24,11 @@ data class SetBalanceRequest(
     val balance: BigDecimal,
 )
 
+data class SetCategoryRequest(
+    val transactionId: Long,
+    val category: String,
+)
+
 /** Finance dashboard: months/accounts overview, a month breakdown, statement import, balances. */
 @RestController
 @RequestMapping("/api/finance")
@@ -53,5 +58,13 @@ class FinanceController(
     ): FinanceOverview {
         accountService.setBalance(request.accountId, request.balance)
         return queries.overview()
+    }
+
+    @PostMapping("/category")
+    fun setCategory(
+        @RequestBody request: SetCategoryRequest,
+    ): Map<String, String> {
+        accountService.setCategory(request.transactionId, request.category)
+        return mapOf("category" to request.category)
     }
 }

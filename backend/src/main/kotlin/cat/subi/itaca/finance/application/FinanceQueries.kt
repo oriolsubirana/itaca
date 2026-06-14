@@ -24,6 +24,7 @@ data class CategorySpend(
 )
 
 data class FinanceTx(
+    val id: Long,
     val date: String,
     val description: String,
     val category: String,
@@ -131,7 +132,7 @@ class FinanceQueries(
     ): List<FinanceTx> =
         jdbc.query(
             """
-            SELECT t.date, t.description, COALESCE(t.category, 'other') AS category, t.amount, a.name AS account
+            SELECT t.id, t.date, t.description, COALESCE(t.category, 'other') AS category, t.amount, a.name AS account
             FROM transactions t JOIN accounts a ON a.id = t.account_id
             WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ?
               AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
@@ -140,6 +141,7 @@ class FinanceQueries(
             """.trimIndent(),
             { rs, _ ->
                 FinanceTx(
+                    id = rs.getLong("id"),
                     date = rs.getDate("date").toLocalDate().toString(),
                     description = rs.getString("description"),
                     category = rs.getString("category"),

@@ -20,6 +20,7 @@ export interface CategorySpend {
 }
 
 export interface FinanceTx {
+  id: number;
   date: string;
   description: string;
   category: string;
@@ -54,6 +55,36 @@ export const setAccountBalance = (accountId: number, balance: number) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ accountId, balance }),
   });
+
+/** Corrects a transaction's category. */
+export const setTransactionCategory = (transactionId: number, category: string) =>
+  api<{ category: string }>("/finance/category", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transactionId, category }),
+  });
+
+/** Canonical spending categories the user can pick from, with their Spanish labels. */
+export const CATEGORIES: { code: string; label: string }[] = [
+  { code: "groceries", label: "Alimentación" },
+  { code: "restaurants", label: "Restaurantes" },
+  { code: "transport", label: "Transporte" },
+  { code: "fuel", label: "Combustible" },
+  { code: "travel", label: "Viajes" },
+  { code: "housing", label: "Vivienda" },
+  { code: "utilities", label: "Suministros" },
+  { code: "health", label: "Salud" },
+  { code: "subscriptions", label: "Suscripciones" },
+  { code: "shopping", label: "Compras" },
+  { code: "leisure", label: "Ocio" },
+  { code: "income", label: "Ingresos" },
+  { code: "investment", label: "Inversión" },
+  { code: "fees", label: "Comisiones" },
+  { code: "cash", label: "Efectivo" },
+  { code: "transfers", label: "Transferencias" },
+  { code: "work", label: "Trabajo" },
+  { code: "other", label: "Otros" },
+];
 
 /** Multipart upload of a statement/report (finpension PDF for now). */
 export async function importFinance(accountId: number, file: File): Promise<ImportResult> {

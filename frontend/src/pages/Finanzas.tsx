@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Modal } from "../components/Modal";
 import { MES, money, signed } from "../lib/format";
 import {
+  CATEGORIES,
   getFinanceMonth,
   getFinanceOverview,
   importFinance,
   setAccountBalance,
+  setTransactionCategory,
   type FinanceAccount,
   type FinanceTx,
   type MonthView,
@@ -304,12 +307,15 @@ function Movimientos({ data, onOpen }: { data: MonthView; onOpen: (t: FinanceTx)
 }
 
 function MovDetailModal({ tx, currency, onClose }: { tx: FinanceTx; currency: string; onClose: () => void }) {
-  const rows: [string, string][] = [
-    ["Fecha", txDate(tx.date)],
-    ["Categoría", catLabel(tx.category)],
-    ["Cuenta", tx.account],
-    ["Divisa", currency],
-  ];
+  const queryClient = useQueryClient();
+  const [category, setCategory] = useState(tx.category);
+  const mutation = useMutation({
+    mutationFn: (c: string) => setTransactionCategory(tx.id, c),
+    onSuccess: (_, c) => {
+      setCategory(c);
+      void queryClient.invalidateQueries({ queryKey: ["finance-month"] });
+    },
+  });
   return (
     <Modal title="Movimiento" onClose={onClose}>
       <div className={`text-[34px] font-semibold tracking-tight tabular-nums ${tx.amount > 0 ? "text-income" : "text-ink"}`}>
@@ -317,14 +323,44 @@ function MovDetailModal({ tx, currency, onClose }: { tx: FinanceTx; currency: st
       </div>
       <div className="mt-1 text-[15px] text-ink">{tx.description}</div>
       <div className="mt-5">
-        {rows.map(([k, v]) => (
-          <div key={k} className="flex items-center justify-between border-b border-line py-3">
-            <span className="text-[13px] text-ink-soft">{k}</span>
-            <span className="text-[15px] text-ink">{v}</span>
-          </div>
-        ))}
+        <Row label="Fecha" value={txDate(tx.date)} />
+        <div className="flex items-center justify-between border-b border-line py-3">
+          <span className="text-[13px] text-ink-soft">Categoría</span>
+          <Listbox value={category} onChange={(c) => mutation.mutate(c)}>
+            <div className="relative">
+              <ListboxButton className="flex items-center gap-1.5 text-[15px] text-ink data-[disabled]:opacity-50" disabled={mutation.isPending}>
+                {catLabel(category)}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-4 text-ink-soft">
+                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </ListboxButton>
+              <ListboxOptions className="absolute right-0 z-10 mt-1 max-h-60 w-48 overflow-y-auto rounded-md border border-line bg-paper py-1 shadow-[0_8px_28px_rgba(28,28,26,0.12)]">
+                {CATEGORIES.map((c) => (
+                  <ListboxOption
+                    key={c.code}
+                    value={c.code}
+                    className="cursor-pointer px-4 py-2 text-[15px] text-ink data-[focus]:bg-line/50 data-[selected]:font-medium"
+                  >
+                    {c.label}
+                  </ListboxOption>
+                ))}
+              </ListboxOptions>
+            </div>
+          </Listbox>
+        </div>
+        <Row label="Cuenta" value={tx.account} />
+        <Row label="Divisa" value={currency} />
       </div>
     </Modal>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-line py-3">
+      <span className="text-[13px] text-ink-soft">{label}</span>
+      <span className="text-[15px] text-ink">{value}</span>
+    </div>
   );
 }
 

@@ -28,4 +28,13 @@ class FinanceAccountService(
             balance,
         )
     }
+
+    /** Recategorize a single transaction (correct a wrong/auto category). */
+    @Transactional
+    fun setCategory(
+        transactionId: Long,
+        category: String,
+    ) {
+        jdbc.update("UPDATE transactions SET category = ? WHERE id = ?", category, transactionId)
+    }
 }
