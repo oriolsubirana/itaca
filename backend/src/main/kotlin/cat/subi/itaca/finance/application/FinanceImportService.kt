@@ -4,6 +4,7 @@ import cat.subi.itaca.finance.domain.FinpensionReportParser
 import cat.subi.itaca.finance.domain.NeonCsvParser
 import cat.subi.itaca.finance.domain.TransactionCategorizer
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -26,11 +27,14 @@ data class ImportResult(
 class FinanceImportService(
     private val jdbc: JdbcTemplate,
     private val pdf: PdfTextExtractor,
+    // Counterparty names (self, partner, joint money) whose movements are transfers, not spending.
+    @Value("\${itaca.finance.transfer-names:}") transferNames: String = "",
 ) {
     private val log = LoggerFactory.getLogger(FinanceImportService::class.java)
     private val finpensionParser = FinpensionReportParser()
     private val neonParser = NeonCsvParser()
-    private val categorizer = TransactionCategorizer()
+    private val categorizer =
+        TransactionCategorizer(transferNames.split(",").map { it.trim() }.filter { it.isNotEmpty() })
 
     @Transactional
     fun import(

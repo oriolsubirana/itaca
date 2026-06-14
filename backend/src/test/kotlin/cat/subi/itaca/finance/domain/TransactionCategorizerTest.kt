@@ -19,4 +19,17 @@ class TransactionCategorizerTest {
         assertEquals("groceries", categorizer.categorize("uncategorized", false, "Lidl"))
         assertEquals("other", categorizer.categorize("uncategorized", false, "Oriol Subirana Perdiguer"))
     }
+
+    @Test
+    fun `configured counterparty names are treated as transfers`() {
+        val withNames = TransactionCategorizer(listOf("Oriol Subirana Perdiguer", "Paula Alvo Serrano"))
+        assertEquals(
+            "transfers",
+            withNames.categorize("uncategorized", false, "Oriol Subirana Perdiguer and Paula Alvo Serrano"),
+        )
+        // Even money the bank labels as income is "common money", not personal income.
+        assertEquals("transfers", withNames.categorize("income", false, "Paula Alvo Serrano"))
+        // A real merchant is unaffected.
+        assertEquals("restaurants", withNames.categorize("food", false, "Glovo"))
+    }
 }
