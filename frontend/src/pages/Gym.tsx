@@ -221,7 +221,11 @@ function VolumenSemanal({ volume }: { volume: Record<string, SportVolume> }) {
           <div className="whitespace-nowrap text-[11px] uppercase tracking-[0.08em] text-ink-soft">
             YTD {new Date().getFullYear()}
           </div>
-          <div className="mt-0.5 whitespace-nowrap text-[15px] tabular-nums text-ink">{v.ytd}</div>
+          <div className="mt-1 space-y-0.5 text-[13px] tabular-nums text-ink">
+            {v.ytd.distance && <div className="whitespace-nowrap">{v.ytd.distance}</div>}
+            {v.ytd.elevation && <div className="whitespace-nowrap">{v.ytd.elevation}</div>}
+            <div className="whitespace-nowrap">{v.ytd.time}</div>
+          </div>
         </div>
       </div>
 

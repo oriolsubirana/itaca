@@ -73,6 +73,16 @@ class StravaSyncIntegrationTest {
         assertEquals("esta", bikeVol.weeks.last().label)
         assertEquals("km", bikeVol.unit)
         assertEquals("h", view.volume.getValue("gym").unit)
+        // YTD carries km + elevation + time for endurance sports, time only for gym.
+        assertTrue(bikeVol.ytd.distance!!.endsWith("km"))
+        assertTrue(bikeVol.ytd.elevation!!.endsWith("m D+"))
+        assertTrue(bikeVol.ytd.time.endsWith("h"))
+        assertEquals(
+            null,
+            view.volume
+                .getValue("gym")
+                .ytd.distance,
+        )
 
         // A second sync of the same data must not duplicate.
         assertEquals(0, strava.sync().imported)

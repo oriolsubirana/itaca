@@ -24,9 +24,15 @@ data class VolumeWeek(
     val sub: String,
 )
 
+data class YtdTotals(
+    val distance: String?,
+    val elevation: String?,
+    val time: String,
+)
+
 data class SportVolume(
     val unit: String,
-    val ytd: String,
+    val ytd: YtdTotals,
     val weeks: List<VolumeWeek>,
 )
 
@@ -104,7 +110,7 @@ class ActivityQueries(
 
     private fun sportVolume(type: String): SportVolume {
         val hours = type == GYM
-        return SportVolume(if (hours) "h" else "km", ytd(type, hours), weeksFor(type, hours))
+        return SportVolume(if (hours) "h" else "km", ytd(type), weeksFor(type, hours))
     }
 
     private fun weeksFor(
@@ -180,22 +186,30 @@ class ActivityQueries(
             "${count(w.n, "sesión", "sesiones")} · ${fmt1(w.secs / SECONDS_PER_HOUR)}h"
         }
 
-    private fun ytd(
-        type: String,
-        hours: Boolean,
-    ): String {
-        val column = if (hours) "moving_time_s" else "distance_m"
-        val total =
+    private fun ytd(type: String): YtdTotals {
+        val agg =
             jdbc.queryForObject(
                 """
-                SELECT COALESCE(sum($column), 0) FROM activities
-                WHERE type = ? AND start_date >= date_trunc('year', now())
+                SELECT COALESCE(sum(distance_m), 0) AS dist, COALESCE(sum(elevation_m), 0) AS elev,
+                       COALESCE(sum(moving_time_s), 0) AS secs
+                FROM activities WHERE type = ? AND start_date >= date_trunc('year', now())
                 """.trimIndent(),
-                Double::class.java,
+                { rs, _ ->
+                    Triple(
+                        rs.getBigDecimal("dist").toDouble(),
+                        rs.getBigDecimal("elev").toDouble(),
+                        rs.getLong("secs"),
+                    )
+                },
                 type,
             )!!
-        val value = if (hours) total / SECONDS_PER_HOUR else total / METERS_PER_KM
-        return "${groupInt(value.roundToLong())} ${if (hours) "h" else "km"}"
+        val (dist, elev, secs) = agg
+        val hoursOnly = type == GYM
+        return YtdTotals(
+            distance = if (hoursOnly) null else "${groupInt((dist / METERS_PER_KM).roundToLong())} km",
+            elevation = if (hoursOnly) null else "${groupInt(elev.roundToLong())} m D+",
+            time = "${groupInt((secs / SECONDS_PER_HOUR).roundToLong())} h",
+        )
     }
 
     private fun count(

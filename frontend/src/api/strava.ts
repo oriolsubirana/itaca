@@ -21,9 +21,15 @@ export interface VolumeWeek {
   sub: string;
 }
 
+export interface YtdTotals {
+  distance: string | null;
+  elevation: string | null;
+  time: string;
+}
+
 export interface SportVolume {
   unit: string;
-  ytd: string;
+  ytd: YtdTotals;
   weeks: VolumeWeek[];
 }
 
