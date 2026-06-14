@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Transactional
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -21,6 +22,35 @@ import kotlin.test.assertTrue
 class TrainingToolsIntegrationTest {
     @Autowired
     lateinit var tools: TrainingTools
+
+    @Autowired
+    lateinit var queries: TrainingQueries
+
+    @Autowired
+    lateinit var history: TrainingHistoryQueries
+
+    @Autowired
+    lateinit var jdbc: JdbcTemplate
+
+    @Test
+    fun `gym history exposes sessions and per-exercise progression`() {
+        assertEquals(3, history.sessions().size)
+        assertEquals(10, history.exercises().size)
+        val jalon = history.exercises().single { it.name == "Jalón al pecho" }
+        val prog = history.exerciseProgression(jalon.id)
+        assertEquals("3×6-8", prog.target)
+        assertEquals(45.0, prog.lastWeight)
+        assertEquals(12, prog.lastReps)
+        assertEquals(47.5, prog.suggestedWeight, "12 reps exceed the 8-rep target -> +2.5 kg")
+    }
+
+    @Test
+    fun `home summary reflects the last completed session and the next rotation`() {
+        val summary = queries.homeSummary()
+        assertEquals("2026-06-09", summary.lastWorkoutDate)
+        assertEquals("Push", summary.lastWorkoutRoutine)
+        assertEquals("Pull", summary.nextRoutine)
+    }
 
     @Test
     fun `full workout flow with rotation, progression and previous-session comparison`() {
@@ -58,6 +88,24 @@ class TrainingToolsIntegrationTest {
 
         val recent = tools.queryWorkouts(10)
         assertNotNull(recent.firstOrNull { it.routineName == "Pull" && it.completed && it.sets.size == 1 })
+    }
+
+    @Test
+    fun `query_activities exposes imported Strava rides and per-sport totals`() {
+        jdbc.update(
+            """
+            INSERT INTO activities (strava_id, type, name, start_date, distance_m, moving_time_s, elevation_m, avg_hr)
+            VALUES (90001, 'bike', 'Ruta', now(), 42300.0, 5880, 620.0, 142.0)
+            """.trimIndent(),
+        )
+
+        val summary = tools.queryActivities("bike", 10)
+
+        val ride = summary.recent.single()
+        assertEquals("bike", ride.type)
+        assertEquals(98, ride.durationMin, "5880 s / 60")
+        assertNotNull(ride.distanceKm)
+        assertTrue(summary.totals.any { it.sport == "bike" })
     }
 
     @Test

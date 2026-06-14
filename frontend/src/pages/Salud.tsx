@@ -6,6 +6,7 @@ import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
 import { Modal } from "../components/Modal";
+import { daysSince, shortDate, shortDateY, today, weekday } from "../lib/format";
 import {
   deleteEntry,
   deleteFlare,
@@ -19,33 +20,6 @@ import {
   type DiaryEntry,
   type Flare,
 } from "../api/health";
-
-const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const DIA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** "13 jun" */
-function shortDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return `${d.getDate()} ${MES[d.getMonth()]}`;
-}
-
-/** "13 jun 2026" */
-function shortDateY(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return `${d.getDate()} ${MES[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function weekday(iso: string): string {
-  return DIA[new Date(`${iso}T00:00:00`).getDay()];
-}
-
-function daysSince(iso: string): number {
-  return Math.max(1, Math.round((Date.now() - new Date(`${iso}T00:00:00`).getTime()) / 86400000));
-}
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);

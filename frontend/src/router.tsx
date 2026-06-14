@@ -14,7 +14,15 @@ const rootRoute = createRootRoute({ component: Layout });
 
 const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/", component: Home }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/chat", component: Chat }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/chat",
+    component: Chat,
+    validateSearch: (s: Record<string, unknown>): { seed?: string; workout?: boolean } => ({
+      seed: typeof s.seed === "string" ? s.seed : undefined,
+      workout: s.workout === true || s.workout === "true",
+    }),
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/salud", component: Salud }),
   createRoute({ getParentRoute: () => rootRoute, path: "/gym", component: Gym }),
   createRoute({ getParentRoute: () => rootRoute, path: "/finanzas", component: Finanzas }),
