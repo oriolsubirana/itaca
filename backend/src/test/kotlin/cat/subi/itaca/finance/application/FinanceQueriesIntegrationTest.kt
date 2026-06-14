@@ -19,7 +19,7 @@ class FinanceQueriesIntegrationTest {
     fun `overview lists the months with data and accounts with their latest balance`() {
         val overview = queries.overview()
         assertEquals(listOf("2026-04", "2026-05", "2026-06"), overview.monthOrder)
-        assertEquals(5, overview.accounts.size)
+        assertEquals(6, overview.accounts.size)
         val neon = overview.accounts.single { it.name == "Neon" }
         assertEquals("CHF", neon.currency)
         assertEquals(3240.50, neon.balance)

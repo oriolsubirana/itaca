@@ -15,7 +15,7 @@ const CAT_ES: Record<string, string> = {
   groceries: "Alimentación", restaurants: "Restaurantes", transport: "Transporte", fuel: "Combustible",
   travel: "Viajes", housing: "Vivienda", utilities: "Suministros", health: "Salud", subscriptions: "Suscripciones",
   shopping: "Compras", leisure: "Ocio", income: "Ingresos", transfers: "Transferencias", work: "Trabajo",
-  investment: "Inversión", fees: "Comisiones", cash: "Efectivo", other: "Otros",
+  savings: "Ahorro", investment: "Inversión", fees: "Comisiones", cash: "Efectivo", other: "Otros",
 };
 const TYPE_ES: Record<string, string> = { checking: "Corriente", savings: "Ahorro", investment: "Inversión" };
 const catLabel = (c: string) => CAT_ES[c] ?? c;

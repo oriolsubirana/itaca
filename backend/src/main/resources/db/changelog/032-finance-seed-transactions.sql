@@ -2,7 +2,9 @@
 
 --changeset oriol:finance-seed-002
 --comment Dev sample data so the Finanzas dashboard renders: finpension account, balances and 3 months of categorized transactions (CHF + EUR). Replaced once real CSV imports land.
-INSERT INTO accounts (name, type, currency) VALUES ('finpension', 'investment', 'CHF');
+INSERT INTO accounts (name, type, currency) VALUES
+    ('finpension', 'investment', 'CHF'),
+    ('Neon Saves', 'savings',    'CHF');
 
 INSERT INTO balance_snapshots (account_id, date, balance)
 SELECT a.id, v.date, v.balance

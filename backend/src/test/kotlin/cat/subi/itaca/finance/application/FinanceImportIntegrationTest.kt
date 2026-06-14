@@ -59,9 +59,18 @@ class FinanceImportIntegrationTest {
 
         val view = queries.month("2026-07", "CHF")
         assertEquals(10000.0, view.ingresos)
-        assertEquals(-200.0, view.gastos, "the -6000 savings transfer is excluded")
+        assertEquals(-200.0, view.gastos, "the -6000 savings move is excluded from spending")
         assertTrue(view.categorias.any { it.category == "groceries" })
-        assertTrue(view.tx.none { it.category == "transfers" })
+        assertTrue(view.tx.none { it.category == "savings" })
+        // The savings move is kept as the user's money in the Neon Saves account.
+        assertEquals(
+            6000.0,
+            queries
+                .overview()
+                .accounts
+                .single { it.name == "Neon Saves" }
+                .balance,
+        )
     }
 
     @Test

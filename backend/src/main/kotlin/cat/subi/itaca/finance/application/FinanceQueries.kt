@@ -61,6 +61,8 @@ class FinanceQueries(
                    COALESCE(
                        (SELECT bs.balance FROM balance_snapshots bs
                         WHERE bs.account_id = a.id ORDER BY bs.date DESC LIMIT 1),
+                       -- No snapshot (e.g. the savings Space): derive the balance from its movements.
+                       (SELECT sum(t.amount) FROM transactions t WHERE t.account_id = a.id),
                        0
                    ) AS balance
             FROM accounts a ORDER BY a.currency, a.name
@@ -85,7 +87,8 @@ class FinanceQueries(
                 SELECT COALESCE(sum(t.amount) FILTER (WHERE t.amount > 0), 0) AS ingresos,
                        COALESCE(sum(t.amount) FILTER (WHERE t.amount < 0), 0) AS gastos
                 FROM transactions t JOIN accounts a ON a.id = t.account_id
-                WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ? AND COALESCE(t.category, '') <> 'transfers'
+                WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ?
+                  AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
                 """.trimIndent(),
                 { rs, _ -> rs.getBigDecimal("ingresos").toDouble() to rs.getBigDecimal("gastos").toDouble() },
                 currency,
@@ -103,7 +106,7 @@ class FinanceQueries(
             SELECT COALESCE(t.category, 'other') AS cat, -sum(t.amount) AS amount
             FROM transactions t JOIN accounts a ON a.id = t.account_id
             WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ? AND t.amount < 0
-              AND COALESCE(t.category, '') <> 'transfers'
+              AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
             GROUP BY COALESCE(t.category, 'other') ORDER BY amount DESC
             """.trimIndent(),
             { rs, _ -> CategorySpend(rs.getString("cat"), rs.getBigDecimal("amount").toDouble()) },
@@ -119,7 +122,8 @@ class FinanceQueries(
             """
             SELECT t.date, t.description, COALESCE(t.category, 'other') AS category, t.amount, a.name AS account
             FROM transactions t JOIN accounts a ON a.id = t.account_id
-            WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ? AND COALESCE(t.category, '') <> 'transfers'
+            WHERE a.currency = ? AND to_char(t.date, 'YYYY-MM') = ?
+              AND COALESCE(t.category, '') NOT IN ('transfers', 'savings')
             ORDER BY t.date DESC, t.id DESC
             """.trimIndent(),
             { rs, _ ->

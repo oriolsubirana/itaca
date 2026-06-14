@@ -50,7 +50,9 @@ class FinanceImportService(
 
     /**
      * Replaces the account's transactions in the date range the CSV covers, so re-importing
-     * the same statement is idempotent. neon amounts are already in CHF.
+     * the same statement is idempotent. neon amounts are already in CHF. Movements to/from the
+     * "saves" Space are the user's own savings, so they are mirrored into the Neon Saves account
+     * (money into the Space is a positive balance there) instead of counted as spending.
      */
     private fun importNeon(
         accountId: Long,
@@ -59,26 +61,47 @@ class FinanceImportService(
     ): ImportResult {
         val rows = neonParser.parse(bytes.decodeToString())
         if (rows.isEmpty()) return ImportResult(false, account, message = "El CSV no contiene movimientos.")
+        val savesId = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon Saves'", Long::class.java)!!
         val from = rows.minOf { it.date }
         val to = rows.maxOf { it.date }
         jdbc.update(
-            "DELETE FROM transactions WHERE account_id = ? AND date BETWEEN ? AND ?",
+            "DELETE FROM transactions WHERE account_id IN (?, ?) AND date BETWEEN ? AND ?",
             accountId,
+            savesId,
             Date.valueOf(from),
             Date.valueOf(to),
         )
+        var spending = 0
+        var savings = 0
         rows.forEach { r ->
-            jdbc.update(
-                "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?, ?, ?, ?)",
-                accountId,
-                Date.valueOf(r.date),
-                r.amount,
-                r.description,
-                categorizer.categorize(r.bankCategory, r.transfer, r.description),
-            )
+            if (r.transfer) {
+                insertTx(savesId, r.date, r.amount.negate(), r.description, "savings")
+                savings++
+            } else {
+                val category = categorizer.categorize(r.bankCategory, false, r.description)
+                insertTx(accountId, r.date, r.amount, r.description, category)
+                spending++
+            }
         }
-        log.info("Imported {} neon transactions ({}..{})", rows.size, from, to)
-        return ImportResult(true, account, "$from … $to", null, "${rows.size} movimientos importados.")
+        log.info("Imported {} neon transactions + {} savings moves ({}..{})", spending, savings, from, to)
+        return ImportResult(true, account, "$from … $to", null, "$spending movimientos · $savings al ahorro.")
+    }
+
+    private fun insertTx(
+        accountId: Long,
+        date: java.time.LocalDate,
+        amount: java.math.BigDecimal,
+        description: String,
+        category: String,
+    ) {
+        jdbc.update(
+            "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?, ?, ?, ?)",
+            accountId,
+            Date.valueOf(date),
+            amount,
+            description,
+            category,
+        )
     }
 
     private fun importFinpension(

@@ -69,7 +69,7 @@ class SchemaAndSeedIntegrationTest {
 
     @Test
     fun `accounts are created with their currency`() {
-        assertEquals(5, count("accounts"))
+        assertEquals(6, count("accounts"))
         val neonCurrency =
             jdbc.queryForObject(
                 "SELECT currency FROM accounts WHERE name = 'Neon'",
