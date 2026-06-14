@@ -22,6 +22,19 @@ class FinanceQueriesIntegrationTest {
     @Autowired
     lateinit var queries: FinanceQueries
 
+    @Autowired
+    lateinit var tools: FinanceTools
+
+    @Test
+    fun `query_finance returns the month summary and net worth per currency`() {
+        seedJune()
+        val summary = tools.queryFinance("2026-06", "CHF")
+        assertEquals(5400.0, summary.ingresos)
+        assertEquals(5400.0 + summary.gastos, summary.neto)
+        assertTrue(summary.gastoPorCategoria.any { it.category == "housing" })
+        assertTrue(summary.patrimonio.any { it.currency == "CHF" })
+    }
+
     @Test
     fun `overview lists the months with data and all the accounts`() {
         seedJune()
