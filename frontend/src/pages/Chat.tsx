@@ -81,18 +81,26 @@ export function Chat() {
       if (!content || pending) return;
       setInput("");
       setPending({ user: content, assistant: "" });
+      const openSession = async () => {
+        const session = await createSession(mode);
+        localStorage.setItem(sessionKey(mode), String(session.id));
+        setSessionId(session.id);
+        return session.id;
+      };
+      const handlers = {
+        onChunk: (chunk: string) => setPending((p) => p && { ...p, assistant: p.assistant + chunk }),
+        onError: (message: string) => setPending((p) => p && { ...p, assistant: message, failed: true }),
+      };
       try {
-        let id = sessionId;
-        if (id === null) {
-          const session = await createSession(mode);
-          id = session.id;
-          localStorage.setItem(sessionKey(mode), String(id));
-          setSessionId(id);
+        let id = sessionId ?? (await openSession());
+        try {
+          await streamMessage(id, content, handlers);
+        } catch {
+          // The cached session may be gone (server/DB reset): recreate and retry once.
+          localStorage.removeItem(sessionKey(mode));
+          id = await openSession();
+          await streamMessage(id, content, handlers);
         }
-        await streamMessage(id, content, {
-          onChunk: (chunk) => setPending((p) => p && { ...p, assistant: p.assistant + chunk }),
-          onError: (message) => setPending((p) => p && { ...p, assistant: message, failed: true }),
-        });
         await queryClient.invalidateQueries({ queryKey: ["chat", id] });
       } catch {
         setPending((p) => p && { ...p, assistant: "No he podido conectar.", failed: true });

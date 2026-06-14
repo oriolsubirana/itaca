@@ -54,9 +54,10 @@ export async function streamMessage(
     headers,
     body: JSON.stringify({ content }),
   });
+  // A non-OK status (e.g. the session no longer exists after a server/DB reset)
+  // throws so the caller can recover (recreate the session and retry).
   if (!response.ok || !response.body) {
-    handlers.onError(`El servidor ha respondido ${response.status}`);
-    return;
+    throw new Error(`chat ${response.status}`);
   }
 
   const reader = response.body.getReader();
