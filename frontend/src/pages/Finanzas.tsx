@@ -205,10 +205,20 @@ function Cuentas({
 }) {
   const accts = accounts.filter((a) => a.currency === currency);
   if (accts.length === 0) return null;
+  const total = accts.reduce((sum, a) => sum + a.balance, 0);
   return (
     <section>
       <SecLabel>{`Cuentas · ${currency}`}</SecLabel>
-      <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[28px] font-semibold leading-none tabular-nums text-ink">
+          {money(total)} <span className="text-base font-normal text-ink-soft">{currency}</span>
+        </span>
+        <span className="text-[13px] text-ink-soft">
+          {accts.length} cuenta{accts.length > 1 ? "s" : ""}
+        </span>
+      </div>
+      <div className="mt-1.5 text-[11px] uppercase tracking-[0.08em] text-ink-soft">Patrimonio total · {currency}</div>
+      <div className="mt-4 border-t border-line">
         {accts.map((a) => (
           <button
             key={a.id}
