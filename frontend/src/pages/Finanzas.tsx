@@ -56,6 +56,7 @@ export function Finanzas() {
     enabled: !!month,
   });
   const data = monthQuery.data;
+  const hasActivity = !!data && (data.ingresos !== 0 || data.gastos !== 0 || data.tx.length > 0);
 
   return (
     <div>
@@ -89,13 +90,21 @@ export function Finanzas() {
           </div>
 
           <div className="space-y-9 pt-7">
-            {data && <Resumen data={data} currency={currency} />}
-            <div className="border-t border-line" />
-            {data && <Categorias data={data} currency={currency} />}
-            <div className="border-t border-line" />
+            {data && hasActivity && (
+              <>
+                <Resumen data={data} currency={currency} />
+                <div className="border-t border-line" />
+                <Categorias data={data} currency={currency} />
+                <div className="border-t border-line" />
+              </>
+            )}
             <Cuentas accounts={accounts} currency={currency} onEdit={setEditAccount} />
-            <div className="border-t border-line" />
-            {data && <Movimientos data={data} onOpen={setMov} />}
+            {data && hasActivity && (
+              <>
+                <div className="border-t border-line" />
+                <Movimientos data={data} onOpen={setMov} />
+              </>
+            )}
             <button
               onClick={() => setShowImport(true)}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-ink/80 text-[15px] font-medium text-ink transition-colors hover:bg-ink hover:text-paper"
