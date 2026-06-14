@@ -38,7 +38,7 @@ repositories {
 dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
     implementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
-    implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0-RC2"))
+    implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0"))
 
     // Spring
     implementation("org.springframework.boot:spring-boot-starter-web")
