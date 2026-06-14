@@ -64,6 +64,10 @@ export const setTransactionCategory = (transactionId: number, category: string) 
     body: JSON.stringify({ transactionId, category }),
   });
 
+/** Runs the AI tier over the "other" transactions; returns how many were recategorized. */
+export const categorizeFinanceAi = () =>
+  api<{ updated: number }>("/finance/categorize-ai", { method: "POST" });
+
 /** Canonical spending categories the user can pick from, with their Spanish labels. */
 export const CATEGORIES: { code: string; label: string }[] = [
   { code: "groceries", label: "Alimentación" },

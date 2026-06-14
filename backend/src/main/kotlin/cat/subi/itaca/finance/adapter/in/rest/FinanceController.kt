@@ -4,6 +4,7 @@
 package cat.subi.itaca.finance.adapter.`in`.rest
 
 import cat.subi.itaca.finance.application.FinanceAccountService
+import cat.subi.itaca.finance.application.FinanceAiCategorizationService
 import cat.subi.itaca.finance.application.FinanceImportService
 import cat.subi.itaca.finance.application.FinanceOverview
 import cat.subi.itaca.finance.application.FinanceQueries
@@ -36,6 +37,7 @@ class FinanceController(
     private val queries: FinanceQueries,
     private val importService: FinanceImportService,
     private val accountService: FinanceAccountService,
+    private val aiCategorization: FinanceAiCategorizationService,
 ) {
     @GetMapping("/overview")
     fun overview(): FinanceOverview = queries.overview()
@@ -67,4 +69,7 @@ class FinanceController(
         accountService.setCategory(request.transactionId, request.category)
         return mapOf("category" to request.category)
     }
+
+    @PostMapping("/categorize-ai")
+    fun categorizeAi(): Map<String, Int> = mapOf("updated" to aiCategorization.categorizeOther())
 }

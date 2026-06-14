@@ -5,6 +5,7 @@ import { Modal } from "../components/Modal";
 import { MES, money, signed } from "../lib/format";
 import {
   CATEGORIES,
+  categorizeFinanceAi,
   getFinanceMonth,
   getFinanceOverview,
   importFinance,
@@ -101,6 +102,7 @@ export function Finanzas() {
             >
               ↑ Importar extracto (CSV)
             </button>
+            <AiCategorize />
           </div>
         </>
       )}
@@ -108,6 +110,34 @@ export function Finanzas() {
       {showImport && <ImportModal accounts={accounts} onClose={() => setShowImport(false)} />}
       {mov && <MovDetailModal tx={mov} currency={currency} onClose={() => setMov(null)} />}
       {editAccount && <BalanceModal account={editAccount} onClose={() => setEditAccount(null)} />}
+    </div>
+  );
+}
+
+function AiCategorize() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: categorizeFinanceAi,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["finance-month"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance-overview"] });
+    },
+  });
+  const updated = mutation.data?.updated;
+  return (
+    <div className="text-center">
+      <button
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="text-[13px] text-ink-soft hover:text-ink disabled:opacity-50"
+      >
+        {mutation.isPending ? "Categorizando…" : "✨ Categorizar “Otros” con IA"}
+      </button>
+      {updated != null && (
+        <p className="mt-1 text-[12px] text-ink-soft">
+          {updated} movimiento{updated === 1 ? "" : "s"} recategorizado{updated === 1 ? "" : "s"}.
+        </p>
+      )}
     </div>
   );
 }

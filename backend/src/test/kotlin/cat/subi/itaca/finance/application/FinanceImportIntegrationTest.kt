@@ -119,6 +119,26 @@ class FinanceImportIntegrationTest {
     }
 
     @Test
+    fun `the AI tier recategorizes the other tail`() {
+        val neon = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon'", Long::class.java)!!
+        jdbc.update(
+            "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?::date, ?, ?, ?)",
+            neon,
+            "2026-10-01",
+            java.math.BigDecimal("-20.00"),
+            "Glovo",
+            "other",
+        )
+        val service = FinanceAiCategorizationService(jdbc) { d -> d.associateWith { "restaurants" } }
+
+        assertEquals(1, service.categorizeOther())
+        assertEquals(
+            "restaurants",
+            jdbc.queryForObject("SELECT category FROM transactions WHERE description = 'Glovo'", String::class.java),
+        )
+    }
+
+    @Test
     fun `monthly income counts checking accounts only, not investment inflows`() {
         val finpension = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'finpension'", Long::class.java)!!
         // A positive movement in an investment account is internal wealth, not monthly income.
