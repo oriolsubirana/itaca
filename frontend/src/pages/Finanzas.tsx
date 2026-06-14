@@ -6,6 +6,7 @@ import {
   getFinanceMonth,
   getFinanceOverview,
   importFinance,
+  setAccountBalance,
   type FinanceAccount,
   type FinanceTx,
   type MonthView,
@@ -44,6 +45,7 @@ export function Finanzas() {
   const [currency, setCurrency] = useState("CHF");
   const [showImport, setShowImport] = useState(false);
   const [mov, setMov] = useState<FinanceTx | null>(null);
+  const [editAccount, setEditAccount] = useState<FinanceAccount | null>(null);
 
   const months = overview.data?.monthOrder ?? [];
   const accounts = overview.data?.accounts ?? [];
@@ -94,7 +96,7 @@ export function Finanzas() {
             <div className="border-t border-line" />
             {data && <Categorias data={data} currency={currency} />}
             <div className="border-t border-line" />
-            <Cuentas accounts={accounts} currency={currency} />
+            <Cuentas accounts={accounts} currency={currency} onEdit={setEditAccount} />
             <div className="border-t border-line" />
             {data && <Movimientos data={data} onOpen={setMov} />}
             <button
@@ -109,6 +111,7 @@ export function Finanzas() {
 
       {showImport && <ImportModal accounts={accounts} onClose={() => setShowImport(false)} />}
       {mov && <MovDetailModal tx={mov} currency={currency} onClose={() => setMov(null)} />}
+      {editAccount && <BalanceModal account={editAccount} onClose={() => setEditAccount(null)} />}
     </div>
   );
 }
@@ -191,7 +194,15 @@ function Categorias({ data, currency }: { data: MonthView; currency: string }) {
   );
 }
 
-function Cuentas({ accounts, currency }: { accounts: FinanceAccount[]; currency: string }) {
+function Cuentas({
+  accounts,
+  currency,
+  onEdit,
+}: {
+  accounts: FinanceAccount[];
+  currency: string;
+  onEdit: (a: FinanceAccount) => void;
+}) {
   const accts = accounts.filter((a) => a.currency === currency);
   if (accts.length === 0) return null;
   return (
@@ -199,7 +210,11 @@ function Cuentas({ accounts, currency }: { accounts: FinanceAccount[]; currency:
       <SecLabel>{`Cuentas · ${currency}`}</SecLabel>
       <div>
         {accts.map((a) => (
-          <div key={a.id} className="flex items-center justify-between border-b border-line py-3.5 last:border-b-0">
+          <button
+            key={a.id}
+            onClick={() => onEdit(a)}
+            className="flex w-full items-center justify-between border-b border-line py-3.5 text-left last:border-b-0"
+          >
             <div>
               <div className="text-[15px] text-ink">{a.name}</div>
               <div className="mt-0.5 text-xs text-ink-soft">{TYPE_ES[a.type] ?? a.type}</div>
@@ -207,10 +222,44 @@ function Cuentas({ accounts, currency }: { accounts: FinanceAccount[]; currency:
             <div className="text-lg tabular-nums text-ink">
               {money(a.balance)} <span className="text-xs text-ink-soft">{currency}</span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </section>
+  );
+}
+
+function BalanceModal({ account, onClose }: { account: FinanceAccount; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [value, setValue] = useState(String(account.balance));
+  const mutation = useMutation({
+    mutationFn: () => setAccountBalance(account.id, Number(value)),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["finance-overview"] });
+      onClose();
+    },
+  });
+  return (
+    <Modal title={`Saldo · ${account.name}`} onClose={onClose}>
+      <label className="mb-2 block text-[13px] uppercase tracking-[0.08em] text-ink-soft">
+        Saldo actual ({account.currency})
+      </label>
+      <input
+        type="number"
+        step="0.01"
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="mb-5 w-full rounded-md border border-line px-4 py-3 text-[17px] tabular-nums text-ink focus:border-ink/40 focus:outline-none"
+      />
+      <button
+        disabled={value.trim() === "" || Number.isNaN(Number(value)) || mutation.isPending}
+        onClick={() => mutation.mutate()}
+        className="h-12 w-full rounded-md bg-ink text-[15px] font-medium text-paper hover:bg-ink/90 disabled:opacity-30"
+      >
+        {mutation.isPending ? "Guardando…" : "Guardar saldo"}
+      </button>
+    </Modal>
   );
 }
 

@@ -46,6 +46,14 @@ export interface ImportResult {
   message: string | null;
 }
 
+/** Sets an account's current balance (CSV statements carry no balance). */
+export const setAccountBalance = (accountId: number, balance: number) =>
+  api<FinanceOverview>("/finance/balance", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accountId, balance }),
+  });
+
 /** Multipart upload of a statement/report (finpension PDF for now). */
 export async function importFinance(accountId: number, file: File): Promise<ImportResult> {
   const form = new FormData();

@@ -22,6 +22,9 @@ class FinanceImportIntegrationTest {
     @Autowired
     lateinit var queries: FinanceQueries
 
+    @Autowired
+    lateinit var accountService: FinanceAccountService
+
     @Test
     fun `importing a finpension report stores the portfolio value as the latest balance`() {
         val service = FinanceImportService(jdbc, PdfTextExtractor { REPORT })
@@ -69,6 +72,22 @@ class FinanceImportIntegrationTest {
                 .overview()
                 .accounts
                 .single { it.name == "Neon Saves" }
+                .balance,
+        )
+    }
+
+    @Test
+    fun `setting a balance anchors the account's displayed balance`() {
+        val neon = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon'", Long::class.java)!!
+
+        accountService.setBalance(neon, java.math.BigDecimal("4021.30"))
+
+        assertEquals(
+            4021.30,
+            queries
+                .overview()
+                .accounts
+                .single { it.name == "Neon" }
                 .balance,
         )
     }
