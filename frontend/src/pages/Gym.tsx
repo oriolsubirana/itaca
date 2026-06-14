@@ -14,25 +14,10 @@ import {
   type SessionSummary,
 } from "../api/training";
 import { connectStrava, getActivities, syncStrava, type ActivityItem, type ActivityType, type SportVolume } from "../api/strava";
+import { daysSince, routineLabel, shortDate, weekday } from "../lib/format";
 
-const MES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const DIA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-
-function shortDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return `${d.getDate()} ${MES[d.getMonth()]}`;
-}
-function weekday(iso: string): string {
-  return DIA[new Date(`${iso}T00:00:00`).getDay()];
-}
-function daysSince(iso: string): number {
-  return Math.max(0, Math.round((Date.now() - new Date(`${iso}T00:00:00`).getTime()) / 86400000));
-}
 function fmtKg(w: number): string {
   return (w % 1 === 0 ? String(w) : w.toFixed(1)).replace(".", ",");
-}
-function routineLabel(name: string): string {
-  return name === "Leg" ? "Pierna" : name;
 }
 
 function SecLabel({ children }: { children: ReactNode }) {

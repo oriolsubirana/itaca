@@ -55,25 +55,46 @@ class TrainingHistoryQueries(
 ) {
     private val progression = ProgressionPolicy()
 
-    fun sessions(limit: Int = 20): List<SessionSummaryDto> =
-        jdbc
-            .query(
+    fun sessions(limit: Int = 20): List<SessionSummaryDto> {
+        val rows =
+            jdbc.query(
                 """
                 SELECT w.id, w.date, r.name, w.completed
                 FROM workouts w JOIN routines r ON r.id = w.routine_id
                 ORDER BY w.date DESC, w.id DESC LIMIT ?
                 """.trimIndent(),
                 { rs, _ ->
-                    SessionSummaryDto(
+                    SessionRow(
                         rs.getLong("id"),
                         rs.getDate("date").toLocalDate().toString(),
                         rs.getString("name"),
                         rs.getBoolean("completed"),
-                        summaryOf(rs.getLong("id")),
                     )
                 },
                 limit,
             )
+        // One query for all the sets of the listed workouts, instead of one per row (N+1).
+        val setsByWorkout = setsForRecentWorkouts(limit)
+        return rows.map {
+            SessionSummaryDto(it.id, it.date, it.routine, it.completed, summaryOf(setsByWorkout[it.id].orEmpty()))
+        }
+    }
+
+    private fun setsForRecentWorkouts(limit: Int): Map<Long, List<SetRow>> =
+        jdbc
+            .query(
+                """
+                SELECT s.workout_id, e.name, s.weight_kg, s.reps
+                FROM sets s JOIN exercises e ON e.id = s.exercise_id
+                WHERE s.workout_id IN (SELECT id FROM workouts ORDER BY date DESC, id DESC LIMIT ?)
+                ORDER BY s.workout_id, s.position
+                """.trimIndent(),
+                { rs, _ ->
+                    rs.getLong("workout_id") to
+                        SetRow(rs.getString("name"), rs.getBigDecimal("weight_kg").toDouble(), rs.getInt("reps"))
+                },
+                limit,
+            ).groupBy({ it.first }, { it.second })
 
     fun sessionDetail(id: Long): SessionDetailDto {
         val meta =
@@ -153,6 +174,13 @@ class TrainingHistoryQueries(
         return ExerciseProgressionDto(exerciseId, name, "3×6-8", points, last?.weight, last?.reps, suggested)
     }
 
+    private data class SessionRow(
+        val id: Long,
+        val date: String,
+        val routine: String,
+        val completed: Boolean,
+    )
+
     private data class SessionMeta(
         val date: String,
         val routine: String,
@@ -179,8 +207,7 @@ class TrainingHistoryQueries(
         )
 
     /** Top set per exercise (max weight, then reps), first three, e.g. "Press inclinado 50×9 · ...". */
-    private fun summaryOf(workoutId: Long): String {
-        val rows = setRows(workoutId)
+    private fun summaryOf(rows: List<SetRow>): String {
         if (rows.isEmpty()) return "Sin series"
         val top = LinkedHashMap<String, SetRow>()
         rows.forEach { r ->

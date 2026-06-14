@@ -4,10 +4,7 @@ import { Sparkline } from "../components/Sparkline";
 import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import { daysSince, routineLabel, today } from "../lib/format";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -16,14 +13,6 @@ function greeting(): string {
 
 function fullDate(): string {
   return new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short" });
-}
-
-function daysSince(iso: string): number {
-  return Math.max(1, Math.round((Date.now() - new Date(`${iso}T00:00:00`).getTime()) / 86400000));
-}
-
-function routineLabel(name: string): string {
-  return name === "Leg" ? "Pierna" : name;
 }
 
 const SUGGESTIONS: { label: string; seed: string; workout?: boolean }[] = [

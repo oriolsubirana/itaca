@@ -97,7 +97,7 @@ class ActivityQueries(
         jdbc.queryForObject(
             """
             SELECT COALESCE(sum(distance_m), 0) / 1000.0 FROM activities
-            WHERE type = ? AND start_date >= date_trunc('week', now())
+            WHERE type = ? AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('week', now() AT TIME ZONE '$ZONE')
             """.trimIndent(),
             Double::class.java,
             type,
@@ -105,13 +105,19 @@ class ActivityQueries(
 
     private fun weekHikes(): Int =
         jdbc.queryForObject(
-            "SELECT count(*) FROM activities WHERE type = 'hike' AND start_date >= date_trunc('week', now())",
+            """
+            SELECT count(*) FROM activities
+            WHERE type = 'hike' AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('week', now() AT TIME ZONE '$ZONE')
+            """.trimIndent(),
             Int::class.java,
         )!!
 
     private fun weekMoving(): Int =
         jdbc.queryForObject(
-            "SELECT COALESCE(sum(moving_time_s), 0) FROM activities WHERE start_date >= date_trunc('week', now())",
+            """
+            SELECT COALESCE(sum(moving_time_s), 0) FROM activities
+            WHERE (start_date AT TIME ZONE '$ZONE') >= date_trunc('week', now() AT TIME ZONE '$ZONE')
+            """.trimIndent(),
             Int::class.java,
         )!!
 
@@ -135,9 +141,11 @@ class ActivityQueries(
                        COALESCE(sum(a.elevation_m), 0) AS elev_m,
                        COALESCE(sum(a.moving_time_s), 0) AS secs
                 FROM generate_series(
-                    date_trunc('week', now()) - interval '7 weeks', date_trunc('week', now()), interval '1 week'
+                    date_trunc('week', now() AT TIME ZONE '$ZONE') - interval '7 weeks',
+                    date_trunc('week', now() AT TIME ZONE '$ZONE'), interval '1 week'
                 ) g(wk)
-                LEFT JOIN activities a ON date_trunc('week', a.start_date) = g.wk AND a.type = ?
+                LEFT JOIN activities a
+                    ON date_trunc('week', a.start_date AT TIME ZONE '$ZONE') = g.wk AND a.type = ?
                 GROUP BY g.wk ORDER BY g.wk
                 """.trimIndent(),
                 { rs, _ ->
@@ -201,7 +209,8 @@ class ActivityQueries(
                 """
                 SELECT COALESCE(sum(distance_m), 0) AS dist, COALESCE(sum(elevation_m), 0) AS elev,
                        COALESCE(sum(moving_time_s), 0) AS secs
-                FROM activities WHERE type = ? AND start_date >= date_trunc('year', now())
+                FROM activities
+                WHERE type = ? AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('year', now() AT TIME ZONE '$ZONE')
                 """.trimIndent(),
                 { rs, _ ->
                     Triple(
@@ -258,6 +267,10 @@ class ActivityQueries(
         const val ONE_DECIMAL = 10.0
         const val GROUP_SIZE = 3
         const val GYM = "gym"
+
+        // Week/year boundaries are computed in this zone to match WorkoutActivityLinker,
+        // so activities near midnight/Sunday-night land in the same week/day everywhere.
+        const val ZONE = "Europe/Madrid"
         val VOLUME_SPORTS = listOf("bike", "run", "hike", "gym")
     }
 }
