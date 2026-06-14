@@ -63,7 +63,14 @@ class FinanceImportService(
         account: String,
         bytes: ByteArray,
     ): ImportResult {
-        val rows = neonParser.parse(bytes.decodeToString())
+        if (isPdf(bytes)) {
+            return ImportResult(false, account, message = "Sube el CSV de Neon (este fichero parece un PDF).")
+        }
+        val rows =
+            runCatching { neonParser.parse(bytes.decodeToString()) }
+                .getOrElse {
+                    return ImportResult(false, account, message = "No pude leer el CSV. ¿Es el extracto de Neon?")
+                }
         if (rows.isEmpty()) return ImportResult(false, account, message = "El CSV no contiene movimientos.")
         val savesId = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon Saves'", Long::class.java)!!
         val from = rows.minOf { it.date }
@@ -113,7 +120,14 @@ class FinanceImportService(
         account: String,
         bytes: ByteArray,
     ): ImportResult {
-        val report = finpensionParser.parse(pdf.extract(bytes))
+        if (!isPdf(bytes)) {
+            return ImportResult(false, account, message = "Sube el PDF del performance report de finpension.")
+        }
+        val report =
+            runCatching { finpensionParser.parse(pdf.extract(bytes)) }
+                .getOrElse {
+                    return ImportResult(false, account, message = "No pude leer el PDF. ¿Es el report de finpension?")
+                }
         jdbc.update(
             """
             INSERT INTO balance_snapshots (account_id, date, balance) VALUES (?, ?, ?)
@@ -131,5 +145,12 @@ class FinanceImportService(
             value = report.portfolioValueChf.toDouble(),
             message = "Saldo ${report.portfolioValueChf} CHF al ${report.date}.",
         )
+    }
+
+    private fun isPdf(bytes: ByteArray): Boolean =
+        bytes.size >= PDF_MAGIC.size && bytes.copyOfRange(0, PDF_MAGIC.size).contentEquals(PDF_MAGIC)
+
+    private companion object {
+        val PDF_MAGIC = "%PDF".toByteArray()
     }
 }

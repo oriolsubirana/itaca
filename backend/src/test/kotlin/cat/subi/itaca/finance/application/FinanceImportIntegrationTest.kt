@@ -30,7 +30,7 @@ class FinanceImportIntegrationTest {
         val service = FinanceImportService(jdbc, PdfTextExtractor { REPORT })
         val id = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'finpension'", Long::class.java)!!
 
-        val result = service.import(id, ByteArray(0))
+        val result = service.import(id, "%PDF fake".toByteArray())
 
         assertTrue(result.imported)
         assertEquals("2026-05-31", result.date)
@@ -90,6 +90,18 @@ class FinanceImportIntegrationTest {
                 .single { it.name == "Neon" }
                 .balance,
         )
+    }
+
+    @Test
+    fun `a file that does not match the account format is rejected, not parsed`() {
+        val service = FinanceImportService(jdbc, PdfTextExtractor { REPORT })
+        val finpension = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'finpension'", Long::class.java)!!
+        val neon = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon'", Long::class.java)!!
+
+        // A CSV uploaded to finpension (expects a PDF) is rejected before extraction.
+        assertFalse(service.import(finpension, "Date;Amount\n2026-01-01;1.0".toByteArray()).imported)
+        // A PDF uploaded to Neon (expects a CSV) is rejected too.
+        assertFalse(service.import(neon, "%PDF-1.7 ...".toByteArray()).imported)
     }
 
     @Test
