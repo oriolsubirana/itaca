@@ -4,7 +4,8 @@ import { Sparkline } from "../components/Sparkline";
 import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
-import { daysSince, routineLabel, today } from "../lib/format";
+import { getFinanceOverview } from "../api/finance";
+import { balance, daysSince, routineLabel, today } from "../lib/format";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -217,10 +218,34 @@ function EntrenoBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) =
 }
 
 function FinanzasBlock() {
+  const navigate = useNavigate();
+  const overview = useQuery({ queryKey: ["finance-overview"], queryFn: getFinanceOverview });
+  const accounts = overview.data?.accounts ?? [];
+  const totalIn = (currency: string) =>
+    accounts.filter((a) => a.currency === currency).reduce((sum, a) => sum + a.balance, 0);
+  const hasChf = accounts.some((a) => a.currency === "CHF");
+  const hasEur = accounts.some((a) => a.currency === "EUR");
+
   return (
-    <section className="flex items-center justify-between">
-      <span className="text-xs uppercase tracking-[0.13em] text-ink-soft">Finanzas</span>
-      <span className="text-[12.5px] text-ink-soft/80">Próximamente</span>
+    <section>
+      <SecHead title="Finanzas" onClick={() => void navigate({ to: "/finanzas" })} />
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-soft">Patrimonio</div>
+          <div className="mt-1.5 text-2xl font-semibold leading-none tabular-nums text-ink">
+            {hasChf ? balance(totalIn("CHF")) : "—"}
+            <span className="ml-1.5 text-sm font-normal text-ink-soft">CHF</span>
+          </div>
+        </div>
+        {hasEur && (
+          <div className="text-right">
+            <div className="text-base tabular-nums text-ink">
+              {balance(totalIn("EUR"))} <span className="text-xs text-ink-soft">EUR</span>
+            </div>
+            <div className="mt-0.5 text-[11px] text-ink-soft">patrimonio</div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

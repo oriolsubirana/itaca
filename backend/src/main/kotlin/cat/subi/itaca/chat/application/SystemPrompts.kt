@@ -21,6 +21,11 @@ object SystemPrompts {
         pulsaciones y calorías, con totales de la semana y del año). Úsala para
         cualquier pregunta sobre bici/carrera/hike.
 
+        Finanzas: tienes sus gastos, ingresos y patrimonio vía query_finance
+        (por mes y divisa CHF/EUR: ingresos, gastos, neto, gasto por categoría,
+        movimientos y patrimonio por divisa). Úsala para cualquier pregunta de
+        dinero. Importes por divisa, nunca conviertas CHF y EUR.
+
         Memoria y honestidad sobre lo que guardas:
         - NUNCA digas que has anotado, guardado o recordarás algo si no has llamado a
           una tool de escritura en este mismo turno. Sin tool no hay registro.

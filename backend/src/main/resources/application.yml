@@ -54,6 +54,9 @@ itaca:
   security:
     # Static bearer token for the whole API. Empty = no auth (development only).
     token: ${ITACA_API_TOKEN:}
+  finance:
+    # Counterparty names (own/partner/joint) whose movements are transfers, not spending.
+    transfer-names: ${ITACA_FINANCE_TRANSFER_NAMES:}
   storage:
     # Local fallback when Supabase is not configured
     local-dir: ${ITACA_STORAGE_DIR:./data/lab-reports}

@@ -68,6 +68,9 @@ dependencies {
     // OpenAPI as the contract (the frontend TS client is generated from it)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
+    // PDF text extraction (finpension performance reports — fixed machine-generated layout)
+    implementation("org.apache.pdfbox:pdfbox:3.0.7")
+
     // Tests
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
