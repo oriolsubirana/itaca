@@ -5,7 +5,7 @@ import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
 import { getFinanceOverview } from "../api/finance";
-import { daysSince, money, routineLabel, today } from "../lib/format";
+import { balance, daysSince, routineLabel, today } from "../lib/format";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -233,14 +233,14 @@ function FinanzasBlock() {
         <div>
           <div className="text-[11px] uppercase tracking-wide text-ink-soft">Patrimonio</div>
           <div className="mt-1.5 text-2xl font-semibold leading-none tabular-nums text-ink">
-            {hasChf ? money(totalIn("CHF")) : "—"}
+            {hasChf ? balance(totalIn("CHF")) : "—"}
             <span className="ml-1.5 text-sm font-normal text-ink-soft">CHF</span>
           </div>
         </div>
         {hasEur && (
           <div className="text-right">
             <div className="text-base tabular-nums text-ink">
-              {money(totalIn("EUR"))} <span className="text-xs text-ink-soft">EUR</span>
+              {balance(totalIn("EUR"))} <span className="text-xs text-ink-soft">EUR</span>
             </div>
             <div className="mt-0.5 text-[11px] text-ink-soft">patrimonio</div>
           </div>

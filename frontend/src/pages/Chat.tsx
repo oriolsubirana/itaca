@@ -87,16 +87,22 @@ export function Chat() {
         setSessionId(session.id);
         return session.id;
       };
+      let receivedChunk = false;
       const handlers = {
-        onChunk: (chunk: string) => setPending((p) => p && { ...p, assistant: p.assistant + chunk }),
+        onChunk: (chunk: string) => {
+          receivedChunk = true;
+          setPending((p) => p && { ...p, assistant: p.assistant + chunk });
+        },
         onError: (message: string) => setPending((p) => p && { ...p, assistant: message, failed: true }),
       };
       try {
         let id = sessionId ?? (await openSession());
         try {
           await streamMessage(id, content, handlers);
-        } catch {
-          // The cached session may be gone (server/DB reset): recreate and retry once.
+        } catch (err) {
+          // Only recover when nothing was streamed yet (stale session after a server/DB
+          // reset): a mid-stream failure must not recreate the session and resend.
+          if (receivedChunk) throw err;
           localStorage.removeItem(sessionKey(mode));
           id = await openSession();
           await streamMessage(id, content, handlers);

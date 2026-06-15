@@ -51,11 +51,6 @@ class FinanceQueries(
 ) {
     fun overview(): FinanceOverview = FinanceOverview(monthOrder(), accounts())
 
-    // Accounts with a parser in FinanceImportService; the rest use a manual balance or are derived.
-    private companion object {
-        val IMPORTABLE = setOf("Neon", "finpension")
-    }
-
     private fun monthOrder(): List<String> =
         jdbc.queryForList(
             "SELECT DISTINCT to_char(date, 'YYYY-MM') AS m FROM transactions ORDER BY m",
@@ -69,8 +64,12 @@ class FinanceQueries(
                    COALESCE(
                        (SELECT bs.balance FROM balance_snapshots bs
                         WHERE bs.account_id = a.id ORDER BY bs.date DESC LIMIT 1),
-                       -- No snapshot (e.g. the savings Space): derive the balance from its movements.
-                       (SELECT sum(t.amount) FROM transactions t WHERE t.account_id = a.id),
+                       -- Only the savings Space derives its balance from its movements (it starts at 0
+                       -- and only receives transfers). Checking CSVs have no opening balance, so their
+                       -- transaction sum is NOT a balance — show 0 until the user sets it manually.
+                       CASE WHEN a.type = 'savings'
+                            THEN (SELECT sum(t.amount) FROM transactions t WHERE t.account_id = a.id)
+                            ELSE 0 END,
                        0
                    ) AS balance
             FROM accounts a ORDER BY a.currency, a.name
@@ -83,7 +82,7 @@ class FinanceQueries(
                 type = rs.getString("type"),
                 currency = rs.getString("currency"),
                 balance = rs.getBigDecimal("balance").toDouble(),
-                importable = name in IMPORTABLE,
+                importable = name in FinanceAccounts.IMPORTABLE,
             )
         }
 

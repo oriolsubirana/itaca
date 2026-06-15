@@ -14,7 +14,7 @@ class FinanceAiCategorizationService(
     fun categorizeOther(): Int {
         val descriptions =
             jdbc.queryForList(
-                "SELECT DISTINCT description FROM transactions WHERE category = 'other' LIMIT ?",
+                "SELECT DISTINCT description FROM transactions WHERE category = 'other' ORDER BY description LIMIT ?",
                 String::class.java,
                 MAX_DESCRIPTIONS,
             )

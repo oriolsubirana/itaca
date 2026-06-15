@@ -61,6 +61,7 @@ class AnthropicFinanceCategorizer(
         - fees: bank/card fees, credit-card payments, loans (Swisscard, Cembra)
         - cash: ATM withdrawals
         - investment: contributions to investments/pension
+        - income: salary, refunds, money received (employers, people paying you)
         - work: work-related
         - other: genuinely does not fit
 
@@ -88,6 +89,7 @@ class AnthropicFinanceCategorizer(
                 "fees",
                 "cash",
                 "investment",
+                "income",
                 "work",
                 "other",
             )

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -75,9 +76,13 @@ class ChatController(
         return emitter
     }
 
+    // Body-less 404 so it works for any Accept (a text/event-stream send to a missing
+    // session can't content-negotiate a JSON body and would otherwise surface as 500).
     @ExceptionHandler(NoSuchElementException::class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    fun notFound(e: NoSuchElementException): Map<String, String?> = mapOf("error" to e.message)
+    fun notFound(e: NoSuchElementException): ResponseEntity<Void> {
+        log.warn("Chat session not found: {}", e.message)
+        return ResponseEntity.notFound().build()
+    }
 
     companion object {
         /** A reply with several tool roundtrips can take a while. */

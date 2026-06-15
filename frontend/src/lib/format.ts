@@ -46,6 +46,11 @@ export function signed(n: number): string {
   return (n > 0 ? "+" : n < 0 ? "−" : "") + money(n);
 }
 
+/** A balance: no "+" for positive, but keep the "−" for negative. */
+export function balance(n: number): string {
+  return (n < 0 ? "−" : "") + money(n);
+}
+
 /** Month key "2026-06" -> "Junio". */
 export function monthName(key: string): string {
   const [y, m] = key.split("-");

@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Modal } from "../components/Modal";
-import { MES, money, signed } from "../lib/format";
+import { balance as balanceStr, MES, money, signed } from "../lib/format";
 import {
   CATEGORIES,
+  CATEGORY_LABELS,
   categorizeFinanceAi,
   getFinanceMonth,
   getFinanceOverview,
@@ -16,14 +17,8 @@ import {
   type MonthView,
 } from "../api/finance";
 
-const CAT_ES: Record<string, string> = {
-  groceries: "Alimentación", restaurants: "Restaurantes", transport: "Transporte", fuel: "Combustible",
-  travel: "Viajes", housing: "Vivienda", utilities: "Suministros", health: "Salud", subscriptions: "Suscripciones",
-  shopping: "Compras", leisure: "Ocio", income: "Ingresos", transfers: "Transferencias", work: "Trabajo",
-  savings: "Ahorro", investment: "Inversión", fees: "Comisiones", cash: "Efectivo", other: "Otros",
-};
 const TYPE_ES: Record<string, string> = { checking: "Corriente", savings: "Ahorro", investment: "Inversión" };
-const catLabel = (c: string) => CAT_ES[c] ?? c;
+const catLabel = (c: string) => CATEGORY_LABELS[c] ?? c;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function txDate(iso: string): string {
@@ -93,8 +88,12 @@ export function Finanzas() {
             {data && hasActivity && (
               <>
                 <Resumen data={data} currency={currency} />
-                <div className="border-t border-line" />
-                <Categorias data={data} currency={currency} />
+                {data.categorias.length > 0 && (
+                  <>
+                    <div className="border-t border-line" />
+                    <Categorias data={data} currency={currency} />
+                  </>
+                )}
                 <div className="border-t border-line" />
               </>
             )}
@@ -246,7 +245,7 @@ function Cuentas({
       <SecLabel>{`Cuentas · ${currency}`}</SecLabel>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[28px] font-semibold leading-none tabular-nums text-ink">
-          {money(total)} <span className="text-base font-normal text-ink-soft">{currency}</span>
+          {balanceStr(total)} <span className="text-base font-normal text-ink-soft">{currency}</span>
         </span>
         <span className="text-[13px] text-ink-soft">
           {accts.length} cuenta{accts.length > 1 ? "s" : ""}
@@ -265,7 +264,7 @@ function Cuentas({
               <div className="mt-0.5 text-xs text-ink-soft">{TYPE_ES[a.type] ?? a.type}</div>
             </div>
             <div className="text-lg tabular-nums text-ink">
-              {money(a.balance)} <span className="text-xs text-ink-soft">{currency}</span>
+              {balanceStr(a.balance)} <span className="text-xs text-ink-soft">{currency}</span>
             </div>
           </button>
         ))}

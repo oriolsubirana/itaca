@@ -46,8 +46,8 @@ class FinanceImportService(
                 .query("SELECT name FROM accounts WHERE id = ?", { rs, _ -> rs.getString("name") }, accountId)
                 .firstOrNull() ?: return ImportResult(false, "?", message = "Cuenta no encontrada.")
         return when (account) {
-            "finpension" -> importFinpension(accountId, account, bytes)
-            "Neon" -> importNeon(accountId, account, bytes)
+            FinanceAccounts.FINPENSION -> importFinpension(accountId, account, bytes)
+            FinanceAccounts.NEON -> importNeon(accountId, account, bytes)
             else -> ImportResult(false, account, message = "La importación de $account aún no está disponible.")
         }
     }
@@ -72,7 +72,12 @@ class FinanceImportService(
                     return ImportResult(false, account, message = "No pude leer el CSV. ¿Es el extracto de Neon?")
                 }
         if (rows.isEmpty()) return ImportResult(false, account, message = "El CSV no contiene movimientos.")
-        val savesId = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Neon Saves'", Long::class.java)!!
+        val savesId =
+            jdbc.queryForObject(
+                "SELECT id FROM accounts WHERE name = ?",
+                Long::class.java,
+                FinanceAccounts.NEON_SAVES,
+            )!!
         val from = rows.minOf { it.date }
         val to = rows.maxOf { it.date }
         jdbc.update(
@@ -82,37 +87,24 @@ class FinanceImportService(
             Date.valueOf(from),
             Date.valueOf(to),
         )
-        var spending = 0
-        var savings = 0
-        rows.forEach { r ->
-            if (r.transfer) {
-                insertTx(savesId, r.date, r.amount.negate(), r.description, "savings")
-                savings++
-            } else {
-                val category = categorizer.categorize(r.bankCategory, false, r.description)
-                insertTx(accountId, r.date, r.amount, r.description, category)
-                spending++
+        // Saves-Space movements are mirrored into Neon Saves (their own money); the rest are spending.
+        val inserts =
+            rows.map { r ->
+                if (r.transfer) {
+                    arrayOf<Any>(savesId, Date.valueOf(r.date), r.amount.negate(), r.description, "savings")
+                } else {
+                    val category = categorizer.categorize(r.bankCategory, false, r.description)
+                    arrayOf<Any>(accountId, Date.valueOf(r.date), r.amount, r.description, category)
+                }
             }
-        }
+        jdbc.batchUpdate(
+            "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?, ?, ?, ?)",
+            inserts,
+        )
+        val savings = rows.count { it.transfer }
+        val spending = rows.size - savings
         log.info("Imported {} neon transactions + {} savings moves ({}..{})", spending, savings, from, to)
         return ImportResult(true, account, "$from … $to", null, "$spending movimientos · $savings al ahorro.")
-    }
-
-    private fun insertTx(
-        accountId: Long,
-        date: java.time.LocalDate,
-        amount: java.math.BigDecimal,
-        description: String,
-        category: String,
-    ) {
-        jdbc.update(
-            "INSERT INTO transactions (account_id, date, amount, description, category) VALUES (?, ?, ?, ?, ?)",
-            accountId,
-            Date.valueOf(date),
-            amount,
-            description,
-            category,
-        )
     }
 
     private fun importFinpension(

@@ -86,9 +86,13 @@ export const CATEGORIES: { code: string; label: string }[] = [
   { code: "fees", label: "Comisiones" },
   { code: "cash", label: "Efectivo" },
   { code: "transfers", label: "Transferencias" },
+  { code: "savings", label: "Ahorro" },
   { code: "work", label: "Trabajo" },
   { code: "other", label: "Otros" },
 ];
+
+/** Canonical category code -> Spanish label (derived from CATEGORIES, single source). */
+export const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.code, c.label]));
 
 /** Multipart upload of a statement/report (finpension PDF for now). */
 export async function importFinance(accountId: number, file: File): Promise<ImportResult> {
