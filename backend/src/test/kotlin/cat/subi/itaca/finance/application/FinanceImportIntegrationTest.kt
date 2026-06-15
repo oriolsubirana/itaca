@@ -34,10 +34,10 @@ class FinanceImportIntegrationTest {
 
         assertTrue(result.imported)
         assertEquals("2026-05-31", result.date)
-        assertEquals(44020.85, result.value)
+        assertEquals(12345.67, result.value)
         // Newest snapshot (31.05.2026) supersedes the seeded placeholder.
         assertEquals(
-            44020.85,
+            12345.67,
             queries
                 .overview()
                 .accounts
@@ -169,9 +169,9 @@ class FinanceImportIntegrationTest {
     @Test
     fun `importing into an account without a known format reports it is unavailable`() {
         val service = FinanceImportService(jdbc, PdfTextExtractor { REPORT })
-        val sabadell = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'Sabadell'", Long::class.java)!!
+        val myInvestor = jdbc.queryForObject("SELECT id FROM accounts WHERE name = 'MyInvestor'", Long::class.java)!!
 
-        assertFalse(service.import(sabadell, ByteArray(0)).imported)
+        assertFalse(service.import(myInvestor, ByteArray(0)).imported)
     }
 
     private companion object {
@@ -179,8 +179,8 @@ class FinanceImportIntegrationTest {
             """
             Performance-Report
             as at 31.05.2026
-            Portfolio 1   28.05.2024   2'942.78   4'520.85   44'020.85
-            Total                      2'942.78   4'520.85   44'020.85
+            Portfolio 1   28.05.2024   1'111.11   2'222.22   12'345.67
+            Total                      1'111.11   2'222.22   12'345.67
             """.trimIndent()
     }
 }

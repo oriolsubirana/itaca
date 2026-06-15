@@ -37,7 +37,7 @@ class FinpensionReportParser {
         )
     }
 
-    // Swiss number: apostrophe thousands separator, dot decimal — "44'020.85" -> 44020.85
+    // Swiss number: apostrophe thousands separator, dot decimal — "12'345.67" -> 12345.67
     private fun swissToBigDecimal(s: String): BigDecimal = BigDecimal(s.replace("'", ""))
 
     private companion object {

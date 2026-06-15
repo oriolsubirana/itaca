@@ -40,8 +40,8 @@ class FinanceQueriesIntegrationTest {
         seedJune()
         val overview = queries.overview()
         assertEquals(listOf("2026-06"), overview.monthOrder)
-        // Neon, Revolut, MyInvestor, Sabadell (031) + finpension, Neon Saves (032).
-        assertEquals(6, overview.accounts.size)
+        // Neon, Revolut, MyInvestor (031) + finpension, Neon Saves (032).
+        assertEquals(5, overview.accounts.size)
     }
 
     @Test
