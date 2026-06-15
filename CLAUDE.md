@@ -115,7 +115,7 @@ prepared by `.claude/hooks/session-start.sh`.
 1. ✅ Skeleton (modules, schema+seeds, compose, CI)
 2. ✅ Chat + workout mode end-to-end (Spring AI 2.0, training tools, SSE, mobile UI)
 3. ✅ Health (diary+flares via chat and form; lab pipeline: upload → JobRunr → claude-haiku extraction → review → per-analyte chart)
-4. Home/dashboard · 5. Finance (CSV import) · 6. Ingestion (`/api/ingest`)
+4. Home/dashboard · 5. ✅ Finance (CSV import) · 6. ✅ Ingestion (`/api/ingest`)
 
 ### Chat architecture (phase 2)
 
@@ -148,8 +148,8 @@ prepared by `.claude/hooks/session-start.sh`.
   so any Jackson can bind them.
 - Per-request model override: `.options(AnthropicChatOptions.builder().model(...))`
   (pass the Builder itself, not `.build()`).
-- Storage port `DocumentStorage` (shared by lab reports and clinical documents):
-  local files by default; Supabase impl activates when the SUPABASE_URL env var
+- Storage port `DocumentStorage` lives in `shared.storage` (used by health and
+  ingestion): local files by default; Supabase impl activates when the SUPABASE_URL env var
   exists (relaxed binding to `supabase.url` — do NOT add a `supabase.url:` default
   to application.yml or the conditional always matches). `loadFile` returns a
   `StoredFile(filename, content)`.
@@ -163,3 +163,28 @@ prepared by `.claude/hooks/session-start.sh`.
 - Spring Data derived `deleteBy...` loads and deletes row by row → StaleObjectState
   when jobs race; use `@Modifying @Query` bulk deletes and serialize concurrent
   extraction jobs with a `PESSIMISTIC_WRITE` row lock taken AFTER the slow API call.
+
+### Ingestion architecture (phase 6)
+
+- One generic entry point `POST /api/ingest` (multipart, for the iOS Shortcut / web
+  inbox): store via `DocumentStorage`, register in `ingested_files` (status pending),
+  enqueue a JobRunr `ProcessIngestionRequest`. `GET /api/ingest` is the inbox;
+  `POST /api/ingest/{id}/retry` re-queues a failed file.
+- Two-tier routing (same shape as analyte normalization): deterministic
+  `IngestionRouter` (CSV → finance; PDF by filename markers) first; the ambiguous PDF
+  long tail falls through to `AnthropicIngestionClassifier` (claude-haiku reads the PDF,
+  answers LAB/FINANCE). CSVs never hit the model.
+- **First cross-context Modulith events in the codebase.** They are ingestion's exposed
+  API and live in its top-level package (`cat.subi.itaca.ingestion`), NOT a subpackage:
+  `LabReportReceived`/`BankStatementReceived` (ingestion → health/finance) and
+  `IngestionSucceeded`/`IngestionFailed` (health/finance → ingestion, flip the row).
+  Owning all four in ingestion keeps the module graph acyclic (ingestion depends on
+  nobody; health/finance depend on ingestion + shared) — `ModularityTests` stays green.
+- Events carry ids + the storage path only, never bytes — consumers reload via the
+  shared `DocumentStorage`, keeping the JDBC event registry (outbox) light.
+- `@ApplicationModuleListener` (after-commit, async, registry-backed redelivery) is the
+  consumer; no `@EnableAsync` needed. Listeners must be idempotent. They catch broadly
+  (`@Suppress("TooGenericExceptionCaught")`) to turn ANY downstream failure into an
+  `IngestionFailed` the inbox can show.
+- Test the publish synchronously with `@RecordApplicationEvents` + `ApplicationEvents`
+  (the event is recorded at `publishEvent`, before the async listeners run).

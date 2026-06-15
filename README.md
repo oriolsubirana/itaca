@@ -64,8 +64,8 @@ Documentadas en [.env.example](.env.example). La API key de Anthropic vive solo 
 2. ✅ Chat + modo entreno end-to-end (Spring AI 2.0-RC2, tools `@Tool` de training, SSE, UI móvil con respuestas rápidas)
 3. ✅ Módulo health: diario y brotes (chat + formulario) y pipeline de analíticas (PDF → JobRunr → extracción con claude-haiku → revisión manual → gráfica por analito)
 4. Home/dashboard
-5. Módulo finance (import CSV con categorización)
-6. Módulo ingestion (Atajo de iOS → `/api/ingest`)
+5. ✅ Módulo finance (import CSV con categorización)
+6. ✅ Módulo ingestion: entrada única `/api/ingest` (Atajo de iOS / bandeja web), clasificación en dos niveles (determinista + claude-haiku) y enrutado a health/finance vía eventos Modulith
 
 ### Notas de versiones
 

@@ -1,4 +1,4 @@
-package cat.subi.itaca.health.adapter.out.storage
+package cat.subi.itaca.shared.storage
 
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -13,8 +13,10 @@ import java.nio.file.Path
 import java.util.UUID
 
 /**
- * Port for storing uploaded documents (lab report PDFs, clinical documents...).
- * Returns the storage path used to retrieve the content later.
+ * Shared port for storing uploaded documents (lab report PDFs, clinical documents,
+ * ingested files...). Returns the storage path used to retrieve the content later.
+ * Lives in the open `shared` module because several contexts (health, ingestion)
+ * persist incoming files through it.
  */
 interface DocumentStorage {
     fun store(

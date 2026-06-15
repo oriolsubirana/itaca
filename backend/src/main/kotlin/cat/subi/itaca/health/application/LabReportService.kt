@@ -5,8 +5,8 @@ import cat.subi.itaca.health.adapter.out.persistence.LabReportEntity
 import cat.subi.itaca.health.adapter.out.persistence.LabReportRepository
 import cat.subi.itaca.health.adapter.out.persistence.LabResultEntity
 import cat.subi.itaca.health.adapter.out.persistence.LabResultRepository
-import cat.subi.itaca.health.adapter.out.storage.DocumentStorage
-import cat.subi.itaca.health.adapter.out.storage.StoredFile
+import cat.subi.itaca.shared.storage.DocumentStorage
+import cat.subi.itaca.shared.storage.StoredFile
 import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
