@@ -5,7 +5,6 @@ import cat.subi.itaca.health.application.LabReportService
 import cat.subi.itaca.ingestion.IngestionFailed
 import cat.subi.itaca.ingestion.IngestionSucceeded
 import cat.subi.itaca.ingestion.LabReportReceived
-import cat.subi.itaca.shared.storage.DocumentStorage
 import org.jobrunr.scheduling.JobRequestScheduler
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
@@ -13,14 +12,14 @@ import org.springframework.modulith.events.ApplicationModuleListener
 import org.springframework.stereotype.Component
 
 /**
- * Health's reaction to an ingested lab report: load the bytes, create the report and
- * enqueue extraction (the same path as a manual upload), then report the outcome back
- * to ingestion. Idempotent enough for redelivery — a duplicate just creates a re-run.
+ * Health's reaction to an ingested lab report: register a report pointing at the file
+ * ingestion already stored (no second copy), enqueue extraction, and report the outcome
+ * back to ingestion. `registerStored` is idempotent on the storage path, so an event
+ * redelivery or a retry does not create a duplicate report.
  */
 @Component
 class LabReportIngestionListener(
     private val labReports: LabReportService,
-    private val storage: DocumentStorage,
     private val jobs: JobRequestScheduler,
     private val events: ApplicationEventPublisher,
 ) {
@@ -31,8 +30,7 @@ class LabReportIngestionListener(
     @ApplicationModuleListener
     fun on(event: LabReportReceived) {
         try {
-            val content = storage.load(event.storagePath)
-            val report = labReports.upload(event.filename, content)
+            val report = labReports.registerStored(event.filename, event.storagePath)
             jobs.enqueue(ExtractLabReportRequest(report.id))
             events.publishEvent(IngestionSucceeded(event.ingestionId, "Analítica recibida; extrayendo resultados."))
         } catch (e: RuntimeException) {

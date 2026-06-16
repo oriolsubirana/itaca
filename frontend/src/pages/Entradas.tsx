@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getInbox, retryIngest, uploadIngest, type IngestedFile } from "../api/ingestion";
 
@@ -27,20 +27,37 @@ export function Entradas() {
     refetchInterval: (q) => (q.state.data?.some((f) => f.status === "pending") ? 2000 : false),
   });
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ["ingest-inbox"] });
-    void queryClient.invalidateQueries({ queryKey: ["finance-overview"] });
-    void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
-  };
+  const refreshInbox = () => void queryClient.invalidateQueries({ queryKey: ["ingest-inbox"] });
 
-  const upload = useMutation({
-    mutationFn: uploadIngest,
-    onSuccess: invalidate,
-  });
-  const retry = useMutation({
-    mutationFn: retryIngest,
-    onSuccess: invalidate,
-  });
+  const upload = useMutation({ mutationFn: uploadIngest, onSuccess: refreshInbox });
+  const retry = useMutation({ mutationFn: retryIngest, onSuccess: refreshInbox });
+
+  // Refresh a destination's pages exactly when a file finishes processing (the import
+  // lands asynchronously, well after the upload). The first load only records the
+  // already-processed entries; only later transitions trigger a downstream refetch.
+  const seenProcessed = useRef<Set<number> | null>(null);
+  useEffect(() => {
+    const data = inbox.data;
+    if (!data) return;
+    if (seenProcessed.current === null) {
+      seenProcessed.current = new Set(data.filter((f) => f.status === "processed").map((f) => f.id));
+      return;
+    }
+    let finance = false;
+    let health = false;
+    for (const f of data) {
+      if (f.status === "processed" && !seenProcessed.current.has(f.id)) {
+        seenProcessed.current.add(f.id);
+        if (f.destination === "finance") finance = true;
+        if (f.destination === "health") health = true;
+      }
+    }
+    if (finance) {
+      void queryClient.invalidateQueries({ queryKey: ["finance-overview"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance-month"] });
+    }
+    if (health) void queryClient.invalidateQueries({ queryKey: ["lab-reports"] });
+  }, [inbox.data, queryClient]);
 
   const files = inbox.data ?? [];
 
@@ -82,7 +99,12 @@ export function Entradas() {
         ) : (
           <ul className="border-t border-line">
             {files.map((f) => (
-              <Row key={f.id} file={f} onRetry={() => retry.mutate(f.id)} retrying={retry.isPending} />
+              <Row
+                key={f.id}
+                file={f}
+                onRetry={() => retry.mutate(f.id)}
+                retrying={retry.isPending && retry.variables === f.id}
+              />
             ))}
           </ul>
         )}

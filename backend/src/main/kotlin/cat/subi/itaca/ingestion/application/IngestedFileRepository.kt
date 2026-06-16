@@ -1,5 +1,6 @@
 package cat.subi.itaca.ingestion.application
 
+import cat.subi.itaca.ingestion.domain.IngestionStatus
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
@@ -18,13 +19,14 @@ class IngestedFileRepository(
         jdbc.queryForObject(
             """
             INSERT INTO ingested_files (source, name, type, status, storage_path)
-            VALUES (?, ?, ?, 'pending', ?)
+            VALUES (?, ?, ?, ?, ?)
             RETURNING id
             """.trimIndent(),
             Long::class.java,
             source,
             name,
             type,
+            IngestionStatus.PENDING.wire,
             storagePath,
         )!!
 
@@ -44,7 +46,8 @@ class IngestedFileRepository(
         detail: String,
     ) {
         jdbc.update(
-            "UPDATE ingested_files SET status = 'processed', detail = ?, error_message = NULL WHERE id = ?",
+            "UPDATE ingested_files SET status = ?, detail = ?, error_message = NULL WHERE id = ?",
+            IngestionStatus.PROCESSED.wire,
             detail,
             id,
         )
@@ -54,12 +57,18 @@ class IngestedFileRepository(
         id: Long,
         reason: String,
     ) {
-        jdbc.update("UPDATE ingested_files SET status = 'error', error_message = ? WHERE id = ?", reason, id)
+        jdbc.update(
+            "UPDATE ingested_files SET status = ?, error_message = ?, detail = NULL WHERE id = ?",
+            IngestionStatus.ERROR.wire,
+            reason,
+            id,
+        )
     }
 
     fun resetForRetry(id: Long) {
         jdbc.update(
-            "UPDATE ingested_files SET status = 'pending', error_message = NULL, detail = NULL WHERE id = ?",
+            "UPDATE ingested_files SET status = ?, error_message = NULL, detail = NULL WHERE id = ?",
+            IngestionStatus.PENDING.wire,
             id,
         )
     }

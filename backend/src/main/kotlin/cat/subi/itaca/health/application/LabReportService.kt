@@ -66,6 +66,7 @@ data class LabResultUpdate(
  * manual review -> confirm. Only confirmed reports feed the analyte series.
  */
 @Service
+@Suppress("TooManyFunctions") // cohesive: the full lab-report lifecycle (upload, register, extract, review).
 class LabReportService(
     private val reports: LabReportRepository,
     private val results: LabResultRepository,
@@ -86,6 +87,29 @@ class LabReportService(
         val report =
             reports.save(
                 LabReportEntity(date = LocalDate.now(), filename = filename, storagePath = path, extracting = true),
+            )
+        return report.toDto(0)
+    }
+
+    /**
+     * Registers a report for a PDF already in shared storage (ingested via /api/ingest),
+     * reusing that file instead of storing a second copy. Idempotent on the storage path so
+     * an event redelivery does not create a duplicate report.
+     */
+    @Transactional
+    fun registerStored(
+        filename: String,
+        storagePath: String,
+    ): LabReportDto {
+        reports.findFirstByStoragePath(storagePath)?.let { return it.toDto(0) }
+        val report =
+            reports.save(
+                LabReportEntity(
+                    date = LocalDate.now(),
+                    filename = filename,
+                    storagePath = storagePath,
+                    extracting = true,
+                ),
             )
         return report.toDto(0)
     }

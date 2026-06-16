@@ -14,8 +14,8 @@ import org.springframework.stereotype.Component
 
 /**
  * Finance's reaction to an ingested bank statement: a PDF is a finpension report, a CSV
- * is a Neon statement. Resolves the target account and runs the existing importer, then
- * reports the outcome back to ingestion.
+ * is a Neon statement (the type was already decided at routing and travels in the event).
+ * Resolves the target account and runs the existing importer, then reports the outcome back.
  */
 @Component
 class BankStatementIngestionListener(
@@ -31,8 +31,7 @@ class BankStatementIngestionListener(
     @ApplicationModuleListener
     fun on(event: BankStatementReceived) {
         try {
-            val content = storage.load(event.storagePath)
-            val accountName = if (isPdf(content)) FinanceAccounts.FINPENSION else FinanceAccounts.NEON
+            val accountName = if (event.contentType == "pdf") FinanceAccounts.FINPENSION else FinanceAccounts.NEON
             val accountId =
                 jdbc
                     .query("SELECT id FROM accounts WHERE name = ?", { rs, _ -> rs.getLong("id") }, accountName)
@@ -41,7 +40,7 @@ class BankStatementIngestionListener(
                 events.publishEvent(IngestionFailed(event.ingestionId, "No encuentro la cuenta $accountName."))
                 return
             }
-            val result = financeImport.import(accountId, content)
+            val result = financeImport.import(accountId, storage.load(event.storagePath))
             if (result.imported) {
                 events.publishEvent(IngestionSucceeded(event.ingestionId, result.message ?: "Movimientos importados."))
             } else {
@@ -51,12 +50,5 @@ class BankStatementIngestionListener(
             log.warn("Bank statement ingestion failed for {}", event.ingestionId, e)
             events.publishEvent(IngestionFailed(event.ingestionId, e.message ?: "No pude procesar el extracto."))
         }
-    }
-
-    private fun isPdf(bytes: ByteArray): Boolean =
-        bytes.size >= PDF_MAGIC.size && bytes.copyOfRange(0, PDF_MAGIC.size).contentEquals(PDF_MAGIC)
-
-    private companion object {
-        val PDF_MAGIC = "%PDF".toByteArray()
     }
 }

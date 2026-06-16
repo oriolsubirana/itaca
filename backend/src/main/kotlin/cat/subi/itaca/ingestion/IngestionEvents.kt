@@ -17,11 +17,16 @@ data class LabReportReceived(
     val storagePath: String,
 )
 
-/** A bank statement / pension report was received and should be imported into finance. */
+/**
+ * A bank statement / pension report was received and should be imported into finance.
+ * Carries the content type already decided at routing ("pdf" = finpension, "csv" = Neon)
+ * so the consumer doesn't re-classify the file.
+ */
 data class BankStatementReceived(
     val ingestionId: Long,
     val filename: String,
     val storagePath: String,
+    val contentType: String,
 )
 
 /** A consuming context finished processing an ingested file successfully. */

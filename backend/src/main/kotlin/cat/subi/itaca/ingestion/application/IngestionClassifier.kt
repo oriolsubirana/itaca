@@ -24,11 +24,11 @@ class IngestionClassifier(
     fun classify(
         filename: String,
         type: FileType,
-        content: ByteArray,
+        content: () -> ByteArray,
     ): Destination {
         val deterministic = IngestionRouter.route(filename, type)
         if (deterministic != Destination.UNKNOWN) return deterministic
-        // Only PDFs are worth an AI round-trip; unknown binary types stay unknown.
-        return if (type == FileType.PDF) ai.classify(filename, content) else Destination.UNKNOWN
+        // Only PDFs are worth an AI round-trip; the bytes are loaded lazily, only here.
+        return if (type == FileType.PDF) ai.classify(filename, content()) else Destination.UNKNOWN
     }
 }

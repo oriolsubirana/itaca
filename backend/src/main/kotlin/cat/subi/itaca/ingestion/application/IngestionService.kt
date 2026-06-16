@@ -44,16 +44,16 @@ class IngestionService(
     @Transactional
     fun process(id: Long) {
         val file = repo.find(id) ?: return
-        val content = storage.load(file.storagePath)
         val type = FileType.entries.firstOrNull { it.name.equals(file.type, ignoreCase = true) } ?: FileType.UNKNOWN
-        when (classifier.classify(file.name, type, content)) {
+        // The bytes are only read if the deterministic tier can't decide (AI classifies the PDF).
+        when (classifier.classify(file.name, type) { storage.load(file.storagePath) }) {
             Destination.HEALTH_LAB -> {
                 repo.setDestination(id, "health")
                 events.publishEvent(LabReportReceived(id, file.name, file.storagePath))
             }
             Destination.FINANCE_BANK -> {
                 repo.setDestination(id, "finance")
-                events.publishEvent(BankStatementReceived(id, file.name, file.storagePath))
+                events.publishEvent(BankStatementReceived(id, file.name, file.storagePath, type.name.lowercase()))
             }
             Destination.UNKNOWN -> {
                 log.info("Could not classify ingested file {} ({})", id, file.name)
