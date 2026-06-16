@@ -18,15 +18,15 @@ export const getInbox = () => api<IngestedFile[]>("/ingest");
 export const retryIngest = (id: number) =>
   api<IngestedFile>(`/ingest/${id}/retry`, { method: "POST" });
 
-/** Generic multipart intake: any PDF/CSV; the backend classifies and routes it. */
-export async function uploadIngest(file: File): Promise<IngestedFile> {
+/** Generic multipart intake: one or many PDFs/CSVs; the backend classifies and routes each. */
+export async function uploadIngest(files: File[]): Promise<IngestedFile[]> {
   const form = new FormData();
-  form.append("file", file);
+  files.forEach((file) => form.append("files", file));
   form.append("source", "web");
   const headers = new Headers();
   const token = import.meta.env.VITE_API_TOKEN as string | undefined;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const res = await fetch("/api/ingest", { method: "POST", body: form, headers });
   if (!res.ok) throw new Error(`Ingest ${res.status}`);
-  return (await res.json()) as IngestedFile;
+  return (await res.json()) as IngestedFile[];
 }

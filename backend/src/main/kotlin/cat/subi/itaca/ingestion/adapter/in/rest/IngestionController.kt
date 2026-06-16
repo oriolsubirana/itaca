@@ -31,13 +31,16 @@ class IngestionController(
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun ingest(
-        @RequestParam("file") file: MultipartFile,
+        @RequestParam("files") files: List<MultipartFile>,
         @RequestParam("source", required = false) source: String?,
-    ): IngestedFileDto {
-        require(!file.isEmpty) { "Empty file" }
-        val dto = ingestion.ingest(source ?: "manual", file.originalFilename ?: "archivo", file.bytes)
-        jobs.enqueue(ProcessIngestionRequest(dto.id))
-        return dto
+    ): List<IngestedFileDto> {
+        require(files.isNotEmpty()) { "No files uploaded" }
+        require(files.none { it.isEmpty }) { "Empty file in upload" }
+        return files.map { file ->
+            val dto = ingestion.ingest(source ?: "manual", file.originalFilename ?: "archivo", file.bytes)
+            jobs.enqueue(ProcessIngestionRequest(dto.id))
+            dto
+        }
     }
 
     @GetMapping

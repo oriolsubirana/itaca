@@ -58,16 +58,17 @@ export function Entradas() {
         disabled={upload.isPending}
         className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-ink/80 text-[15px] font-medium text-ink transition-colors hover:bg-ink hover:text-paper disabled:opacity-40"
       >
-        {upload.isPending ? "Subiendo…" : "↑ Subir documento"}
+        {upload.isPending ? "Subiendo…" : "↑ Subir documentos"}
       </button>
       <input
         ref={fileInput}
         type="file"
         accept=".pdf,.csv,application/pdf,text/csv"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) upload.mutate(file);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length > 0) upload.mutate(files);
           e.target.value = "";
         }}
       />
