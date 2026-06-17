@@ -77,6 +77,9 @@ interface LabReportRepository : JpaRepository<LabReportEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM LabReportEntity r WHERE r.id = :id")
     fun lockById(id: Long): LabReportEntity?
+
+    /** Idempotency for ingested reports: a stored file maps to at most one report. */
+    fun findFirstByStoragePath(storagePath: String): LabReportEntity?
 }
 
 interface LabResultRepository : JpaRepository<LabResultEntity, Long> {

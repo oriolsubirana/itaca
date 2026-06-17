@@ -63,3 +63,5 @@ databaseChangeLog:
       file: db/changelog/041-chat-memories.sql
   - include:
       file: db/changelog/050-ingestion-schema.sql
+  - include:
+      file: db/changelog/051-ingestion-routing.sql
