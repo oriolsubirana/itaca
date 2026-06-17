@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,7 +30,16 @@ import {
   type DiaryEntry,
   type Flare,
 } from "../api/health";
-import { deleteMeal, getMeals, logMeal, MEAL_LABELS, MEAL_TYPES, type Meal } from "../api/nutrition";
+import {
+  analyzeMealPhoto,
+  deleteMeal,
+  getMeals,
+  logMeal,
+  MEAL_LABELS,
+  MEAL_TYPES,
+  type Meal,
+  type MealAnalysis,
+} from "../api/nutrition";
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -340,15 +349,23 @@ function ComidasTab() {
   const queryClient = useQueryClient();
   const meals = useQuery({ queryKey: ["meals"], queryFn: () => getMeals(14) });
   const [adding, setAdding] = useState(false);
+  const [prefill, setPrefill] = useState<MealAnalysis | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["meals"] });
   const remove = useMutation({ mutationFn: deleteMeal, onSuccess: invalidate });
+  const analyze = useMutation({ mutationFn: analyzeMealPhoto, onSuccess: (a) => setPrefill(a) });
 
   const data = meals.data;
   const grouped = (data?.meals ?? []).reduce<Record<string, Meal[]>>((acc, m) => {
     (acc[m.date] ??= []).push(m);
     return acc;
   }, {});
+
+  const closeModal = () => {
+    setAdding(false);
+    setPrefill(null);
+  };
 
   return (
     <div className="space-y-7 pt-5">
@@ -359,17 +376,47 @@ function ComidasTab() {
           </div>
           <div className="mt-1.5 text-[11px] uppercase tracking-wide text-ink-soft">En pauta · últimos 14 días</div>
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          className="h-11 shrink-0 rounded-full bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
-        >
-          + Registrar comida
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => photoInput.current?.click()}
+            disabled={analyze.isPending}
+            aria-label="Subir foto de comida"
+            className="flex size-11 items-center justify-center rounded-full border border-ink/80 text-ink transition-colors hover:bg-ink hover:text-paper disabled:opacity-40"
+          >
+            {analyze.isPending ? (
+              <span className="text-[11px]">…</span>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-5">
+                <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" strokeLinejoin="round" />
+                <circle cx="12" cy="12.5" r="3.2" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={() => setAdding(true)}
+            className="h-11 rounded-full bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
+          >
+            + Comida
+          </button>
+        </div>
       </div>
+      <input
+        ref={photoInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) analyze.mutate(file);
+          e.target.value = "";
+        }}
+      />
+      {analyze.isError && <p className="text-[13px] text-clinical">No pude analizar la foto.</p>}
 
       <p className="rounded-md border border-line bg-line/[0.15] px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
-        Pregunta a Ítaca en el chat «¿qué ceno hoy?» o «hoy hago bici larga, ¿qué como?» y te propone según tu
-        entreno y la pauta paleo antiinflamatoria.
+        Sube una foto del plato y Claude detecta qué es y las calorías (estimadas) para que revises, o pregúntale en
+        el chat «¿qué ceno hoy?» según tu entreno y la pauta paleo antiinflamatoria.
       </p>
 
       {data && data.total === 0 && <p className="text-sm text-ink-soft">Aún no has registrado ninguna comida.</p>}
@@ -397,6 +444,7 @@ function ComidasTab() {
                 <span className="block text-[15px] text-ink">{m.description}</span>
                 <span className="mt-0.5 block text-[12px] uppercase tracking-[0.06em] text-ink-soft">
                   {MEAL_LABELS[m.mealType] ?? m.mealType}
+                  {m.calories != null ? ` · ${m.calories} kcal` : ""}
                   {m.notes ? ` · ${m.notes}` : ""}
                 </span>
               </span>
@@ -405,26 +453,56 @@ function ComidasTab() {
         </div>
       ))}
 
-      {adding && <MealModal onClose={() => setAdding(false)} onSaved={() => { invalidate(); setAdding(false); }} />}
+      {(adding || prefill) && (
+        <MealModal
+          initial={prefill}
+          onClose={closeModal}
+          onSaved={() => {
+            invalidate();
+            closeModal();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function MealModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function MealModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial?: MealAnalysis | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [date, setDate] = useState(today());
-  const [mealType, setMealType] = useState("dinner");
-  const [description, setDescription] = useState("");
-  const [onPlan, setOnPlan] = useState(true);
+  const [mealType, setMealType] = useState(initial?.mealType ?? "dinner");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [onPlan, setOnPlan] = useState(initial?.onPlan ?? true);
+  const [calories, setCalories] = useState(initial?.calories != null ? String(initial.calories) : "");
   const [notes, setNotes] = useState("");
 
   const save = useMutation({
     mutationFn: () =>
-      logMeal({ date, mealType, description: description.trim(), onPlan, notes: notes.trim() || null }),
+      logMeal({
+        date,
+        mealType,
+        description: description.trim(),
+        onPlan,
+        calories: calories.trim() === "" ? null : Number(calories),
+        notes: notes.trim() || null,
+      }),
     onSuccess: onSaved,
   });
 
   return (
-    <Modal title="Registrar comida" onClose={onClose}>
+    <Modal title={initial ? "Revisar comida" : "Registrar comida"} onClose={onClose}>
+      {initial && (
+        <p className="mb-4 rounded-md border border-line bg-line/[0.15] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink-soft">
+          Detectado de la foto. Revisa y corrige antes de guardar; las calorías son una estimación.
+        </p>
+      )}
       <Field label="Tipo">
         <Listbox value={mealType} onChange={setMealType}>
           <div className="relative">
@@ -483,6 +561,18 @@ function MealModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => v
             </button>
           ))}
         </div>
+      </Field>
+
+      <Field label="Calorías estimadas (kcal)">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={calories}
+          onChange={(e) => setCalories(e.target.value)}
+          placeholder="Opcional"
+          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base tabular-nums outline-none focus:border-ink-soft"
+        />
       </Field>
 
       <Field label="Notas">

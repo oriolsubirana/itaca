@@ -3,6 +3,7 @@
 
 package cat.subi.itaca.nutrition.adapter.`in`.rest
 
+import cat.subi.itaca.nutrition.application.MealAnalysis
 import cat.subi.itaca.nutrition.application.MealCommand
 import cat.subi.itaca.nutrition.application.MealDto
 import cat.subi.itaca.nutrition.application.MealsSummary
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDate
 
 data class LogMealRequest(
@@ -25,6 +27,7 @@ data class LogMealRequest(
     val mealType: String = "",
     val description: String = "",
     val onPlan: Boolean? = null,
+    val calories: Int? = null,
     val notes: String? = null,
 ) {
     fun toCommand(): MealCommand =
@@ -33,6 +36,7 @@ data class LogMealRequest(
             mealType = mealType,
             description = description,
             onPlan = onPlan,
+            calories = calories,
             notes = notes,
         )
 }
@@ -52,6 +56,15 @@ class NutritionController(
     fun log(
         @RequestBody request: LogMealRequest,
     ): MealDto = nutrition.save(request.toCommand())
+
+    /** Analyses a meal photo and returns a proposal; the client reviews it, then POSTs to /meals. */
+    @PostMapping("/meals/photo")
+    fun analyzePhoto(
+        @RequestParam("file") file: MultipartFile,
+    ): MealAnalysis {
+        require(!file.isEmpty) { "Empty file" }
+        return nutrition.analyzePhoto(file.bytes, file.contentType ?: "image/jpeg")
+    }
 
     @DeleteMapping("/meals/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

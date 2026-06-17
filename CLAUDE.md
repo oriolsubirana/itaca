@@ -129,6 +129,11 @@ prepared by `.claude/hooks/session-start.sh`.
   and active flares (`query_health`), follows the anti-inflammatory paleo profile, and logs
   what the user ate via `log_meal` (setting `onPlan`). The health rule still holds: these are
   food proposals, not medical treatment — clinical questions go to the gastroenterologist.
+- Photo logging (Comidas tab only): `POST /api/nutrition/meals/photo` runs Claude vision
+  (`MealPhotoAnalyzer` port → `AnthropicMealPhotoAnalyzer`, model `itaca.nutrition.vision-model`,
+  default haiku) and returns a `MealAnalysis` proposal (description, estimated calories, type,
+  on-plan) WITHOUT saving — the user reviews/edits it in the modal, then POSTs to `/meals`.
+  `meals.calories` is nullable; calories are an estimate, not a medical figure.
 
 ### Chat architecture (phase 2)
 

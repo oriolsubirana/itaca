@@ -16,7 +16,16 @@ data class MealDto(
     val mealType: String,
     val description: String,
     val onPlan: Boolean?,
+    val calories: Int?,
     val notes: String?,
+)
+
+/** Claude's read of a meal photo — a proposal the user reviews before it is saved. */
+data class MealAnalysis(
+    val description: String,
+    val calories: Int?,
+    val mealType: String,
+    val onPlan: Boolean,
 )
 
 data class MealResult(
@@ -38,8 +47,17 @@ data class MealCommand(
     val mealType: String,
     val description: String,
     val onPlan: Boolean? = null,
+    val calories: Int? = null,
     val notes: String? = null,
 )
+
+/** Port: analyses a meal photo and proposes its description, calories, type and adherence. */
+fun interface MealPhotoAnalyzer {
+    fun analyze(
+        image: ByteArray,
+        mimeType: String,
+    ): MealAnalysis
+}
 
 /**
  * Application service of the nutrition context, exposed to the chat as tools and reused
@@ -49,6 +67,7 @@ data class MealCommand(
 @Service
 class NutritionService(
     private val meals: MealRepository,
+    private val photoAnalyzer: MealPhotoAnalyzer,
 ) : ChatTools {
     @Tool(
         name = "log_meal",
@@ -62,6 +81,7 @@ class NutritionService(
         @ToolParam(description = "Meal type: breakfast, lunch, dinner or snack") mealType: String,
         @ToolParam(description = "What was eaten (free text)") description: String,
         @ToolParam(description = "Whether it fits the anti-inflammatory paleo plan", required = false) onPlan: Boolean?,
+        @ToolParam(description = "Estimated calories (kcal), if known", required = false) calories: Int?,
         @ToolParam(description = "Date YYYY-MM-DD; omit for today", required = false) date: String?,
         @ToolParam(description = "Free-text notes", required = false) notes: String?,
     ): MealResult =
@@ -73,11 +93,18 @@ class NutritionService(
                         mealType = mealType,
                         description = description,
                         onPlan = onPlan,
+                        calories = calories,
                         notes = notes,
                     ),
                 )
             MealResult(saved = true, meal = meal)
         }.getOrElse { MealResult(saved = false, error = it.message) }
+
+    /** Analyses a meal photo into a proposal; the caller reviews it before saving via [save]. */
+    fun analyzePhoto(
+        image: ByteArray,
+        mimeType: String,
+    ): MealAnalysis = photoAnalyzer.analyze(image, mimeType)
 
     @Tool(
         name = "query_meals",
@@ -101,6 +128,7 @@ class NutritionService(
                     mealType = type.wire,
                     description = command.description.trim(),
                     onPlan = command.onPlan,
+                    calories = command.calories,
                     notes = command.notes?.takeIf { it.isNotBlank() },
                 ),
             )
@@ -122,7 +150,7 @@ class NutritionService(
         meals.deleteById(id)
     }
 
-    private fun MealEntity.toDto() = MealDto(id!!, date.toString(), mealType, description, onPlan, notes)
+    private fun MealEntity.toDto() = MealDto(id!!, date.toString(), mealType, description, onPlan, calories, notes)
 
     private companion object {
         const val DEFAULT_QUERY_DAYS = 7

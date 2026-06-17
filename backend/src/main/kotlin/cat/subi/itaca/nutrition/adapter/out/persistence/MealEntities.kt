@@ -24,6 +24,7 @@ class MealEntity(
     var description: String,
     @Column(name = "on_plan")
     var onPlan: Boolean? = null,
+    var calories: Int? = null,
     var notes: String? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = Instant.now(),

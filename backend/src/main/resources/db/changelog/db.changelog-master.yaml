@@ -67,3 +67,5 @@ databaseChangeLog:
       file: db/changelog/051-ingestion-routing.sql
   - include:
       file: db/changelog/060-nutrition-schema.sql
+  - include:
+      file: db/changelog/061-nutrition-calories.sql
