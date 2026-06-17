@@ -1,7 +1,17 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+import {
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+} from "@headlessui/react";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
@@ -20,6 +30,7 @@ import {
   type DiaryEntry,
   type Flare,
 } from "../api/health";
+import { deleteMeal, getMeals, logMeal, MEAL_LABELS, MEAL_TYPES, type Meal } from "../api/nutrition";
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -52,7 +63,7 @@ export function Salud() {
       </header>
       <TabGroup>
         <TabList className="flex gap-6 border-b border-line">
-          {["Diario", "Analíticas y documentos"].map((label) => (
+          {["Diario", "Comidas", "Analíticas y documentos"].map((label) => (
             <Tab
               key={label}
               className="-mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-soft outline-none transition-colors data-[selected]:border-ink data-[selected]:text-ink"
@@ -64,6 +75,9 @@ export function Salud() {
         <TabPanels>
           <TabPanel>
             <DiarioTab />
+          </TabPanel>
+          <TabPanel>
+            <ComidasTab />
           </TabPanel>
           <TabPanel>
             <ArchivoTab />
@@ -317,6 +331,178 @@ function ArchivoTab() {
         Ítaca registra y muestra tus datos clínicos. No los interpreta ni ofrece consejo médico.
       </p>
     </div>
+  );
+}
+
+// ── Comidas tab ─────────────────────────────────────────────────────────────
+
+function ComidasTab() {
+  const queryClient = useQueryClient();
+  const meals = useQuery({ queryKey: ["meals"], queryFn: () => getMeals(14) });
+  const [adding, setAdding] = useState(false);
+
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["meals"] });
+  const remove = useMutation({ mutationFn: deleteMeal, onSuccess: invalidate });
+
+  const data = meals.data;
+  const grouped = (data?.meals ?? []).reduce<Record<string, Meal[]>>((acc, m) => {
+    (acc[m.date] ??= []).push(m);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-7 pt-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[22px] font-medium leading-none tabular-nums text-ink">
+            {data ? `${data.onPlan}/${data.total}` : "—"}
+          </div>
+          <div className="mt-1.5 text-[11px] uppercase tracking-wide text-ink-soft">En pauta · últimos 14 días</div>
+        </div>
+        <button
+          onClick={() => setAdding(true)}
+          className="h-11 shrink-0 rounded-full bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
+        >
+          + Registrar comida
+        </button>
+      </div>
+
+      <p className="rounded-md border border-line bg-line/[0.15] px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
+        Pregunta a Ítaca en el chat «¿qué ceno hoy?» o «hoy hago bici larga, ¿qué como?» y te propone según tu
+        entreno y la pauta paleo antiinflamatoria.
+      </p>
+
+      {data && data.total === 0 && <p className="text-sm text-ink-soft">Aún no has registrado ninguna comida.</p>}
+
+      {Object.entries(grouped).map(([date, dayMeals]) => (
+        <div key={date}>
+          <h3 className="mb-2 text-xs uppercase tracking-[0.12em] text-ink-soft">
+            {weekday(date)}. {shortDate(date)}
+          </h3>
+          {dayMeals.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => {
+                if (window.confirm("¿Eliminar esta comida?")) remove.mutate(m.id);
+              }}
+              className="flex w-full items-start gap-3 border-b border-line py-3 text-left last:border-b-0"
+            >
+              {m.onPlan != null && (
+                <span
+                  className={`mt-[7px] size-1.5 shrink-0 rounded-full ${m.onPlan ? "bg-income" : "bg-clinical"}`}
+                  aria-label={m.onPlan ? "En pauta" : "Fuera de pauta"}
+                />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] text-ink">{m.description}</span>
+                <span className="mt-0.5 block text-[12px] uppercase tracking-[0.06em] text-ink-soft">
+                  {MEAL_LABELS[m.mealType] ?? m.mealType}
+                  {m.notes ? ` · ${m.notes}` : ""}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ))}
+
+      {adding && <MealModal onClose={() => setAdding(false)} onSaved={() => { invalidate(); setAdding(false); }} />}
+    </div>
+  );
+}
+
+function MealModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [date, setDate] = useState(today());
+  const [mealType, setMealType] = useState("dinner");
+  const [description, setDescription] = useState("");
+  const [onPlan, setOnPlan] = useState(true);
+  const [notes, setNotes] = useState("");
+
+  const save = useMutation({
+    mutationFn: () =>
+      logMeal({ date, mealType, description: description.trim(), onPlan, notes: notes.trim() || null }),
+    onSuccess: onSaved,
+  });
+
+  return (
+    <Modal title="Registrar comida" onClose={onClose}>
+      <Field label="Tipo">
+        <Listbox value={mealType} onChange={setMealType}>
+          <div className="relative">
+            <ListboxButton className="flex min-h-11 w-full items-center justify-between rounded-lg border border-line bg-paper px-4 text-base text-ink">
+              {MEAL_LABELS[mealType]}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-4 text-ink-soft">
+                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </ListboxButton>
+            <ListboxOptions className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-paper py-1 shadow-[0_8px_28px_rgba(28,28,26,0.12)]">
+              {MEAL_TYPES.map((m) => (
+                <ListboxOption
+                  key={m.code}
+                  value={m.code}
+                  className="cursor-pointer px-4 py-2.5 text-base text-ink data-[focus]:bg-line/50 data-[selected]:font-medium"
+                >
+                  {m.label}
+                </ListboxOption>
+              ))}
+            </ListboxOptions>
+          </div>
+        </Listbox>
+      </Field>
+
+      <Field label="Qué has comido">
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          placeholder="Ej.: salmón al horno con brócoli y boniato"
+          className="w-full rounded-lg border border-line bg-paper px-4 py-2.5 text-base outline-none focus:border-ink-soft"
+        />
+      </Field>
+
+      <Field label="Fecha">
+        <input
+          type="date"
+          value={date}
+          max={today()}
+          onChange={(e) => setDate(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base outline-none focus:border-ink-soft"
+        />
+      </Field>
+
+      <Field label="¿Encaja en la pauta?">
+        <div className="flex gap-2">
+          {[true, false].map((v) => (
+            <button
+              key={String(v)}
+              onClick={() => setOnPlan(v)}
+              className={`min-h-11 flex-1 rounded-full border text-sm ${
+                onPlan === v ? "border-ink bg-ink text-paper" : "border-line text-ink-soft"
+              }`}
+            >
+              {v ? "En pauta" : "Fuera"}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Notas">
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Opcional"
+          className="w-full rounded-lg border border-line bg-paper px-4 py-2.5 text-base outline-none focus:border-ink-soft"
+        />
+      </Field>
+
+      <button
+        onClick={() => save.mutate()}
+        disabled={!description.trim() || save.isPending}
+        className="mt-2 min-h-12 w-full rounded-lg bg-ink text-sm text-paper disabled:opacity-40"
+      >
+        Guardar comida
+      </button>
+    </Modal>
   );
 }
 

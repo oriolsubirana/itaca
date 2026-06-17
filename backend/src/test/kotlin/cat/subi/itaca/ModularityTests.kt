@@ -6,7 +6,7 @@ import org.springframework.modulith.docs.Documenter
 
 /**
  * Architecture verification: bounded contexts (training, health, finance,
- * chat, ingestion) must not reference each other directly; they only
+ * chat, ingestion, nutrition) must not reference each other directly; they only
  * communicate via events. `shared` is the only open module.
  */
 class ModularityTests {

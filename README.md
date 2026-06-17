@@ -66,6 +66,7 @@ Documentadas en [.env.example](.env.example). La API key de Anthropic vive solo 
 4. Home/dashboard
 5. ✅ Módulo finance (import CSV con categorización)
 6. ✅ Módulo ingestion: entrada única `/api/ingest` (Atajo de iOS / bandeja web), clasificación en dos niveles (determinista + claude-haiku) y enrutado a health/finance vía eventos Modulith
+7. ✅ Módulo nutrition: dieta paleo antiinflamatoria — Claude propone comidas según el deporte (hecho o planeado) y los brotes, y registras lo que comes (chat o formulario en Salud)
 
 ### Notas de versiones
 
