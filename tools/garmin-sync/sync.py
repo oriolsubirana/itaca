@@ -86,7 +86,37 @@ def metrics_for(client, date_str):
     except (TypeError, ValueError):
         out["respirationAvg"] = None
 
+    # SpO2 is often off the daily summary (pulse ox disabled, or a separate endpoint).
+    if out.get("spo2Avg") is None:
+        spo2 = try_fetch(lambda: client.get_spo2_data(date_str)) or {}
+        out["spo2Avg"] = as_int(dig(spo2, "averageSpO2") or dig(spo2, "averageSpo2"))
+
     return {k: v for k, v in out.items() if v is not None or k == "date"}
+
+
+def _save_session(client, tokenstore):
+    """Persist the auth tokens across garminconnect/garth versions (the attribute moved around)."""
+    candidates = []
+    garth_attr = getattr(client, "garth", None)
+    if garth_attr is not None and hasattr(garth_attr, "dump"):
+        candidates.append(lambda: garth_attr.dump(tokenstore))
+    try:
+        import garth
+
+        if hasattr(garth, "save"):
+            candidates.append(lambda: garth.save(tokenstore))
+        garth_client = getattr(garth, "client", None)
+        if garth_client is not None and hasattr(garth_client, "dump"):
+            candidates.append(lambda: garth_client.dump(tokenstore))
+    except ImportError:
+        pass
+    for attempt in candidates:
+        try:
+            attempt()
+            return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
 
 
 def connect():
@@ -104,11 +134,10 @@ def connect():
     except Exception:  # noqa: BLE001 - no/expired token -> fall through to a full login
         client = Garmin(email, password)
         client.login()
-        try:
-            client.garth.dump(tokenstore)
+        if _save_session(client, tokenstore):
             print(f"Garmin: logged in; session saved to {tokenstore}", file=sys.stderr)
-        except Exception as e:  # noqa: BLE001
-            print(f"Garmin: logged in (could not save session: {e})", file=sys.stderr)
+        else:
+            print("Garmin: logged in (session not cached; re-login each run may hit rate limits)", file=sys.stderr)
         return client
 
 
