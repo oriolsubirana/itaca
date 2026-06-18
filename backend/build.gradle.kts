@@ -103,3 +103,24 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt> {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// Dev convenience: `./gradlew bootRun` loads env vars from the repo-root .env / .env.local
+// (KEY=value, # comments, blanks and empty values skipped) so you don't re-export secrets each
+// restart. Same files docker-compose reads. Only affects bootRun — never tests nor the jar; real
+// environment variables still win. Resolve paths at configuration time (configuration-cache safe),
+// read them at execution time.
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    val envFiles = listOf(file("../.env"), file("../.env.local"))
+    doFirst {
+        envFiles.filter { it.exists() }.forEach { envFile ->
+            envFile.readLines().forEach { raw ->
+                val line = raw.trim()
+                if (line.isNotEmpty() && !line.startsWith("#") && line.contains("=")) {
+                    val key = line.substringBefore("=").trim()
+                    val value = line.substringAfter("=").trim()
+                    if (key.isNotEmpty() && value.isNotEmpty()) environment(key, value)
+                }
+            }
+        }
+    }
+}

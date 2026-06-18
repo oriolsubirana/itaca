@@ -100,6 +100,7 @@ integration point, configuration property, annotation or artifact name:
 cd backend && ./gradlew build         # compile + ktlint + detekt + full tests (needs Docker)
 cd backend && ./gradlew ktlintFormat  # auto-fix formatting
 cd backend && ./gradlew bootRun       # needs Postgres: docker compose up -d postgres
+                                      # bootRun loads env vars from repo-root .env / .env.local
 cd frontend && npm run lint           # eslint
 cd frontend && npm run build          # typecheck + vite build
 cd frontend && npm run generate:api   # regenerate TS client from running backend
