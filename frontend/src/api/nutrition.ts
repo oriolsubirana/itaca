@@ -7,13 +7,16 @@ export interface Meal {
   description: string;
   onPlan: boolean | null;
   calories: number | null;
+  macros: string | null;
   notes: string | null;
+  loggedAt: string; // ISO instant the meal was logged
 }
 
-/** Claude's read of a meal photo — a proposal the user reviews before saving. */
+/** Claude's read of a meal (photo or text) — a proposal the user reviews before saving. */
 export interface MealAnalysis {
   description: string;
   calories: number | null;
+  macros: string | null;
   mealType: string;
   onPlan: boolean;
 }
@@ -30,10 +33,19 @@ export interface LogMealBody {
   description: string;
   onPlan?: boolean | null;
   calories?: number | null;
+  macros?: string | null;
   notes?: string | null;
 }
 
 export const getMeals = (days = 14) => api<MealsSummary>(`/nutrition/meals?days=${days}`);
+
+/** Asks Claude to estimate calories/macros/adherence from a free-text description (not saved yet). */
+export const estimateMealText = (description: string) =>
+  api<MealAnalysis>("/nutrition/meals/estimate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description }),
+  });
 
 /** Uploads a meal photo for Claude to analyse into a reviewable proposal (not saved yet). */
 export async function analyzeMealPhoto(file: File): Promise<MealAnalysis> {

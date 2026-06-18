@@ -23,7 +23,7 @@ class NutritionServiceIntegrationTest {
         onPlan: Boolean?,
         calories: Int? = null,
         date: String? = null,
-    ): MealResult = nutrition.logMeal(type, desc, onPlan = onPlan, calories = calories, date = date, notes = null)
+    ): MealResult = nutrition.logMeal(type, desc, onPlan, calories, null, date, null)
 
     @Test
     fun `logs meals with calories and reports anti-inflammatory paleo adherence`() {

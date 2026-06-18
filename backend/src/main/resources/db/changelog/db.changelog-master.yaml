@@ -69,3 +69,5 @@ databaseChangeLog:
       file: db/changelog/060-nutrition-schema.sql
   - include:
       file: db/changelog/061-nutrition-calories.sql
+  - include:
+      file: db/changelog/062-nutrition-macros.sql

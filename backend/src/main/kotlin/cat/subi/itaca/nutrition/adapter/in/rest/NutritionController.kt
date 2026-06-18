@@ -28,6 +28,7 @@ data class LogMealRequest(
     val description: String = "",
     val onPlan: Boolean? = null,
     val calories: Int? = null,
+    val macros: String? = null,
     val notes: String? = null,
 ) {
     fun toCommand(): MealCommand =
@@ -37,9 +38,14 @@ data class LogMealRequest(
             description = description,
             onPlan = onPlan,
             calories = calories,
+            macros = macros,
             notes = notes,
         )
 }
+
+data class EstimateRequest(
+    val description: String = "",
+)
 
 @RestController
 @RequestMapping("/api/nutrition")
@@ -64,6 +70,15 @@ class NutritionController(
     ): MealAnalysis {
         require(!file.isEmpty) { "Empty file" }
         return nutrition.analyzePhoto(file.bytes, file.contentType ?: "image/jpeg")
+    }
+
+    /** Estimates calories/macros/adherence from a free-text description; the client reviews, then POSTs to /meals. */
+    @PostMapping("/meals/estimate")
+    fun estimate(
+        @RequestBody request: EstimateRequest,
+    ): MealAnalysis {
+        require(request.description.isNotBlank()) { "description cannot be blank" }
+        return nutrition.estimateFromText(request.description)
     }
 
     @DeleteMapping("/meals/{id}")

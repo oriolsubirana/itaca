@@ -1,17 +1,7 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Listbox,
-  ListboxButton,
-  ListboxOption,
-  ListboxOptions,
-  Tab,
-  TabGroup,
-  TabList,
-  TabPanel,
-  TabPanels,
-} from "@headlessui/react";
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
@@ -33,6 +23,7 @@ import {
 import {
   analyzeMealPhoto,
   deleteMeal,
+  estimateMealText,
   getMeals,
   logMeal,
   MEAL_LABELS,
@@ -345,144 +336,255 @@ function ArchivoTab() {
 
 // ── Comidas tab ─────────────────────────────────────────────────────────────
 
+const DAILY_KCAL_TARGET = 2600;
+
+function mealTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function ComidasTab() {
   const queryClient = useQueryClient();
   const meals = useQuery({ queryKey: ["meals"], queryFn: () => getMeals(14) });
-  const [adding, setAdding] = useState(false);
-  const [prefill, setPrefill] = useState<MealAnalysis | null>(null);
-  const photoInput = useRef<HTMLInputElement>(null);
+  const [add, setAdd] = useState(false);
+  const [detail, setDetail] = useState<Meal | null>(null);
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["meals"] });
-  const remove = useMutation({ mutationFn: deleteMeal, onSuccess: invalidate });
-  const analyze = useMutation({ mutationFn: analyzeMealPhoto, onSuccess: (a) => setPrefill(a) });
+  const remove = useMutation({
+    mutationFn: deleteMeal,
+    onSuccess: () => {
+      invalidate();
+      setDetail(null);
+    },
+  });
 
-  const data = meals.data;
-  const grouped = (data?.meals ?? []).reduce<Record<string, Meal[]>>((acc, m) => {
+  const all = meals.data?.meals ?? [];
+  const todayIso = today();
+  const todayMeals = all.filter((m) => m.date === todayIso);
+  const past = all.filter((m) => m.date !== todayIso);
+  const pastGroups = past.reduce<Record<string, Meal[]>>((acc, m) => {
     (acc[m.date] ??= []).push(m);
     return acc;
   }, {});
-
-  const closeModal = () => {
-    setAdding(false);
-    setPrefill(null);
-  };
+  const todayTotal = todayMeals.reduce((s, m) => s + (m.calories ?? 0), 0);
+  const pct = Math.min(100, (todayTotal / DAILY_KCAL_TARGET) * 100);
 
   return (
-    <div className="space-y-7 pt-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[22px] font-medium leading-none tabular-nums text-ink">
-            {data ? `${data.onPlan}/${data.total}` : "—"}
+    <div className="space-y-9 pt-5">
+      <section>
+        <SectionLabel>Hoy</SectionLabel>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[40px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink">
+            {todayTotal.toLocaleString("de-DE")}
+          </span>
+          <span className="text-[15px] text-ink-soft">/ {DAILY_KCAL_TARGET.toLocaleString("de-DE")} kcal</span>
+        </div>
+        <div className="mt-2.5 text-[13px] text-ink-soft">
+          {todayMeals.length} comida{todayMeals.length === 1 ? "" : "s"} ·{" "}
+          {Math.max(0, DAILY_KCAL_TARGET - todayTotal).toLocaleString("de-DE")} kcal restantes
+        </div>
+        <div className="mt-4 h-[3px] overflow-hidden rounded-full bg-line">
+          <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+        </div>
+      </section>
+
+      <div className="border-t border-line" />
+
+      <section>
+        <SectionLabel>Orientación</SectionLabel>
+        <p className="text-[14px] leading-relaxed text-ink">
+          Pídele a Ítaca en el chat «¿qué ceno hoy?» o «hoy hago bici larga, ¿qué como?» y te propone según tu
+          entreno y la pauta paleo antiinflamatoria.
+        </p>
+      </section>
+
+      <div className="border-t border-line" />
+
+      <section>
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-xs uppercase tracking-[0.12em] text-ink-soft">Comidas de hoy</h2>
+          <button onClick={() => setAdd(true)} className="text-[12px] text-ink hover:text-ink/70">
+            + Añadir
+          </button>
+        </div>
+        {todayMeals.length === 0 ? (
+          <p className="text-sm text-ink-soft">Aún no has registrado nada hoy.</p>
+        ) : (
+          <div>
+            {todayMeals.map((m) => (
+              <MealRow key={m.id} m={m} onOpen={setDetail} />
+            ))}
           </div>
-          <div className="mt-1.5 text-[11px] uppercase tracking-wide text-ink-soft">En pauta · últimos 14 días</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => photoInput.current?.click()}
-            disabled={analyze.isPending}
-            aria-label="Subir foto de comida"
-            className="flex size-11 items-center justify-center rounded-full border border-ink/80 text-ink transition-colors hover:bg-ink hover:text-paper disabled:opacity-40"
-          >
-            {analyze.isPending ? (
-              <span className="text-[11px]">…</span>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-5">
-                <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" strokeLinejoin="round" />
-                <circle cx="12" cy="12.5" r="3.2" />
-              </svg>
-            )}
-          </button>
-          <button
-            onClick={() => setAdding(true)}
-            className="h-11 rounded-full bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
-          >
-            + Comida
-          </button>
-        </div>
-      </div>
-      <input
-        ref={photoInput}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) analyze.mutate(file);
-          e.target.value = "";
-        }}
-      />
-      {analyze.isError && <p className="text-[13px] text-clinical">No pude analizar la foto.</p>}
+        )}
+        <button
+          onClick={() => setAdd(true)}
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-ink/80 text-[15px] font-medium text-ink transition-colors hover:bg-ink hover:text-paper"
+        >
+          <CameraIcon /> Añadir comida con foto
+        </button>
+      </section>
 
-      <p className="rounded-md border border-line bg-line/[0.15] px-4 py-3 text-[13px] leading-relaxed text-ink-soft">
-        Sube una foto del plato y Claude detecta qué es y las calorías (estimadas) para que revises, o pregúntale en
-        el chat «¿qué ceno hoy?» según tu entreno y la pauta paleo antiinflamatoria.
-      </p>
-
-      {data && data.total === 0 && <p className="text-sm text-ink-soft">Aún no has registrado ninguna comida.</p>}
-
-      {Object.entries(grouped).map(([date, dayMeals]) => (
-        <div key={date}>
-          <h3 className="mb-2 text-xs uppercase tracking-[0.12em] text-ink-soft">
-            {weekday(date)}. {shortDate(date)}
-          </h3>
-          {dayMeals.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => {
-                if (window.confirm("¿Eliminar esta comida?")) remove.mutate(m.id);
-              }}
-              className="flex w-full items-start gap-3 border-b border-line py-3 text-left last:border-b-0"
-            >
-              {m.onPlan != null && (
-                <span
-                  className={`mt-[7px] size-1.5 shrink-0 rounded-full ${m.onPlan ? "bg-income" : "bg-clinical"}`}
-                  aria-label={m.onPlan ? "En pauta" : "Fuera de pauta"}
-                />
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] text-ink">{m.description}</span>
-                <span className="mt-0.5 block text-[12px] uppercase tracking-[0.06em] text-ink-soft">
-                  {MEAL_LABELS[m.mealType] ?? m.mealType}
-                  {m.calories != null ? ` · ${m.calories} kcal` : ""}
-                  {m.notes ? ` · ${m.notes}` : ""}
-                </span>
-              </span>
-            </button>
+      {Object.keys(pastGroups).length > 0 && (
+        <section>
+          <SectionLabel>Días anteriores</SectionLabel>
+          {Object.entries(pastGroups).map(([date, dayMeals]) => (
+            <div key={date} className="mb-4">
+              <h3 className="mb-1 text-[11px] uppercase tracking-[0.1em] text-ink-soft">
+                {weekday(date)}. {shortDate(date)} ·{" "}
+                {dayMeals.reduce((s, m) => s + (m.calories ?? 0), 0).toLocaleString("de-DE")} kcal
+              </h3>
+              {dayMeals.map((m) => (
+                <MealRow key={m.id} m={m} onOpen={setDetail} />
+              ))}
+            </div>
           ))}
-        </div>
-      ))}
+        </section>
+      )}
 
-      {(adding || prefill) && (
-        <MealModal
-          initial={prefill}
-          onClose={closeModal}
-          onSaved={() => {
-            invalidate();
-            closeModal();
-          }}
-        />
+      {add && (
+        <Modal title="Añadir comida" onClose={() => setAdd(false)}>
+          <MealUploader
+            onSaved={() => {
+              invalidate();
+              setAdd(false);
+            }}
+          />
+        </Modal>
+      )}
+      {detail && (
+        <Modal title={MEAL_LABELS[detail.mealType] ?? detail.mealType} onClose={() => setDetail(null)}>
+          <MealDetail m={detail} onDelete={() => remove.mutate(detail.id)} deleting={remove.isPending} />
+        </Modal>
       )}
     </div>
   );
 }
 
-function MealModal({
-  initial,
-  onClose,
-  onSaved,
-}: {
-  initial?: MealAnalysis | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [date, setDate] = useState(today());
-  const [mealType, setMealType] = useState(initial?.mealType ?? "dinner");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [onPlan, setOnPlan] = useState(initial?.onPlan ?? true);
-  const [calories, setCalories] = useState(initial?.calories != null ? String(initial.calories) : "");
-  const [notes, setNotes] = useState("");
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-[18px]">
+      <path
+        d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12.5" r="3.2" />
+    </svg>
+  );
+}
 
+function MealThumb({ size = 48 }: { size?: number }) {
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center rounded-[8px] border border-line bg-line/20 text-ink-soft"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        style={{ width: size * 0.42, height: size * 0.42 }}
+      >
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 3.5v8.5l5 3" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function MealRow({ m, onOpen }: { m: Meal; onOpen: (m: Meal) => void }) {
+  return (
+    <button
+      onClick={() => onOpen(m)}
+      className="-mx-1 flex min-h-[44px] w-full items-center gap-3 rounded-[3px] border-b border-line px-1 py-3 text-left hover:bg-line/20"
+    >
+      <MealThumb />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[15px] text-ink">{MEAL_LABELS[m.mealType] ?? m.mealType}</span>
+          <span className="text-[12px] text-ink-soft">{mealTime(m.loggedAt)}</span>
+          {m.onPlan === false && <span className="size-1.5 rounded-full bg-clinical" aria-label="Fuera de pauta" />}
+        </div>
+        <div className="mt-0.5 truncate text-[13px] text-ink-soft">{m.description}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 pl-1">
+        <span className="text-[14px] tabular-nums text-ink">
+          {m.calories ?? "—"}
+          <span className="ml-0.5 text-[11px] text-ink-soft">kcal</span>
+        </span>
+        <IChevRight className="text-ink-soft" />
+      </div>
+    </button>
+  );
+}
+
+function MealDetail({ m, onDelete, deleting }: { m: Meal; onDelete: () => void; deleting: boolean }) {
+  return (
+    <div>
+      <MealThumb size={64} />
+      <div className="mt-4 text-[15px] leading-relaxed text-ink">{m.description}</div>
+      <div className="mt-5 flex items-end justify-between">
+        <div>
+          <div className="text-[30px] font-semibold leading-none tabular-nums text-ink">
+            {m.calories ?? "—"}
+            <span className="ml-1.5 text-[14px] font-normal text-ink-soft">kcal</span>
+          </div>
+          {m.macros && <div className="mt-2 text-[13px] tabular-nums text-ink-soft">{m.macros} · g</div>}
+        </div>
+        <span className="text-[12px] text-ink-soft">
+          {MEAL_LABELS[m.mealType] ?? m.mealType} · {mealTime(m.loggedAt)}
+          {m.onPlan != null ? (m.onPlan ? " · en pauta" : " · fuera") : ""}
+        </span>
+      </div>
+      {m.notes && <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">{m.notes}</p>}
+      <p className="mt-5 border-t border-line pt-4 text-[11.5px] leading-relaxed text-ink-soft">
+        Calorías y macros son una estimación aproximada. Ítaca registra y muestra; no sustituye una valoración
+        nutricional.
+      </p>
+      <button
+        onClick={onDelete}
+        disabled={deleting}
+        className="mt-4 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+      >
+        Eliminar comida
+      </button>
+    </div>
+  );
+}
+
+// ── Añadir comida: foto → analizar / a mano, revisar y guardar ───────────────
+
+function MealUploader({ onSaved }: { onSaved: () => void }) {
+  const [step, setStep] = useState<"pick" | "analyzing" | "form">("pick");
+  const [date, setDate] = useState(today());
+  const [mealType, setMealType] = useState("lunch");
+  const [description, setDescription] = useState("");
+  const [calories, setCalories] = useState("");
+  const [macros, setMacros] = useState<string | null>(null);
+  const [onPlan, setOnPlan] = useState(true);
+  const [fromPhoto, setFromPhoto] = useState(false);
+
+  const applyAnalysis = (a: MealAnalysis) => {
+    setDescription(a.description);
+    setCalories(a.calories != null ? String(a.calories) : "");
+    setMacros(a.macros);
+    setMealType(a.mealType in MEAL_LABELS ? a.mealType : "lunch");
+    setOnPlan(a.onPlan);
+  };
+
+  const analyze = useMutation({
+    mutationFn: analyzeMealPhoto,
+    onSuccess: (a) => {
+      applyAnalysis(a);
+      setFromPhoto(true);
+      setStep("form");
+    },
+    onError: () => setStep("pick"),
+  });
+  const estimate = useMutation({
+    mutationFn: () => estimateMealText(description.trim()),
+    onSuccess: applyAnalysis,
+  });
   const save = useMutation({
     mutationFn: () =>
       logMeal({
@@ -491,50 +593,109 @@ function MealModal({
         description: description.trim(),
         onPlan,
         calories: calories.trim() === "" ? null : Number(calories),
-        notes: notes.trim() || null,
+        macros,
       }),
     onSuccess: onSaved,
   });
 
+  if (step === "analyzing") {
+    return (
+      <div className="flex flex-col items-center py-8 text-center">
+        <MealThumb size={88} />
+        <div className="mt-5 text-[15px] text-ink">Analizando la foto…</div>
+        <div className="mt-1.5 text-[13px] text-ink-soft">Identificando alimentos y estimando kcal</div>
+      </div>
+    );
+  }
+
+  if (step === "pick") {
+    return (
+      <div>
+        <label className="block">
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setStep("analyzing");
+                analyze.mutate(file);
+              }
+              e.target.value = "";
+            }}
+          />
+          <div className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-[10px] border border-dashed border-line transition-colors hover:border-ink/30">
+            <CameraIcon />
+            <span className="text-[15px] text-ink">Sube o haz una foto del plato</span>
+            <span className="text-[12px] text-ink-soft">Ítaca estimará qué es y las kcal</span>
+          </div>
+        </label>
+        {analyze.isError && <p className="mt-2 text-[13px] text-clinical">No pude analizar la foto.</p>}
+        <button
+          onClick={() => setStep("form")}
+          className="mt-3 h-11 w-full rounded-md border border-line text-[14px] text-ink hover:bg-line/40"
+        >
+          Añadir a mano
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <Modal title={initial ? "Revisar comida" : "Registrar comida"} onClose={onClose}>
-      {initial && (
+    <div>
+      {fromPhoto && (
         <p className="mb-4 rounded-md border border-line bg-line/[0.15] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink-soft">
-          Detectado de la foto. Revisa y corrige antes de guardar; las calorías son una estimación.
+          Detectado de la foto. Revisa y corrige antes de guardar.
         </p>
       )}
-      <Field label="Tipo">
-        <Listbox value={mealType} onChange={setMealType}>
-          <div className="relative">
-            <ListboxButton className="flex min-h-11 w-full items-center justify-between rounded-lg border border-line bg-paper px-4 text-base text-ink">
-              {MEAL_LABELS[mealType]}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-4 text-ink-soft">
-                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </ListboxButton>
-            <ListboxOptions className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-line bg-paper py-1 shadow-[0_8px_28px_rgba(28,28,26,0.12)]">
-              {MEAL_TYPES.map((m) => (
-                <ListboxOption
-                  key={m.code}
-                  value={m.code}
-                  className="cursor-pointer px-4 py-2.5 text-base text-ink data-[focus]:bg-line/50 data-[selected]:font-medium"
-                >
-                  {m.label}
-                </ListboxOption>
-              ))}
-            </ListboxOptions>
-          </div>
-        </Listbox>
-      </Field>
-
       <Field label="Qué has comido">
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          placeholder="Ej.: salmón al horno con brócoli y boniato"
+          placeholder="Ej.: arroz, pollo a la plancha y verduras"
           className="w-full rounded-lg border border-line bg-paper px-4 py-2.5 text-base outline-none focus:border-ink-soft"
         />
+        {!fromPhoto && (
+          <button
+            onClick={() => estimate.mutate()}
+            disabled={!description.trim() || estimate.isPending}
+            className="mt-2 text-[13px] text-ink-soft hover:text-ink disabled:opacity-50"
+          >
+            {estimate.isPending ? "Estimando…" : "✨ Estimar kcal y macros con IA"}
+          </button>
+        )}
+      </Field>
+
+      <Field label="Calorías (kcal)">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={calories}
+          onChange={(e) => setCalories(e.target.value)}
+          placeholder="Ej. 650"
+          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base tabular-nums outline-none focus:border-ink-soft"
+        />
+        {macros && <div className="mt-1.5 text-[12px] tabular-nums text-ink-soft">{macros} · g</div>}
+      </Field>
+
+      <Field label="Comida">
+        <div className="flex gap-1.5">
+          {MEAL_TYPES.map((t) => (
+            <button
+              key={t.code}
+              onClick={() => setMealType(t.code)}
+              className={`h-10 flex-1 rounded-md text-[13px] transition-colors ${
+                mealType === t.code ? "bg-ink text-paper" : "border border-line text-ink hover:bg-line/40"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </Field>
 
       <Field label="Fecha">
@@ -563,36 +724,17 @@ function MealModal({
         </div>
       </Field>
 
-      <Field label="Calorías estimadas (kcal)">
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          value={calories}
-          onChange={(e) => setCalories(e.target.value)}
-          placeholder="Opcional"
-          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base tabular-nums outline-none focus:border-ink-soft"
-        />
-      </Field>
-
-      <Field label="Notas">
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          placeholder="Opcional"
-          className="w-full rounded-lg border border-line bg-paper px-4 py-2.5 text-base outline-none focus:border-ink-soft"
-        />
-      </Field>
-
       <button
         onClick={() => save.mutate()}
         disabled={!description.trim() || save.isPending}
-        className="mt-2 min-h-12 w-full rounded-lg bg-ink text-sm text-paper disabled:opacity-40"
+        className="mt-2 h-12 w-full rounded-md bg-ink text-[15px] font-medium text-paper hover:bg-ink/90 disabled:opacity-30"
       >
         Guardar comida
       </button>
-    </Modal>
+      <p className="mt-3 text-[11.5px] leading-relaxed text-ink-soft">
+        Estimación aproximada. Puedes ajustarla más adelante.
+      </p>
+    </div>
   );
 }
 

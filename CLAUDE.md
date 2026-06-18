@@ -130,11 +130,16 @@ prepared by `.claude/hooks/session-start.sh`.
   and active flares (`query_health`), follows the anti-inflammatory paleo profile, and logs
   what the user ate via `log_meal` (setting `onPlan`). The health rule still holds: these are
   food proposals, not medical treatment — clinical questions go to the gastroenterologist.
-- Photo logging (Comidas tab only): `POST /api/nutrition/meals/photo` runs Claude vision
-  (`MealPhotoAnalyzer` port → `AnthropicMealPhotoAnalyzer`, model `itaca.nutrition.vision-model`,
-  default haiku) and returns a `MealAnalysis` proposal (description, estimated calories, type,
-  on-plan) WITHOUT saving — the user reviews/edits it in the modal, then POSTs to `/meals`.
-  `meals.calories` is nullable; calories are an estimate, not a medical figure.
+- Photo & text estimation (Comidas tab): one `MealAnalyzer` port → `AnthropicMealAnalyzer`
+  (model `itaca.nutrition.vision-model`, default haiku) with `fromPhoto` (Claude vision via
+  `POST /api/nutrition/meals/photo`) and `fromText` (`POST /api/nutrition/meals/estimate`).
+  Both return a `MealAnalysis` proposal (description, estimated `calories`, `macros` string,
+  type, on-plan) WITHOUT saving — the user reviews/edits in the modal, then POSTs to `/meals`.
+  `meals.calories`/`macros` are nullable estimates, not medical figures.
+- Comidas tab design (Claude-design port): today's total vs a `DAILY_KCAL_TARGET` with a progress
+  bar, "Comidas de hoy" + "Días anteriores" lists, a meal-detail sheet (kcal/macros/source note),
+  and an add sheet that branches photo → analyse vs "a mano" (with the ✨ text-estimate button).
+  The add form keeps a date field (default today) so past days can be logged.
 
 ### Chat architecture (phase 2)
 

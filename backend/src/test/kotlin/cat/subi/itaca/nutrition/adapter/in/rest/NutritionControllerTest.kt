@@ -5,7 +5,7 @@ package cat.subi.itaca.nutrition.adapter.`in`.rest
 
 import cat.subi.itaca.TestcontainersConfiguration
 import cat.subi.itaca.nutrition.application.MealAnalysis
-import cat.subi.itaca.nutrition.application.MealPhotoAnalyzer
+import cat.subi.itaca.nutrition.application.MealAnalyzer
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -61,16 +61,39 @@ class NutritionControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.description").value("Salmón a la plancha con brócoli"))
             .andExpect(jsonPath("$.calories").value(600))
+            .andExpect(jsonPath("$.macros").value("P 42 · C 20 · G 25"))
             .andExpect(jsonPath("$.mealType").value("dinner"))
             .andExpect(jsonPath("$.onPlan").value(true))
     }
 
-    /** Replaces the real Anthropic vision adapter so the endpoint test makes no API call. */
+    @Test
+    fun `estimates calories and macros from a text description`() {
+        mockMvc
+            .perform(
+                post("/api/nutrition/meals/estimate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"description":"Arroz con pollo y verduras"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.calories").value(540))
+            .andExpect(jsonPath("$.macros").value("P 30 · C 60 · G 15"))
+    }
+
+    /** Replaces the real Anthropic analyzer so the endpoint tests make no API call. */
     @TestConfiguration
     class StubAnalyzer {
+        private val photo = MealAnalysis("Salmón a la plancha con brócoli", 600, "P 42 · C 20 · G 25", "dinner", true)
+        private val text = MealAnalysis("Arroz con pollo", 540, "P 30 · C 60 · G 15", "lunch", true)
+
         @Bean
         @Primary
-        fun stubMealPhotoAnalyzer(): MealPhotoAnalyzer =
-            MealPhotoAnalyzer { _, _ -> MealAnalysis("Salmón a la plancha con brócoli", 600, "dinner", true) }
+        fun stubMealAnalyzer(): MealAnalyzer =
+            object : MealAnalyzer {
+                override fun fromPhoto(
+                    image: ByteArray,
+                    mimeType: String,
+                ): MealAnalysis = photo
+
+                override fun fromText(description: String): MealAnalysis = text
+            }
     }
 }
