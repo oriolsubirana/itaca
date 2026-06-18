@@ -70,7 +70,7 @@ integration point, configuration property, annotation or artifact name:
 ## Architecture rules
 
 - Bounded contexts = Modulith modules: `training`, `health`, `finance`, `chat`,
-  `ingestion`, `nutrition`, `profile`, `shared` (only open module). No direct references or FKs across
+  `ingestion`, `nutrition`, `profile`, `wellness`, `shared` (only open module). No direct references or FKs across
   contexts; communicate via Modulith events (JDBC registry = outbox). Verified by
   `ModularityTests` — keep it green.
 - Hexagonal per context: `domain` / `application` / `adapter/in/rest`,
@@ -119,6 +119,7 @@ prepared by `.claude/hooks/session-start.sh`.
 4. Home/dashboard · 5. ✅ Finance (CSV import) · 6. ✅ Ingestion (`/api/ingest`)
 7. ✅ Nutrition (anti-inflammatory paleo: chat proposals adjusted to training/flares + meal logging)
 8. ✅ Profile (anthropometrics → Mifflin-St Jeor calorie target, training/flare-aware)
+9. ✅ Wellness (daily Garmin metrics: sleep/HRV/recovery via an external sync → `/api/wellness`)
 
 ### Nutrition architecture (phase 7)
 
@@ -155,6 +156,20 @@ prepared by `.claude/hooks/session-start.sh`.
 - Perfil screen (Claude-design port) opens from a profile icon in the Home header (not a 6th
   tab). The Mifflin-St Jeor calc is mirrored in `api/profile.ts` for live editing; the backend
   stays the source of truth (recomputes on save). It's orientation, not a medical prescription.
+
+### Wellness architecture (phase 9)
+
+- Own bounded context `wellness`; `daily_wellness` table, one row per date (sleep stages/score,
+  overnight HRV + status, resting HR, stress, body battery, steps, SpO2, respiration). `WellnessService`
+  is a `ChatTools` impl exposing `query_wellness` (read-only) and `upsert` (idempotent on the date,
+  `INSERT … ON CONFLICT (date) DO UPDATE`).
+- Garmin has no usable individual API and Strava doesn't carry sleep/HRV, so the data is pushed by an
+  EXTERNAL unofficial sync, NOT pulled by the backend: `tools/garmin-sync/sync.py` (the `garminconnect`
+  library) + a GitHub Action POST to `/api/wellness/daily`. Ítaca never stores Garmin credentials —
+  they live in the script's env / Action secrets. The metric extraction is defensive (private API shape
+  drifts between library versions; missing fields → null).
+- Health rule still applies: the chat describes the metrics (and may correlate with training/flares),
+  never diagnoses.
 
 ### Chat architecture (phase 2)
 

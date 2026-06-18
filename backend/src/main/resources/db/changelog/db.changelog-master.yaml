@@ -73,3 +73,5 @@ databaseChangeLog:
       file: db/changelog/062-nutrition-macros.sql
   - include:
       file: db/changelog/070-profile-schema.sql
+  - include:
+      file: db/changelog/080-wellness-schema.sql

@@ -1,0 +1,29 @@
+name: Garmin wellness sync
+
+# Daily pull of Garmin sleep/HRV/recovery into Ítaca. Needs repo secrets:
+# GARMIN_EMAIL, GARMIN_PASSWORD, ITACA_URL, ITACA_API_TOKEN.
+on:
+  schedule:
+    - cron: "30 6 * * *" # 06:30 UTC daily (after the night's data is in Garmin)
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many past days to backfill"
+        default: "1"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r tools/garmin-sync/requirements.txt
+      - run: python tools/garmin-sync/sync.py
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          ITACA_URL: ${{ secrets.ITACA_URL }}
+          ITACA_API_TOKEN: ${{ secrets.ITACA_API_TOKEN }}
+          DAYS: ${{ github.event.inputs.days || '1' }}

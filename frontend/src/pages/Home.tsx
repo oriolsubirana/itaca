@@ -5,6 +5,7 @@ import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
 import { getFinanceOverview } from "../api/finance";
+import { getWellness, sleepLabel } from "../api/wellness";
 import { balance, daysSince, routineLabel, today } from "../lib/format";
 
 function greeting(): string {
@@ -52,6 +53,7 @@ export function Home() {
       <div className="space-y-8">
         <SaludBlock onOpen={openChat} />
         <div className="border-t border-line" />
+        <DescansoBlock onOpen={openChat} />
         <EntrenoBlock onOpen={openChat} />
         <div className="border-t border-line" />
         <FinanzasBlock />
@@ -195,6 +197,32 @@ function SaludBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => 
         </div>
       )}
     </section>
+  );
+}
+
+function DescansoBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => void }) {
+  const wellness = useQuery({ queryKey: ["wellness"], queryFn: () => getWellness(14) });
+  const last = wellness.data?.days?.[0];
+  if (!last || (last.sleepMinutes == null && last.hrvAvgMs == null && last.restingHr == null)) return null;
+  return (
+    <>
+      <section>
+        <SecHead title="Descanso" onClick={() => onOpen("¿Cómo he dormido y cómo va mi HRV esta semana?")} />
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-soft">Anoche</div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-medium leading-none tabular-nums text-ink">{sleepLabel(last.sleepMinutes)}</span>
+            {last.sleepScore != null && <span className="text-[13px] text-ink-soft">score {last.sleepScore}</span>}
+          </div>
+          <div className="mt-2 text-[13px] text-ink-soft">
+            {last.hrvAvgMs != null && `HRV ${last.hrvAvgMs} ms${last.hrvStatus ? ` · ${last.hrvStatus}` : ""}`}
+            {last.hrvAvgMs != null && last.restingHr != null && " · "}
+            {last.restingHr != null && `FC reposo ${last.restingHr}`}
+          </div>
+        </div>
+      </section>
+      <div className="border-t border-line" />
+    </>
   );
 }
 
