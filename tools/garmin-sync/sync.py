@@ -94,51 +94,25 @@ def metrics_for(client, date_str):
     return {k: v for k, v in out.items() if v is not None or k == "date"}
 
 
-def _save_session(client, tokenstore):
-    """Persist the auth tokens across garminconnect/garth versions (the attribute moved around)."""
-    candidates = []
-    garth_attr = getattr(client, "garth", None)
-    if garth_attr is not None and hasattr(garth_attr, "dump"):
-        candidates.append(lambda: garth_attr.dump(tokenstore))
-    try:
-        import garth
-
-        if hasattr(garth, "save"):
-            candidates.append(lambda: garth.save(tokenstore))
-        garth_client = getattr(garth, "client", None)
-        if garth_client is not None and hasattr(garth_client, "dump"):
-            candidates.append(lambda: garth_client.dump(tokenstore))
-    except ImportError:
-        pass
-    for attempt in candidates:
-        try:
-            attempt()
-            return True
-        except Exception:  # noqa: BLE001
-            continue
-    return False
-
-
 def connect():
-    """Resume a saved Garmin session if present (no re-login, no MFA prompt); else log in
-    fully and save the session. Caching avoids re-authenticating every run, which Garmin
-    can rate-limit or lock. First interactive run handles MFA (a code prompt on stdin)."""
+    """Resume a saved Garmin session if present (no re-login, no MFA, no rate-limit); else log
+    in fully. Passing the tokenstore to `login()` makes garminconnect persist the tokens itself,
+    so subsequent runs resume instead of re-authenticating (repeated logins trigger Garmin 429s).
+    The first interactive login handles MFA (a code prompt on stdin)."""
     email = os.environ["GARMIN_EMAIL"]
     password = os.environ["GARMIN_PASSWORD"]
     tokenstore = os.path.expanduser(os.environ.get("GARMINTOKENS", "~/.garminconnect"))
     try:
         client = Garmin()
-        client.login(tokenstore)
+        client.login(tokenstore)  # resume from saved tokens (no credentials needed)
         print(f"Garmin: resumed saved session ({tokenstore})", file=sys.stderr)
         return client
-    except Exception:  # noqa: BLE001 - no/expired token -> fall through to a full login
-        client = Garmin(email, password)
-        client.login()
-        if _save_session(client, tokenstore):
-            print(f"Garmin: logged in; session saved to {tokenstore}", file=sys.stderr)
-        else:
-            print("Garmin: logged in (session not cached; re-login each run may hit rate limits)", file=sys.stderr)
-        return client
+    except Exception:  # noqa: BLE001 - no/expired token -> full login below
+        pass
+    client = Garmin(email, password)
+    client.login(tokenstore)  # full login; garminconnect dumps the tokens to tokenstore for next time
+    print(f"Garmin: logged in; session saved to {tokenstore}", file=sys.stderr)
+    return client
 
 
 def main():
