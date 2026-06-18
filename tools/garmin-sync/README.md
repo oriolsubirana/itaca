@@ -16,8 +16,8 @@ script (your machine's env, or GitHub Action secrets).
 
 ```bash
 cd tools/garmin-sync
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv .venv && source .venv/bin/activate   # macOS: use python3 to create the venv
+pip install -r requirements.txt                       # inside the venv, pip/python resolve fine
 
 export GARMIN_EMAIL="you@example.com"
 export GARMIN_PASSWORD="…"
@@ -27,6 +27,11 @@ export DAYS=1                                     # 1 = yesterday; bump to backf
 
 python sync.py
 ```
+
+To test just the Garmin login + fetch (no Ítaca needed), set `DRY_RUN=1` and it
+prints the metrics instead of posting. With 2FA, the first run prompts for a code
+on the console and then caches the session (`GARMINTOKENS`, default `~/.garminconnect`),
+so later runs don't re-login.
 
 Schedule it daily with cron, or use the bundled GitHub Action
 (`.github/workflows/garmin-sync.yml`) — add the four values above as repository
