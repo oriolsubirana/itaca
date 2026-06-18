@@ -89,28 +89,55 @@ def metrics_for(client, date_str):
     return {k: v for k, v in out.items() if v is not None or k == "date"}
 
 
-def main():
+def connect():
+    """Resume a saved Garmin session if present (no re-login, no MFA prompt); else log in
+    fully and save the session. Caching avoids re-authenticating every run, which Garmin
+    can rate-limit or lock. First interactive run handles MFA (a code prompt on stdin)."""
     email = os.environ["GARMIN_EMAIL"]
     password = os.environ["GARMIN_PASSWORD"]
-    itaca_url = os.environ["ITACA_URL"].rstrip("/")
-    token = os.environ.get("ITACA_API_TOKEN", "")
+    tokenstore = os.path.expanduser(os.environ.get("GARMINTOKENS", "~/.garminconnect"))
+    try:
+        client = Garmin()
+        client.login(tokenstore)
+        print(f"Garmin: resumed saved session ({tokenstore})", file=sys.stderr)
+        return client
+    except Exception:  # noqa: BLE001 - no/expired token -> fall through to a full login
+        client = Garmin(email, password)
+        client.login()
+        try:
+            client.garth.dump(tokenstore)
+            print(f"Garmin: logged in; session saved to {tokenstore}", file=sys.stderr)
+        except Exception as e:  # noqa: BLE001
+            print(f"Garmin: logged in (could not save session: {e})", file=sys.stderr)
+        return client
+
+
+def main():
+    dry_run = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
     days = int(os.environ.get("DAYS", "1"))
 
-    client = Garmin(email, password)
-    client.login()
+    client = connect()
 
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    session = requests.Session()
+    if not dry_run:
+        itaca_url = os.environ["ITACA_URL"].rstrip("/")
+        token = os.environ.get("ITACA_API_TOKEN", "")
+        session.headers["Content-Type"] = "application/json"
+        if token:
+            session.headers["Authorization"] = f"Bearer {token}"
 
     today = dt.date.today()
     for i in range(1, days + 1):
         date_str = (today - dt.timedelta(days=i)).isoformat()
         print(f"Garmin {date_str}…", file=sys.stderr)
         payload = metrics_for(client, date_str)
-        r = requests.post(f"{itaca_url}/api/wellness/daily", json=payload, headers=headers, timeout=30)
+        got = sorted(k for k in payload if k != "date")
+        if dry_run:
+            print(f"  [dry-run] {date_str}: {payload}")
+            continue
+        r = session.post(f"{itaca_url}/api/wellness/daily", json=payload, timeout=30)
         r.raise_for_status()
-        print(f"  pushed {date_str}: {sorted(k for k in payload if k != 'date')}", file=sys.stderr)
+        print(f"  pushed {date_str}: {got}", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -17,15 +17,17 @@ class WellnessIntegrationTest {
     lateinit var wellness: WellnessService
 
     @Test
-    fun `upsert is idempotent on the date (re-send overwrites)`() {
+    fun `upsert is idempotent on the date and merges (new values win, omitted fields kept)`() {
         val day = LocalDate.now().minusDays(1)
         wellness.upsert(WellnessCommand(day, sleepMinutes = 440, hrvAvgMs = 60, sleepScore = 80))
+        // re-send: provided fields update; sleepScore is omitted (null) so it must be kept.
         wellness.upsert(WellnessCommand(day, sleepMinutes = 450, hrvAvgMs = 65))
 
         val rows = wellness.recent(30)
         assertEquals(1, rows.size)
         assertEquals(450, rows.single().sleepMinutes)
         assertEquals(65, rows.single().hrvAvgMs)
+        assertEquals(80, rows.single().sleepScore)
     }
 
     @Test

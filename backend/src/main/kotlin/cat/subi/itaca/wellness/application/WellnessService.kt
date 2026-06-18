@@ -78,14 +78,23 @@ class WellnessService(
                 steps, active_calories, spo2_avg, respiration_avg
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (date) DO UPDATE SET
-                sleep_minutes = EXCLUDED.sleep_minutes, deep_minutes = EXCLUDED.deep_minutes,
-                light_minutes = EXCLUDED.light_minutes, rem_minutes = EXCLUDED.rem_minutes,
-                awake_minutes = EXCLUDED.awake_minutes, sleep_score = EXCLUDED.sleep_score,
-                hrv_avg_ms = EXCLUDED.hrv_avg_ms, hrv_status = EXCLUDED.hrv_status,
-                resting_hr = EXCLUDED.resting_hr, stress_avg = EXCLUDED.stress_avg,
-                body_battery_high = EXCLUDED.body_battery_high, body_battery_low = EXCLUDED.body_battery_low,
-                steps = EXCLUDED.steps, active_calories = EXCLUDED.active_calories,
-                spo2_avg = EXCLUDED.spo2_avg, respiration_avg = EXCLUDED.respiration_avg, updated_at = now()
+                sleep_minutes = COALESCE(EXCLUDED.sleep_minutes, daily_wellness.sleep_minutes),
+                deep_minutes = COALESCE(EXCLUDED.deep_minutes, daily_wellness.deep_minutes),
+                light_minutes = COALESCE(EXCLUDED.light_minutes, daily_wellness.light_minutes),
+                rem_minutes = COALESCE(EXCLUDED.rem_minutes, daily_wellness.rem_minutes),
+                awake_minutes = COALESCE(EXCLUDED.awake_minutes, daily_wellness.awake_minutes),
+                sleep_score = COALESCE(EXCLUDED.sleep_score, daily_wellness.sleep_score),
+                hrv_avg_ms = COALESCE(EXCLUDED.hrv_avg_ms, daily_wellness.hrv_avg_ms),
+                hrv_status = COALESCE(EXCLUDED.hrv_status, daily_wellness.hrv_status),
+                resting_hr = COALESCE(EXCLUDED.resting_hr, daily_wellness.resting_hr),
+                stress_avg = COALESCE(EXCLUDED.stress_avg, daily_wellness.stress_avg),
+                body_battery_high = COALESCE(EXCLUDED.body_battery_high, daily_wellness.body_battery_high),
+                body_battery_low = COALESCE(EXCLUDED.body_battery_low, daily_wellness.body_battery_low),
+                steps = COALESCE(EXCLUDED.steps, daily_wellness.steps),
+                active_calories = COALESCE(EXCLUDED.active_calories, daily_wellness.active_calories),
+                spo2_avg = COALESCE(EXCLUDED.spo2_avg, daily_wellness.spo2_avg),
+                respiration_avg = COALESCE(EXCLUDED.respiration_avg, daily_wellness.respiration_avg),
+                updated_at = now()
             """.trimIndent(),
             java.sql.Date.valueOf(c.date),
             c.sleepMinutes,
