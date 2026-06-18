@@ -86,8 +86,9 @@ def metrics_for(client, date_str):
     except (TypeError, ValueError):
         out["respirationAvg"] = None
 
-    # SpO2 is often off the daily summary (pulse ox disabled, or a separate endpoint).
-    if out.get("spo2Avg") is None:
+    # SpO2 isn't in the daily summary unless pulse ox is enabled; the dedicated endpoint is slow
+    # and times out when it's off, so only hit it when FETCH_SPO2 is set.
+    if out.get("spo2Avg") is None and os.environ.get("FETCH_SPO2", "").lower() in ("1", "true", "yes"):
         spo2 = try_fetch(lambda: client.get_spo2_data(date_str)) or {}
         out["spo2Avg"] = as_int(dig(spo2, "averageSpO2") or dig(spo2, "averageSpo2"))
 
