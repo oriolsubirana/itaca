@@ -120,7 +120,10 @@ def main():
 
     session = requests.Session()
     if not dry_run:
-        itaca_url = os.environ["ITACA_URL"].rstrip("/")
+        itaca_url = os.environ.get("ITACA_URL")
+        if not itaca_url:
+            sys.exit("Set ITACA_URL (and ITACA_API_TOKEN) to push, or DRY_RUN=1 to just print the metrics.")
+        itaca_url = itaca_url.rstrip("/")
         token = os.environ.get("ITACA_API_TOKEN", "")
         session.headers["Content-Type"] = "application/json"
         if token:
