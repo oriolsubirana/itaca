@@ -53,7 +53,7 @@ export function Home() {
       <div className="space-y-8">
         <SaludBlock onOpen={openChat} />
         <div className="border-t border-line" />
-        <DescansoBlock onOpen={openChat} />
+        <DescansoBlock />
         <EntrenoBlock onOpen={openChat} />
         <div className="border-t border-line" />
         <FinanzasBlock />
@@ -200,14 +200,15 @@ function SaludBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => 
   );
 }
 
-function DescansoBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => void }) {
+function DescansoBlock() {
+  const navigate = useNavigate();
   const wellness = useQuery({ queryKey: ["wellness"], queryFn: () => getWellness(14) });
   const last = wellness.data?.days?.[0];
   if (!last || (last.sleepMinutes == null && last.hrvAvgMs == null && last.restingHr == null)) return null;
   return (
     <>
       <section>
-        <SecHead title="Descanso" onClick={() => onOpen("¿Cómo he dormido y cómo va mi HRV esta semana?")} />
+        <SecHead title="Descanso" onClick={() => void navigate({ to: "/descanso" })} />
         <div>
           <div className="text-[11px] uppercase tracking-wide text-ink-soft">Anoche</div>
           <div className="mt-1.5 flex items-baseline gap-2">

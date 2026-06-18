@@ -11,6 +11,7 @@ import { Gym } from "./pages/Gym";
 import { Finanzas } from "./pages/Finanzas";
 import { Entradas } from "./pages/Entradas";
 import { Perfil } from "./pages/Perfil";
+import { Descanso } from "./pages/Descanso";
 
 const rootRoute = createRootRoute({ component: Layout });
 
@@ -30,6 +31,7 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/finanzas", component: Finanzas }),
   createRoute({ getParentRoute: () => rootRoute, path: "/entradas", component: Entradas }),
   createRoute({ getParentRoute: () => rootRoute, path: "/perfil", component: Perfil }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/descanso", component: Descanso }),
 ];
 
 export const router = createRouter({

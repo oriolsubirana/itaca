@@ -168,8 +168,12 @@ prepared by `.claude/hooks/session-start.sh`.
   library) + a GitHub Action POST to `/api/wellness/daily`. Ítaca never stores Garmin credentials —
   they live in the script's env / Action secrets. The metric extraction is defensive (private API shape
   drifts between library versions; missing fields → null).
-- Health rule still applies: the chat describes the metrics (and may correlate with training/flares),
-  never diagnoses.
+- Health rule still applies: the chat describes the metrics, never diagnoses. The prompt has it
+  judge the day's "estado" (last night vs the 7-day averages) and fold recovery into its TRAINING
+  and NUTRITION proposals (poor recovery → lighter session + anti-inflammatory/protein, no deficit).
+- `/descanso` screen (Claude-design port) opens from the Home "Descanso" glance: anoche (sleep +
+  score + stages bar), an HRV/recovery metric grid, 7-day sparkline trends and a recent-days table,
+  plus a "Preguntar a Ítaca" shortcut into the chat.
 
 ### Chat architecture (phase 2)
 
