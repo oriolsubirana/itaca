@@ -22,3 +22,8 @@ frontend/coverage/
 # Logs
 *.log
 npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
