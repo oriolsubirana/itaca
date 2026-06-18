@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+import { dailyKcalTarget, getProfile } from "../api/profile";
+import { getTrainingSummary } from "../api/training";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
@@ -336,8 +339,6 @@ function ArchivoTab() {
 
 // ── Comidas tab ─────────────────────────────────────────────────────────────
 
-const DAILY_KCAL_TARGET = 2600;
-
 function mealTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -345,7 +346,11 @@ function mealTime(iso: string): string {
 
 function ComidasTab() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const meals = useQuery({ queryKey: ["meals"], queryFn: () => getMeals(14) });
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile });
+  const training = useQuery({ queryKey: ["training-summary"], queryFn: getTrainingSummary });
+  const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
   const [add, setAdd] = useState(false);
   const [detail, setDetail] = useState<Meal | null>(null);
 
@@ -367,7 +372,12 @@ function ComidasTab() {
     return acc;
   }, {});
   const todayTotal = todayMeals.reduce((s, m) => s + (m.calories ?? 0), 0);
-  const pct = Math.min(100, (todayTotal / DAILY_KCAL_TARGET) * 100);
+
+  // Day's target = profile TDEE (or maintenance during a flare) + today's exercise calories.
+  const p = profile.data;
+  const targets = p && p.tdee != null && p.baseTarget != null ? { bmr: p.bmr ?? 0, tdee: p.tdee, baseTarget: p.baseTarget } : null;
+  const target = dailyKcalTarget(targets, training.data?.todayActivityKcal ?? 0, flares.data?.active != null);
+  const pct = target ? Math.min(100, (todayTotal / target) * 100) : 0;
 
   return (
     <div className="space-y-9 pt-5">
@@ -377,15 +387,23 @@ function ComidasTab() {
           <span className="text-[40px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink">
             {todayTotal.toLocaleString("de-DE")}
           </span>
-          <span className="text-[15px] text-ink-soft">/ {DAILY_KCAL_TARGET.toLocaleString("de-DE")} kcal</span>
+          {target != null && <span className="text-[15px] text-ink-soft">/ {target.toLocaleString("de-DE")} kcal</span>}
         </div>
-        <div className="mt-2.5 text-[13px] text-ink-soft">
-          {todayMeals.length} comida{todayMeals.length === 1 ? "" : "s"} ·{" "}
-          {Math.max(0, DAILY_KCAL_TARGET - todayTotal).toLocaleString("de-DE")} kcal restantes
-        </div>
-        <div className="mt-4 h-[3px] overflow-hidden rounded-full bg-line">
-          <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
-        </div>
+        {target != null ? (
+          <>
+            <div className="mt-2.5 text-[13px] text-ink-soft">
+              {todayMeals.length} comida{todayMeals.length === 1 ? "" : "s"} ·{" "}
+              {Math.max(0, target - todayTotal).toLocaleString("de-DE")} kcal restantes
+            </div>
+            <div className="mt-4 h-[3px] overflow-hidden rounded-full bg-line">
+              <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+            </div>
+          </>
+        ) : (
+          <button onClick={() => void navigate({ to: "/perfil" })} className="mt-2.5 text-[13px] text-ink-soft hover:text-ink">
+            Completa tu perfil para ver tu objetivo de calorías →
+          </button>
+        )}
       </section>
 
       <div className="border-t border-line" />

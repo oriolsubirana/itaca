@@ -40,6 +40,8 @@ data class TrainingSummaryDto(
     val lastWorkoutDate: String?,
     val lastWorkoutRoutine: String?,
     val nextRoutine: String,
+    /** Calories burned in today's Strava activities (cardio + gym), for the calorie target. */
+    val todayActivityKcal: Int,
 )
 
 /**
@@ -90,7 +92,15 @@ class TrainingQueries(
                     """.trimIndent(),
                     { rs, _ -> rs.getDate("date").toLocalDate().toString() to rs.getString("name") },
                 ).firstOrNull()
-        return TrainingSummaryDto(last?.first, last?.second, nextRoutineInRotation().second)
+        val todayKcal =
+            jdbc.queryForObject(
+                """
+                SELECT COALESCE(SUM(calories), 0) FROM activities
+                WHERE (start_date AT TIME ZONE 'Europe/Madrid')::date = (now() AT TIME ZONE 'Europe/Madrid')::date
+                """.trimIndent(),
+                Int::class.java,
+            )!!
+        return TrainingSummaryDto(last?.first, last?.second, nextRoutineInRotation().second, todayKcal)
     }
 
     fun exercisesOfRoutine(routineId: Long): List<RoutineExerciseRow> =

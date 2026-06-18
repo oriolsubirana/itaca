@@ -30,9 +30,21 @@ export function Home() {
 
   return (
     <div className="-mt-1 space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{greeting()}, Oriol</h1>
-        <p className="mt-1 text-sm capitalize text-ink-soft">{fullDate()}</p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">{greeting()}, Oriol</h1>
+          <p className="mt-1 text-sm capitalize text-ink-soft">{fullDate()}</p>
+        </div>
+        <button
+          onClick={() => void navigate({ to: "/perfil" })}
+          aria-label="Perfil"
+          className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-5">
+            <circle cx="12" cy="8.5" r="3.5" />
+            <path d="M5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" strokeLinecap="round" />
+          </svg>
+        </button>
       </header>
 
       <ChatHero onOpen={openChat} />

@@ -70,7 +70,7 @@ integration point, configuration property, annotation or artifact name:
 ## Architecture rules
 
 - Bounded contexts = Modulith modules: `training`, `health`, `finance`, `chat`,
-  `ingestion`, `nutrition`, `shared` (only open module). No direct references or FKs across
+  `ingestion`, `nutrition`, `profile`, `shared` (only open module). No direct references or FKs across
   contexts; communicate via Modulith events (JDBC registry = outbox). Verified by
   `ModularityTests` — keep it green.
 - Hexagonal per context: `domain` / `application` / `adapter/in/rest`,
@@ -118,6 +118,7 @@ prepared by `.claude/hooks/session-start.sh`.
 3. ✅ Health (diary+flares via chat and form; lab pipeline: upload → JobRunr → claude-haiku extraction → review → per-analyte chart)
 4. Home/dashboard · 5. ✅ Finance (CSV import) · 6. ✅ Ingestion (`/api/ingest`)
 7. ✅ Nutrition (anti-inflammatory paleo: chat proposals adjusted to training/flares + meal logging)
+8. ✅ Profile (anthropometrics → Mifflin-St Jeor calorie target, training/flare-aware)
 
 ### Nutrition architecture (phase 7)
 
@@ -140,6 +141,20 @@ prepared by `.claude/hooks/session-start.sh`.
   bar, "Comidas de hoy" + "Días anteriores" lists, a meal-detail sheet (kcal/macros/source note),
   and an add sheet that branches photo → analyse vs "a mano" (with the ✨ text-estimate button).
   The add form keeps a date field (default today) so past days can be logged.
+
+### Profile architecture (phase 8)
+
+- Own bounded context `profile`; single-row `profile` table (id=1) with weight/height/birth
+  date/sex/activity/goal. `CalorieCalculator` is pure domain (Mifflin-St Jeor BMR → ×activity
+  factor = TDEE → +goal delta = baseTarget), TDD-tested; `GET/PUT /api/profile` returns the
+  data + computed bmr/tdee/baseTarget (null while incomplete).
+- The day's calorie target is composed at the EDGE (frontend), not in the backend: it adds
+  today's exercise calories (`TrainingSummaryDto.todayActivityKcal`, new) to the base, and
+  during an active flare (`getFlares().active`) drops the deficit (eat at maintenance). So no
+  cross-context backend dependency — the Comidas "objetivo" and the Perfil screen both use it.
+- Perfil screen (Claude-design port) opens from a profile icon in the Home header (not a 6th
+  tab). The Mifflin-St Jeor calc is mirrored in `api/profile.ts` for live editing; the backend
+  stays the source of truth (recomputes on save). It's orientation, not a medical prescription.
 
 ### Chat architecture (phase 2)
 
