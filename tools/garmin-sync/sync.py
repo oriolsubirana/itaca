@@ -111,7 +111,15 @@ def connect():
     except Exception:  # noqa: BLE001 - no/expired token -> full login below
         pass
     client = Garmin(email, password)
-    client.login(tokenstore)  # full login; garminconnect dumps the tokens to tokenstore for next time
+    try:
+        client.login(tokenstore)  # full login; garminconnect dumps the tokens to tokenstore for next time
+    except Exception as e:  # noqa: BLE001 - turn the library's stack traces into one clear line
+        msg = str(e).lower()
+        if any(s in msg for s in ("resolve", "nameresolution", "connection", "max retries", "timed out")):
+            sys.exit("Network error reaching Garmin (DNS/connection). Check your internet/VPN and retry.")
+        if "429" in msg or "too many" in msg:
+            sys.exit("Garmin rate-limited the login (429). Wait a few minutes, then run it once.")
+        raise
     print(f"Garmin: logged in; session saved to {tokenstore}", file=sys.stderr)
     return client
 
