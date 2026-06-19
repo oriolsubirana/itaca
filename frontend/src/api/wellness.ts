@@ -36,3 +36,55 @@ export function sleepLabel(minutes: number | null): string {
   const m = minutes % 60;
   return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 }
+
+export interface Recovery {
+  level: "alta" | "media" | "baja";
+  title: string;
+  sub: string;
+  trainingNote: string;
+  dotClass: string; // Tailwind bg-* for the status dot
+}
+
+/**
+ * A simple client-side recovery read for the Home glance: last night's HRV vs the 7-day
+ * average, plus sleep duration and resting HR. The reasoned, conversational version lives
+ * in the chat (which sees the same query_wellness data). Null when there's no Garmin data.
+ */
+export function recoveryState(s: WellnessSummary | undefined): Recovery | null {
+  const d = s?.days?.[0];
+  if (!d || (d.hrvAvgMs == null && d.sleepMinutes == null && d.restingHr == null)) return null;
+  let score = 0;
+  if (d.hrvAvgMs != null && s!.avgHrvMs != null) {
+    if (d.hrvAvgMs >= s!.avgHrvMs) score += 1;
+    else if (d.hrvAvgMs < s!.avgHrvMs * 0.85) score -= 1;
+  }
+  if (d.sleepMinutes != null) {
+    if (d.sleepMinutes >= 420) score += 1;
+    else if (d.sleepMinutes < 360) score -= 1;
+  }
+  if (d.restingHr != null && s!.avgRestingHr != null && d.restingHr > s!.avgRestingHr + 3) score -= 1;
+
+  if (score >= 1)
+    return {
+      level: "alta",
+      title: "Bien recuperado",
+      sub: "Buen momento para empujar.",
+      trainingNote: "Recuperado · progresa con normalidad",
+      dotClass: "bg-income",
+    };
+  if (score <= -1)
+    return {
+      level: "baja",
+      title: "Recuperación baja",
+      sub: "Prioriza descanso, proteína e hidratación.",
+      trainingNote: "Baja la intensidad o descansa hoy",
+      dotClass: "bg-clinical",
+    };
+  return {
+    level: "media",
+    title: "Recuperación normal",
+    sub: "Un día estándar.",
+    trainingNote: "Mantén tu plan",
+    dotClass: "bg-ink/40",
+  };
+}
