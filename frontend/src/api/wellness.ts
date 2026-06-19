@@ -52,7 +52,7 @@ export interface Recovery {
  */
 export function recoveryState(s: WellnessSummary | undefined): Recovery | null {
   const d = s?.days?.[0];
-  if (!d || (d.hrvAvgMs == null && d.sleepMinutes == null && d.restingHr == null)) return null;
+  if (!d || (d.hrvAvgMs == null && d.sleepMinutes == null && d.restingHr == null && d.bodyBatteryHigh == null)) return null;
   let score = 0;
   if (d.hrvAvgMs != null && s!.avgHrvMs != null) {
     if (d.hrvAvgMs >= s!.avgHrvMs) score += 1;
@@ -63,28 +63,33 @@ export function recoveryState(s: WellnessSummary | undefined): Recovery | null {
     else if (d.sleepMinutes < 360) score -= 1;
   }
   if (d.restingHr != null && s!.avgRestingHr != null && d.restingHr > s!.avgRestingHr + 3) score -= 1;
+  if (d.bodyBatteryHigh != null) {
+    if (d.bodyBatteryHigh >= 70) score += 1;
+    else if (d.bodyBatteryHigh < 40) score -= 1;
+  }
 
+  // Describe the day's signals; the actual recommendation (training, nutrition) is the chat's job.
   if (score >= 1)
     return {
       level: "high",
       title: "Bien recuperado",
-      sub: "Buen momento para empujar.",
-      trainingNote: "Recuperado · progresa con normalidad",
+      sub: "Tus señales de recuperación están altas.",
+      trainingNote: "Recuperación alta",
       dotClass: "bg-income",
     };
   if (score <= -1)
     return {
       level: "low",
       title: "Recuperación baja",
-      sub: "Prioriza descanso, proteína e hidratación.",
-      trainingNote: "Baja la intensidad o descansa hoy",
+      sub: "Tus señales de recuperación están bajas.",
+      trainingNote: "Recuperación baja",
       dotClass: "bg-clinical",
     };
   return {
     level: "medium",
     title: "Recuperación normal",
-    sub: "Un día estándar.",
-    trainingNote: "Mantén tu plan",
+    sub: "Dentro de tu rango habitual.",
+    trainingNote: "Recuperación normal",
     dotClass: "bg-ink/40",
   };
 }
