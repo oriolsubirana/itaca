@@ -100,8 +100,6 @@ def connect():
     in fully. Passing the tokenstore to `login()` makes garminconnect persist the tokens itself,
     so subsequent runs resume instead of re-authenticating (repeated logins trigger Garmin 429s).
     The first interactive login handles MFA (a code prompt on stdin)."""
-    email = os.environ["GARMIN_EMAIL"]
-    password = os.environ["GARMIN_PASSWORD"]
     tokenstore = os.path.expanduser(os.environ.get("GARMINTOKENS", "~/.garminconnect"))
     try:
         client = Garmin()
@@ -110,6 +108,10 @@ def connect():
         return client
     except Exception:  # noqa: BLE001 - no/expired token -> full login below
         pass
+    email = os.environ.get("GARMIN_EMAIL")
+    password = os.environ.get("GARMIN_PASSWORD")
+    if not email or not password:
+        sys.exit("No saved Garmin session — set GARMIN_EMAIL and GARMIN_PASSWORD for the first login.")
     client = Garmin(email, password)
     try:
         client.login(tokenstore)  # full login; garminconnect dumps the tokens to tokenstore for next time
