@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getWellness, sleepLabel, type WellnessDay } from "../api/wellness";
-import { MES } from "../lib/format";
+import { shortDate, weekday } from "../lib/format";
 
 const HRV_STATUS: Record<string, string> = {
   BALANCED: "Equilibrada",
@@ -18,16 +18,10 @@ const PHASES: { key: string; get: (d: WellnessDay) => number | null; cls: string
 ];
 
 const num = (n: number | null | undefined) => (n != null ? n.toLocaleString("de-DE") : "—");
-const dayDate = (iso: string) => {
-  const d = new Date(`${iso}T00:00:00`);
-  return `${d.getDate()} ${MES[d.getMonth()]}`;
-};
-const weekday = (iso: string) =>
-  ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"][new Date(`${iso}T00:00:00`).getDay()];
 
 export function Descanso() {
   const navigate = useNavigate();
-  const wellness = useQuery({ queryKey: ["wellness-full"], queryFn: () => getWellness(14) });
+  const wellness = useQuery({ queryKey: ["wellness"], queryFn: () => getWellness(14) });
 
   const data = wellness.data;
   const last = data?.days?.[0];
@@ -255,7 +249,7 @@ function Previos({ days }: { days: WellnessDay[] }) {
       {days.map((p) => (
         <div key={p.date} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-5 border-b border-line py-3">
           <span className="text-[14px] text-ink">
-            <span className="capitalize">{weekday(p.date)}.</span> {dayDate(p.date)}
+            <span className="capitalize">{weekday(p.date)}.</span> {shortDate(p.date)}
           </span>
           <span className="text-right text-[14px] tabular-nums text-ink">{sleepLabel(p.sleepMinutes)}</span>
           <span className="text-right text-[14px] tabular-nums text-ink">{p.hrvAvgMs != null ? `${p.hrvAvgMs} ms` : "—"}</span>

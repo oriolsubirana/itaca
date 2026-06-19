@@ -28,6 +28,10 @@ class ProfileController(
         @RequestBody command: ProfileCommand,
     ): ProfileDto = profile.save(command)
 
+    @ExceptionHandler(NoSuchElementException::class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    fun notFound(e: NoSuchElementException): Map<String, String?> = mapOf("error" to e.message)
+
     @ExceptionHandler(IllegalArgumentException::class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     fun badRequest(e: IllegalArgumentException): Map<String, String?> = mapOf("error" to e.message)

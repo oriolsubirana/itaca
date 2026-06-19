@@ -45,7 +45,7 @@ def as_int(v):
 
 def secs_to_min(v):
     i = as_int(v)
-    return i // 60 if i is not None else None
+    return round(i / 60) if i is not None else None
 
 
 def metrics_for(client, date_str):

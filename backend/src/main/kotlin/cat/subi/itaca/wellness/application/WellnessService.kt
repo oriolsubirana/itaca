@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /** One day of Garmin wellness metrics (any field may be missing). */
 data class WellnessDayDto(
@@ -69,53 +70,54 @@ class WellnessService(
     private val jdbc: JdbcTemplate,
 ) : ChatTools {
     @Transactional
-    fun upsert(c: WellnessCommand): WellnessDayDto {
-        jdbc.update(
-            """
-            INSERT INTO daily_wellness (
-                date, sleep_minutes, deep_minutes, light_minutes, rem_minutes, awake_minutes, sleep_score,
-                hrv_avg_ms, hrv_status, resting_hr, stress_avg, body_battery_high, body_battery_low,
-                steps, active_calories, spo2_avg, respiration_avg
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (date) DO UPDATE SET
-                sleep_minutes = COALESCE(EXCLUDED.sleep_minutes, daily_wellness.sleep_minutes),
-                deep_minutes = COALESCE(EXCLUDED.deep_minutes, daily_wellness.deep_minutes),
-                light_minutes = COALESCE(EXCLUDED.light_minutes, daily_wellness.light_minutes),
-                rem_minutes = COALESCE(EXCLUDED.rem_minutes, daily_wellness.rem_minutes),
-                awake_minutes = COALESCE(EXCLUDED.awake_minutes, daily_wellness.awake_minutes),
-                sleep_score = COALESCE(EXCLUDED.sleep_score, daily_wellness.sleep_score),
-                hrv_avg_ms = COALESCE(EXCLUDED.hrv_avg_ms, daily_wellness.hrv_avg_ms),
-                hrv_status = COALESCE(EXCLUDED.hrv_status, daily_wellness.hrv_status),
-                resting_hr = COALESCE(EXCLUDED.resting_hr, daily_wellness.resting_hr),
-                stress_avg = COALESCE(EXCLUDED.stress_avg, daily_wellness.stress_avg),
-                body_battery_high = COALESCE(EXCLUDED.body_battery_high, daily_wellness.body_battery_high),
-                body_battery_low = COALESCE(EXCLUDED.body_battery_low, daily_wellness.body_battery_low),
-                steps = COALESCE(EXCLUDED.steps, daily_wellness.steps),
-                active_calories = COALESCE(EXCLUDED.active_calories, daily_wellness.active_calories),
-                spo2_avg = COALESCE(EXCLUDED.spo2_avg, daily_wellness.spo2_avg),
-                respiration_avg = COALESCE(EXCLUDED.respiration_avg, daily_wellness.respiration_avg),
-                updated_at = now()
-            """.trimIndent(),
-            java.sql.Date.valueOf(c.date),
-            c.sleepMinutes,
-            c.deepMinutes,
-            c.lightMinutes,
-            c.remMinutes,
-            c.awakeMinutes,
-            c.sleepScore,
-            c.hrvAvgMs,
-            c.hrvStatus,
-            c.restingHr,
-            c.stressAvg,
-            c.bodyBatteryHigh,
-            c.bodyBatteryLow,
-            c.steps,
-            c.activeCalories,
-            c.spo2Avg,
-            c.respirationAvg,
-        )
-        return jdbc.query("SELECT * FROM daily_wellness WHERE date = ?", MAPPER, java.sql.Date.valueOf(c.date)).single()
-    }
+    fun upsert(c: WellnessCommand): WellnessDayDto =
+        jdbc
+            .query(
+                """
+                INSERT INTO daily_wellness (
+                    date, sleep_minutes, deep_minutes, light_minutes, rem_minutes, awake_minutes, sleep_score,
+                    hrv_avg_ms, hrv_status, resting_hr, stress_avg, body_battery_high, body_battery_low,
+                    steps, active_calories, spo2_avg, respiration_avg
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (date) DO UPDATE SET
+                    sleep_minutes = COALESCE(EXCLUDED.sleep_minutes, daily_wellness.sleep_minutes),
+                    deep_minutes = COALESCE(EXCLUDED.deep_minutes, daily_wellness.deep_minutes),
+                    light_minutes = COALESCE(EXCLUDED.light_minutes, daily_wellness.light_minutes),
+                    rem_minutes = COALESCE(EXCLUDED.rem_minutes, daily_wellness.rem_minutes),
+                    awake_minutes = COALESCE(EXCLUDED.awake_minutes, daily_wellness.awake_minutes),
+                    sleep_score = COALESCE(EXCLUDED.sleep_score, daily_wellness.sleep_score),
+                    hrv_avg_ms = COALESCE(EXCLUDED.hrv_avg_ms, daily_wellness.hrv_avg_ms),
+                    hrv_status = COALESCE(EXCLUDED.hrv_status, daily_wellness.hrv_status),
+                    resting_hr = COALESCE(EXCLUDED.resting_hr, daily_wellness.resting_hr),
+                    stress_avg = COALESCE(EXCLUDED.stress_avg, daily_wellness.stress_avg),
+                    body_battery_high = COALESCE(EXCLUDED.body_battery_high, daily_wellness.body_battery_high),
+                    body_battery_low = COALESCE(EXCLUDED.body_battery_low, daily_wellness.body_battery_low),
+                    steps = COALESCE(EXCLUDED.steps, daily_wellness.steps),
+                    active_calories = COALESCE(EXCLUDED.active_calories, daily_wellness.active_calories),
+                    spo2_avg = COALESCE(EXCLUDED.spo2_avg, daily_wellness.spo2_avg),
+                    respiration_avg = COALESCE(EXCLUDED.respiration_avg, daily_wellness.respiration_avg),
+                    updated_at = now()
+                RETURNING *
+                """.trimIndent(),
+                MAPPER,
+                java.sql.Date.valueOf(c.date),
+                c.sleepMinutes,
+                c.deepMinutes,
+                c.lightMinutes,
+                c.remMinutes,
+                c.awakeMinutes,
+                c.sleepScore,
+                c.hrvAvgMs,
+                c.hrvStatus,
+                c.restingHr,
+                c.stressAvg,
+                c.bodyBatteryHigh,
+                c.bodyBatteryLow,
+                c.steps,
+                c.activeCalories,
+                c.spo2Avg,
+                c.respirationAvg,
+            ).single()
 
     fun recent(days: Int): List<WellnessDayDto> =
         jdbc.query(
@@ -143,7 +145,7 @@ class WellnessService(
         )
     }
 
-    private fun List<Int>.averageOrNull(): Int? = if (isEmpty()) null else average().toInt()
+    private fun List<Int>.averageOrNull(): Int? = if (isEmpty()) null else average().roundToInt()
 
     private companion object {
         const val DEFAULT_DAYS = 7
