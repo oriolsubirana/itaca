@@ -97,6 +97,15 @@ export function computeTargets(f: {
 }
 
 /**
+ * The saved profile's precomputed targets ({bmr, tdee, baseTarget}), or null until the backend
+ * has enough data to compute them. Use this for read-only views (Home, Comidas); the live editor
+ * (Perfil) uses computeTargets to recompute as you type.
+ */
+export function targetsFromProfile(p: Profile | undefined): Targets | null {
+  return p && p.tdee != null && p.baseTarget != null ? { bmr: p.bmr ?? 0, tdee: p.tdee, baseTarget: p.baseTarget } : null;
+}
+
+/**
  * The day's calorie target: base (TDEE adjusted to the goal) + calories burned today,
  * with the goal deficit neutralised during an active flare (eat at maintenance).
  */

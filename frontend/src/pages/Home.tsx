@@ -6,7 +6,7 @@ import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
 import { getFinanceOverview } from "../api/finance";
 import { getMeals } from "../api/nutrition";
-import { dailyKcalTarget, getProfile } from "../api/profile";
+import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
 import { getWellness, recoveryState, sleepLabel } from "../api/wellness";
 import { balance, daysSince, routineLabel, today } from "../lib/format";
 
@@ -113,7 +113,7 @@ function SecHead({ title, onClick }: { title: string; onClick?: () => void }) {
   );
 }
 
-// ── Hoy: el briefing proactivo (recuperación → entreno → nutrición) ──────────
+// ── Hoy: the proactive briefing (recovery → training → nutrition) ────────────
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -136,8 +136,7 @@ function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
   const d = wellness.data?.days?.[0];
   const s = training.data;
 
-  const p = profile.data;
-  const targets = p && p.tdee != null && p.baseTarget != null ? { bmr: p.bmr ?? 0, tdee: p.tdee, baseTarget: p.baseTarget } : null;
+  const targets = targetsFromProfile(profile.data);
   const target = dailyKcalTarget(targets, s?.todayActivityKcal ?? 0, flares.data?.active != null);
   const consumed = (meals.data?.meals ?? [])
     .filter((m) => m.date === today())

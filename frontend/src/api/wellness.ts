@@ -38,7 +38,7 @@ export function sleepLabel(minutes: number | null): string {
 }
 
 export interface Recovery {
-  level: "alta" | "media" | "baja";
+  level: "high" | "medium" | "low";
   title: string;
   sub: string;
   trainingNote: string;
@@ -46,9 +46,9 @@ export interface Recovery {
 }
 
 /**
- * A simple client-side recovery read for the Home glance: last night's HRV vs the 7-day
- * average, plus sleep duration and resting HR. The reasoned, conversational version lives
- * in the chat (which sees the same query_wellness data). Null when there's no Garmin data.
+ * A simple client-side recovery read for the Home glance: last night's HRV vs the rolling
+ * average of the requested window, plus sleep duration and resting HR. The reasoned,
+ * conversational version lives in the chat (same query_wellness data). Null without Garmin data.
  */
 export function recoveryState(s: WellnessSummary | undefined): Recovery | null {
   const d = s?.days?.[0];
@@ -66,7 +66,7 @@ export function recoveryState(s: WellnessSummary | undefined): Recovery | null {
 
   if (score >= 1)
     return {
-      level: "alta",
+      level: "high",
       title: "Bien recuperado",
       sub: "Buen momento para empujar.",
       trainingNote: "Recuperado · progresa con normalidad",
@@ -74,14 +74,14 @@ export function recoveryState(s: WellnessSummary | undefined): Recovery | null {
     };
   if (score <= -1)
     return {
-      level: "baja",
+      level: "low",
       title: "Recuperación baja",
       sub: "Prioriza descanso, proteína e hidratación.",
       trainingNote: "Baja la intensidad o descansa hoy",
       dotClass: "bg-clinical",
     };
   return {
-    level: "media",
+    level: "medium",
     title: "Recuperación normal",
     sub: "Un día estándar.",
     trainingNote: "Mantén tu plan",
