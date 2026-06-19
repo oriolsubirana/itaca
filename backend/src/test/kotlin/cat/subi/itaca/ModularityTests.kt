@@ -6,8 +6,8 @@ import org.springframework.modulith.docs.Documenter
 
 /**
  * Architecture verification: bounded contexts (training, health, finance,
- * chat, ingestion) must not reference each other directly; they only
- * communicate via events. `shared` is the only open module.
+ * chat, ingestion, nutrition, profile, wellness) must not reference each other directly;
+ * they only communicate via events. `shared` is the only open module.
  */
 class ModularityTests {
     private val modules = ApplicationModules.of(ItacaApplication::class.java)

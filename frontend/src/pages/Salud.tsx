@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
+import { dailyKcalTarget, getProfile } from "../api/profile";
+import { getTrainingSummary } from "../api/training";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
@@ -20,6 +23,17 @@ import {
   type DiaryEntry,
   type Flare,
 } from "../api/health";
+import {
+  analyzeMealPhoto,
+  deleteMeal,
+  estimateMealText,
+  getMeals,
+  logMeal,
+  MEAL_LABELS,
+  MEAL_TYPES,
+  type Meal,
+  type MealAnalysis,
+} from "../api/nutrition";
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -52,7 +66,7 @@ export function Salud() {
       </header>
       <TabGroup>
         <TabList className="flex gap-6 border-b border-line">
-          {["Diario", "Analíticas y documentos"].map((label) => (
+          {["Diario", "Comidas", "Analíticas y documentos"].map((label) => (
             <Tab
               key={label}
               className="-mb-px border-b-2 border-transparent pb-2.5 text-sm text-ink-soft outline-none transition-colors data-[selected]:border-ink data-[selected]:text-ink"
@@ -64,6 +78,9 @@ export function Salud() {
         <TabPanels>
           <TabPanel>
             <DiarioTab />
+          </TabPanel>
+          <TabPanel>
+            <ComidasTab />
           </TabPanel>
           <TabPanel>
             <ArchivoTab />
@@ -315,6 +332,425 @@ function ArchivoTab() {
       </div>
       <p className="border-t border-line pt-3 text-[11.5px] leading-relaxed text-ink-soft">
         Ítaca registra y muestra tus datos clínicos. No los interpreta ni ofrece consejo médico.
+      </p>
+    </div>
+  );
+}
+
+// ── Comidas tab ─────────────────────────────────────────────────────────────
+
+function mealTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function ComidasTab() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const meals = useQuery({ queryKey: ["meals"], queryFn: () => getMeals(14) });
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile });
+  const training = useQuery({ queryKey: ["training-summary"], queryFn: getTrainingSummary });
+  const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
+  const [add, setAdd] = useState(false);
+  const [detail, setDetail] = useState<Meal | null>(null);
+
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["meals"] });
+  const remove = useMutation({
+    mutationFn: deleteMeal,
+    onSuccess: () => {
+      invalidate();
+      setDetail(null);
+    },
+  });
+
+  const all = meals.data?.meals ?? [];
+  const todayIso = today();
+  const todayMeals = all.filter((m) => m.date === todayIso);
+  const past = all.filter((m) => m.date !== todayIso);
+  const pastGroups = past.reduce<Record<string, Meal[]>>((acc, m) => {
+    (acc[m.date] ??= []).push(m);
+    return acc;
+  }, {});
+  const todayTotal = todayMeals.reduce((s, m) => s + (m.calories ?? 0), 0);
+
+  // Day's target = profile TDEE (or maintenance during a flare) + today's exercise calories.
+  const p = profile.data;
+  const targets = p && p.tdee != null && p.baseTarget != null ? { bmr: p.bmr ?? 0, tdee: p.tdee, baseTarget: p.baseTarget } : null;
+  const target = dailyKcalTarget(targets, training.data?.todayActivityKcal ?? 0, flares.data?.active != null);
+  const pct = target ? Math.min(100, (todayTotal / target) * 100) : 0;
+
+  return (
+    <div className="space-y-9 pt-5">
+      <section>
+        <SectionLabel>Hoy</SectionLabel>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[40px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink">
+            {todayTotal.toLocaleString("de-DE")}
+          </span>
+          {target != null && <span className="text-[15px] text-ink-soft">/ {target.toLocaleString("de-DE")} kcal</span>}
+        </div>
+        {target != null ? (
+          <>
+            <div className="mt-2.5 text-[13px] text-ink-soft">
+              {todayMeals.length} comida{todayMeals.length === 1 ? "" : "s"} ·{" "}
+              {Math.max(0, target - todayTotal).toLocaleString("de-DE")} kcal restantes
+            </div>
+            <div className="mt-4 h-[3px] overflow-hidden rounded-full bg-line">
+              <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+            </div>
+          </>
+        ) : (
+          <button onClick={() => void navigate({ to: "/perfil" })} className="mt-2.5 text-[13px] text-ink-soft hover:text-ink">
+            Completa tu perfil para ver tu objetivo de calorías →
+          </button>
+        )}
+      </section>
+
+      <div className="border-t border-line" />
+
+      <section>
+        <SectionLabel>Orientación</SectionLabel>
+        <p className="text-[14px] leading-relaxed text-ink">
+          Pídele a Ítaca en el chat «¿qué ceno hoy?» o «hoy hago bici larga, ¿qué como?» y te propone según tu
+          entreno y la pauta paleo antiinflamatoria.
+        </p>
+      </section>
+
+      <div className="border-t border-line" />
+
+      <section>
+        <div className="mb-3 flex items-end justify-between">
+          <h2 className="text-xs uppercase tracking-[0.12em] text-ink-soft">Comidas de hoy</h2>
+          <button onClick={() => setAdd(true)} className="text-[12px] text-ink hover:text-ink/70">
+            + Añadir
+          </button>
+        </div>
+        {todayMeals.length === 0 ? (
+          <p className="text-sm text-ink-soft">Aún no has registrado nada hoy.</p>
+        ) : (
+          <div>
+            {todayMeals.map((m) => (
+              <MealRow key={m.id} m={m} onOpen={setDetail} />
+            ))}
+          </div>
+        )}
+        <button
+          onClick={() => setAdd(true)}
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md border border-ink/80 text-[15px] font-medium text-ink transition-colors hover:bg-ink hover:text-paper"
+        >
+          <CameraIcon /> Añadir comida con foto
+        </button>
+      </section>
+
+      {Object.keys(pastGroups).length > 0 && (
+        <section>
+          <SectionLabel>Días anteriores</SectionLabel>
+          {Object.entries(pastGroups).map(([date, dayMeals]) => (
+            <div key={date} className="mb-4">
+              <h3 className="mb-1 text-[11px] uppercase tracking-[0.1em] text-ink-soft">
+                {weekday(date)}. {shortDate(date)} ·{" "}
+                {dayMeals.reduce((s, m) => s + (m.calories ?? 0), 0).toLocaleString("de-DE")} kcal
+              </h3>
+              {dayMeals.map((m) => (
+                <MealRow key={m.id} m={m} onOpen={setDetail} />
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {add && (
+        <Modal title="Añadir comida" onClose={() => setAdd(false)}>
+          <MealUploader
+            onSaved={() => {
+              invalidate();
+              setAdd(false);
+            }}
+          />
+        </Modal>
+      )}
+      {detail && (
+        <Modal title={MEAL_LABELS[detail.mealType] ?? detail.mealType} onClose={() => setDetail(null)}>
+          <MealDetail m={detail} onDelete={() => remove.mutate(detail.id)} deleting={remove.isPending} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="size-[18px]">
+      <path
+        d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12.5" r="3.2" />
+    </svg>
+  );
+}
+
+function MealThumb({ size = 48 }: { size?: number }) {
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center rounded-[8px] border border-line bg-line/20 text-ink-soft"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        style={{ width: size * 0.42, height: size * 0.42 }}
+      >
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 3.5v8.5l5 3" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function MealRow({ m, onOpen }: { m: Meal; onOpen: (m: Meal) => void }) {
+  return (
+    <button
+      onClick={() => onOpen(m)}
+      className="-mx-1 flex min-h-[44px] w-full items-center gap-3 rounded-[3px] border-b border-line px-1 py-3 text-left hover:bg-line/20"
+    >
+      <MealThumb />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[15px] text-ink">{MEAL_LABELS[m.mealType] ?? m.mealType}</span>
+          <span className="text-[12px] text-ink-soft">{mealTime(m.loggedAt)}</span>
+          {m.onPlan === false && <span className="size-1.5 rounded-full bg-clinical" aria-label="Fuera de pauta" />}
+        </div>
+        <div className="mt-0.5 truncate text-[13px] text-ink-soft">{m.description}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 pl-1">
+        <span className="text-[14px] tabular-nums text-ink">
+          {m.calories ?? "—"}
+          <span className="ml-0.5 text-[11px] text-ink-soft">kcal</span>
+        </span>
+        <IChevRight className="text-ink-soft" />
+      </div>
+    </button>
+  );
+}
+
+function MealDetail({ m, onDelete, deleting }: { m: Meal; onDelete: () => void; deleting: boolean }) {
+  return (
+    <div>
+      <MealThumb size={64} />
+      <div className="mt-4 text-[15px] leading-relaxed text-ink">{m.description}</div>
+      <div className="mt-5 flex items-end justify-between">
+        <div>
+          <div className="text-[30px] font-semibold leading-none tabular-nums text-ink">
+            {m.calories ?? "—"}
+            <span className="ml-1.5 text-[14px] font-normal text-ink-soft">kcal</span>
+          </div>
+          {m.macros && <div className="mt-2 text-[13px] tabular-nums text-ink-soft">{m.macros} · g</div>}
+        </div>
+        <span className="text-[12px] text-ink-soft">
+          {MEAL_LABELS[m.mealType] ?? m.mealType} · {mealTime(m.loggedAt)}
+          {m.onPlan != null ? (m.onPlan ? " · en pauta" : " · fuera") : ""}
+        </span>
+      </div>
+      {m.notes && <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">{m.notes}</p>}
+      <p className="mt-5 border-t border-line pt-4 text-[11.5px] leading-relaxed text-ink-soft">
+        Calorías y macros son una estimación aproximada. Ítaca registra y muestra; no sustituye una valoración
+        nutricional.
+      </p>
+      <button
+        onClick={onDelete}
+        disabled={deleting}
+        className="mt-4 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+      >
+        Eliminar comida
+      </button>
+    </div>
+  );
+}
+
+// ── Añadir comida: foto → analizar / a mano, revisar y guardar ───────────────
+
+function MealUploader({ onSaved }: { onSaved: () => void }) {
+  const [step, setStep] = useState<"pick" | "analyzing" | "form">("pick");
+  const [date, setDate] = useState(today());
+  const [mealType, setMealType] = useState("lunch");
+  const [description, setDescription] = useState("");
+  const [calories, setCalories] = useState("");
+  const [macros, setMacros] = useState<string | null>(null);
+  const [onPlan, setOnPlan] = useState(true);
+  const [fromPhoto, setFromPhoto] = useState(false);
+
+  const applyAnalysis = (a: MealAnalysis) => {
+    setDescription(a.description);
+    setCalories(a.calories != null ? String(a.calories) : "");
+    setMacros(a.macros);
+    setMealType(a.mealType in MEAL_LABELS ? a.mealType : "lunch");
+    setOnPlan(a.onPlan);
+  };
+
+  const analyze = useMutation({
+    mutationFn: analyzeMealPhoto,
+    onSuccess: (a) => {
+      applyAnalysis(a);
+      setFromPhoto(true);
+      setStep("form");
+    },
+    onError: () => setStep("pick"),
+  });
+  const estimate = useMutation({
+    mutationFn: () => estimateMealText(description.trim()),
+    onSuccess: applyAnalysis,
+  });
+  const save = useMutation({
+    mutationFn: () =>
+      logMeal({
+        date,
+        mealType,
+        description: description.trim(),
+        onPlan,
+        calories: calories.trim() === "" ? null : Number(calories),
+        macros,
+      }),
+    onSuccess: onSaved,
+  });
+
+  if (step === "analyzing") {
+    return (
+      <div className="flex flex-col items-center py-8 text-center">
+        <MealThumb size={88} />
+        <div className="mt-5 text-[15px] text-ink">Analizando la foto…</div>
+        <div className="mt-1.5 text-[13px] text-ink-soft">Identificando alimentos y estimando kcal</div>
+      </div>
+    );
+  }
+
+  if (step === "pick") {
+    return (
+      <div>
+        <label className="block">
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setStep("analyzing");
+                analyze.mutate(file);
+              }
+              e.target.value = "";
+            }}
+          />
+          <div className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-2.5 rounded-[10px] border border-dashed border-line transition-colors hover:border-ink/30">
+            <CameraIcon />
+            <span className="text-[15px] text-ink">Sube o haz una foto del plato</span>
+            <span className="text-[12px] text-ink-soft">Ítaca estimará qué es y las kcal</span>
+          </div>
+        </label>
+        {analyze.isError && <p className="mt-2 text-[13px] text-clinical">No pude analizar la foto.</p>}
+        <button
+          onClick={() => setStep("form")}
+          className="mt-3 h-11 w-full rounded-md border border-line text-[14px] text-ink hover:bg-line/40"
+        >
+          Añadir a mano
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {fromPhoto && (
+        <p className="mb-4 rounded-md border border-line bg-line/[0.15] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink-soft">
+          Detectado de la foto. Revisa y corrige antes de guardar.
+        </p>
+      )}
+      <Field label="Qué has comido">
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          placeholder="Ej.: arroz, pollo a la plancha y verduras"
+          className="w-full rounded-lg border border-line bg-paper px-4 py-2.5 text-base outline-none focus:border-ink-soft"
+        />
+        {!fromPhoto && (
+          <button
+            onClick={() => estimate.mutate()}
+            disabled={!description.trim() || estimate.isPending}
+            className="mt-2 text-[13px] text-ink-soft hover:text-ink disabled:opacity-50"
+          >
+            {estimate.isPending ? "Estimando…" : "✨ Estimar kcal y macros con IA"}
+          </button>
+        )}
+      </Field>
+
+      <Field label="Calorías (kcal)">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={calories}
+          onChange={(e) => setCalories(e.target.value)}
+          placeholder="Ej. 650"
+          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base tabular-nums outline-none focus:border-ink-soft"
+        />
+        {macros && <div className="mt-1.5 text-[12px] tabular-nums text-ink-soft">{macros} · g</div>}
+      </Field>
+
+      <Field label="Comida">
+        <div className="flex gap-1.5">
+          {MEAL_TYPES.map((t) => (
+            <button
+              key={t.code}
+              onClick={() => setMealType(t.code)}
+              className={`h-10 flex-1 rounded-md text-[13px] transition-colors ${
+                mealType === t.code ? "bg-ink text-paper" : "border border-line text-ink hover:bg-line/40"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Fecha">
+        <input
+          type="date"
+          value={date}
+          max={today()}
+          onChange={(e) => setDate(e.target.value)}
+          className="min-h-11 w-full rounded-lg border border-line bg-paper px-4 text-base outline-none focus:border-ink-soft"
+        />
+      </Field>
+
+      <Field label="¿Encaja en la pauta?">
+        <div className="flex gap-2">
+          {[true, false].map((v) => (
+            <button
+              key={String(v)}
+              onClick={() => setOnPlan(v)}
+              className={`min-h-11 flex-1 rounded-full border text-sm ${
+                onPlan === v ? "border-ink bg-ink text-paper" : "border-line text-ink-soft"
+              }`}
+            >
+              {v ? "En pauta" : "Fuera"}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <button
+        onClick={() => save.mutate()}
+        disabled={!description.trim() || save.isPending}
+        className="mt-2 h-12 w-full rounded-md bg-ink text-[15px] font-medium text-paper hover:bg-ink/90 disabled:opacity-30"
+      >
+        Guardar comida
+      </button>
+      <p className="mt-3 text-[11.5px] leading-relaxed text-ink-soft">
+        Estimación aproximada. Puedes ajustarla más adelante.
       </p>
     </div>
   );

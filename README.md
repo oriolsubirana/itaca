@@ -66,6 +66,9 @@ Documentadas en [.env.example](.env.example). La API key de Anthropic vive solo 
 4. Home/dashboard
 5. ✅ Módulo finance (import CSV con categorización)
 6. ✅ Módulo ingestion: entrada única `/api/ingest` (Atajo de iOS / bandeja web), clasificación en dos niveles (determinista + claude-haiku) y enrutado a health/finance vía eventos Modulith
+7. ✅ Módulo nutrition: dieta paleo antiinflamatoria — Claude propone comidas según el deporte (hecho o planeado) y los brotes, y registras lo que comes (chat o formulario en Salud)
+8. ✅ Módulo profile: peso/altura/edad/sexo/actividad/objetivo → objetivo de calorías (Mifflin-St Jeor) que se ajusta al deporte del día y a los brotes
+9. ✅ Módulo wellness: métricas diarias de Garmin (sueño, HRV, recuperación) vía un sync externo (`tools/garmin-sync` + GitHub Action) → `/api/wellness`
 
 ### Notas de versiones
 

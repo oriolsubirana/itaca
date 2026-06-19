@@ -5,6 +5,7 @@ import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
 import { getFinanceOverview } from "../api/finance";
+import { getWellness, sleepLabel } from "../api/wellness";
 import { balance, daysSince, routineLabel, today } from "../lib/format";
 
 function greeting(): string {
@@ -30,9 +31,21 @@ export function Home() {
 
   return (
     <div className="-mt-1 space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{greeting()}, Oriol</h1>
-        <p className="mt-1 text-sm capitalize text-ink-soft">{fullDate()}</p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">{greeting()}, Oriol</h1>
+          <p className="mt-1 text-sm capitalize text-ink-soft">{fullDate()}</p>
+        </div>
+        <button
+          onClick={() => void navigate({ to: "/perfil" })}
+          aria-label="Perfil"
+          className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-5">
+            <circle cx="12" cy="8.5" r="3.5" />
+            <path d="M5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" strokeLinecap="round" />
+          </svg>
+        </button>
       </header>
 
       <ChatHero onOpen={openChat} />
@@ -40,6 +53,7 @@ export function Home() {
       <div className="space-y-8">
         <SaludBlock onOpen={openChat} />
         <div className="border-t border-line" />
+        <DescansoBlock />
         <EntrenoBlock onOpen={openChat} />
         <div className="border-t border-line" />
         <FinanzasBlock />
@@ -183,6 +197,33 @@ function SaludBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => 
         </div>
       )}
     </section>
+  );
+}
+
+function DescansoBlock() {
+  const navigate = useNavigate();
+  const wellness = useQuery({ queryKey: ["wellness"], queryFn: () => getWellness(14) });
+  const last = wellness.data?.days?.[0];
+  if (!last || (last.sleepMinutes == null && last.hrvAvgMs == null && last.restingHr == null)) return null;
+  return (
+    <>
+      <section>
+        <SecHead title="Descanso" onClick={() => void navigate({ to: "/descanso" })} />
+        <div>
+          <div className="text-[11px] uppercase tracking-wide text-ink-soft">Anoche</div>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-medium leading-none tabular-nums text-ink">{sleepLabel(last.sleepMinutes)}</span>
+            {last.sleepScore != null && <span className="text-[13px] text-ink-soft">score {last.sleepScore}</span>}
+          </div>
+          <div className="mt-2 text-[13px] text-ink-soft">
+            {last.hrvAvgMs != null && `HRV ${last.hrvAvgMs} ms${last.hrvStatus ? ` · ${last.hrvStatus}` : ""}`}
+            {last.hrvAvgMs != null && last.restingHr != null && " · "}
+            {last.restingHr != null && `FC reposo ${last.restingHr}`}
+          </div>
+        </div>
+      </section>
+      <div className="border-t border-line" />
+    </>
   );
 }
 
