@@ -5,7 +5,9 @@ import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
 import { getFinanceOverview } from "../api/finance";
-import { getWellness, sleepLabel } from "../api/wellness";
+import { getMeals } from "../api/nutrition";
+import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
+import { getWellness, recoveryState, sleepLabel } from "../api/wellness";
 import { balance, daysSince, routineLabel, today } from "../lib/format";
 
 function greeting(): string {
@@ -18,9 +20,10 @@ function fullDate(): string {
 }
 
 const SUGGESTIONS: { label: string; seed: string; workout?: boolean }[] = [
+  { label: "¿Cómo estoy hoy?", seed: "¿Cómo estoy hoy según mi descanso y qué me recomiendas?" },
   { label: "Registrar el día", seed: "Quiero registrar el día de hoy" },
   { label: "Empezar entrenamiento", seed: "Empiezo entreno", workout: true },
-  { label: "¿Cómo va mi calprotectina?", seed: "¿Cómo va mi calprotectina fecal?" },
+  { label: "¿Qué como hoy?", seed: "¿Qué como hoy?" },
   { label: "Resumen de la semana", seed: "Hazme un resumen de la semana" },
 ];
 
@@ -50,12 +53,12 @@ export function Home() {
 
       <ChatHero onOpen={openChat} />
 
+      <Briefing onOpen={openChat} />
+
       <div className="space-y-8">
         <SaludBlock onOpen={openChat} />
         <div className="border-t border-line" />
         <DescansoBlock />
-        <EntrenoBlock onOpen={openChat} />
-        <div className="border-t border-line" />
         <FinanzasBlock />
       </div>
 
@@ -95,7 +98,8 @@ function ChatHero({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
   );
 }
 
-function SecHead({ title, onClick }: { title: string; onClick: () => void }) {
+function SecHead({ title, onClick }: { title: string; onClick?: () => void }) {
+  if (!onClick) return <h2 className="mb-3 text-xs uppercase tracking-[0.13em] text-ink-soft">{title}</h2>;
   return (
     <button onClick={onClick} className="group mb-3 flex w-full items-center justify-between">
       <h2 className="text-xs uppercase tracking-[0.13em] text-ink-soft">{title}</h2>
@@ -106,6 +110,119 @@ function SecHead({ title, onClick }: { title: string; onClick: () => void }) {
         </svg>
       </span>
     </button>
+  );
+}
+
+// ── Hoy: the proactive briefing (recovery → training → nutrition) ────────────
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[15px] tabular-nums text-ink">{value}</div>
+      <div className="mt-0.5 text-[11px] uppercase tracking-[0.07em] text-ink-soft">{label}</div>
+    </div>
+  );
+}
+
+function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => void }) {
+  const navigate = useNavigate();
+  const wellness = useQuery({ queryKey: ["wellness"], queryFn: () => getWellness(14) });
+  const training = useQuery({ queryKey: ["training-summary"], queryFn: getTrainingSummary });
+  const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile });
+  const flares = useQuery({ queryKey: ["flares"], queryFn: getFlares });
+  const meals = useQuery({ queryKey: ["meals"], queryFn: () => getMeals(14) });
+
+  const rec = recoveryState(wellness.data);
+  const d = wellness.data?.days?.[0];
+  const s = training.data;
+
+  const targets = targetsFromProfile(profile.data);
+  const target = dailyKcalTarget(targets, s?.todayActivityKcal ?? 0, flares.data?.active != null);
+  const consumed = (meals.data?.meals ?? [])
+    .filter((m) => m.date === today())
+    .reduce((sum, m) => sum + (m.calories ?? 0), 0);
+  const pct = target ? Math.min(100, (consumed / target) * 100) : 0;
+
+  return (
+    <section>
+      <SecHead title="Hoy" />
+      <div className="overflow-hidden rounded-2xl border border-line">
+        {rec && d && (
+          <div className="px-4 pb-4 pt-4">
+            <div className="flex items-center gap-2.5">
+              <span className={`size-[9px] shrink-0 rounded-full ${rec.dotClass}`} />
+              <span className="text-[19px] font-medium tracking-tight text-ink">{rec.title}</span>
+            </div>
+            <div className="ml-[19px] mt-1 text-[14px] text-ink-soft">{rec.sub}</div>
+            <div className="ml-[19px] mt-4 flex gap-7">
+              <Metric label="Sueño" value={sleepLabel(d.sleepMinutes)} />
+              <Metric label="HRV" value={d.hrvAvgMs != null ? `${d.hrvAvgMs} ms` : "—"} />
+              {(d.bodyBatteryHigh != null || d.bodyBatteryLow != null) && (
+                <Metric label="Body Battery" value={`${d.bodyBatteryHigh ?? "—"}→${d.bodyBatteryLow ?? "—"}`} />
+              )}
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => onOpen("Empiezo entreno", true)}
+          className={`flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-line/20 ${rec ? "border-t border-line" : ""}`}
+        >
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Entreno de hoy</div>
+            <div className="mt-1 text-[19px] font-medium text-ink">{s?.nextRoutine ? routineLabel(s.nextRoutine) : "—"}</div>
+            <div className="mt-1 text-[13px] leading-relaxed text-ink-soft">
+              {rec?.trainingNote}
+              {rec && s?.lastWorkoutDate && s.lastWorkoutRoutine ? " · " : ""}
+              {s?.lastWorkoutDate && s.lastWorkoutRoutine
+                ? `última ${routineLabel(s.lastWorkoutRoutine)} hace ${daysSince(s.lastWorkoutDate)} días`
+                : ""}
+            </div>
+          </div>
+          <span className="flex h-11 shrink-0 items-center rounded-full bg-ink px-5 text-sm font-medium text-paper">
+            Entrenar
+          </span>
+        </button>
+
+        <div className="border-t border-line px-4 py-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Objetivo de hoy</div>
+              {target != null ? (
+                <div className="mt-1.5 text-2xl font-semibold leading-none tabular-nums text-ink">
+                  {target.toLocaleString("de-DE")}
+                  <span className="ml-1.5 text-[13px] font-normal text-ink-soft">kcal</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => void navigate({ to: "/perfil" })}
+                  className="mt-1.5 text-[14px] text-ink-soft hover:text-ink"
+                >
+                  Completa tu perfil →
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => onOpen("Quiero registrar una comida")}
+              className="h-10 shrink-0 rounded-full border border-line px-4 text-[13px] font-medium text-ink hover:bg-line/40"
+            >
+              Registrar comida
+            </button>
+          </div>
+          {target != null && (
+            <>
+              <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-line">
+                <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="mt-2 text-[13px] tabular-nums text-ink-soft">
+                Consumido {consumed.toLocaleString("de-DE")} · restante{" "}
+                {Math.max(0, target - consumed).toLocaleString("de-DE")} kcal
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -189,11 +306,7 @@ function SaludBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => 
               {trend && ` · ${trend}`}
             </div>
           </div>
-          <Sparkline
-            values={points.map((p) => p.value)}
-            refMin={last.refMin}
-            refMax={last.refMax}
-          />
+          <Sparkline values={points.map((p) => p.value)} refMin={last.refMin} refMax={last.refMax} />
         </div>
       )}
     </section>
@@ -224,37 +337,6 @@ function DescansoBlock() {
       </section>
       <div className="border-t border-line" />
     </>
-  );
-}
-
-function EntrenoBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => void }) {
-  const navigate = useNavigate();
-  const summary = useQuery({ queryKey: ["training-summary"], queryFn: getTrainingSummary });
-  const s = summary.data;
-
-  return (
-    <section>
-      <SecHead title="Entrenamiento" onClick={() => void navigate({ to: "/gym" })} />
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="text-[11px] uppercase tracking-wide text-ink-soft">Toca hoy</div>
-          <div className="mt-1.5 text-2xl font-medium leading-none text-ink">
-            {s?.nextRoutine ? routineLabel(s.nextRoutine) : "—"}
-          </div>
-          {s?.lastWorkoutDate && s.lastWorkoutRoutine && (
-            <div className="mt-2 text-[13px] text-ink-soft">
-              Última sesión · {routineLabel(s.lastWorkoutRoutine)} · hace {daysSince(s.lastWorkoutDate)} días
-            </div>
-          )}
-        </div>
-        <button
-          onClick={() => onOpen("Empiezo entreno", true)}
-          className="h-11 shrink-0 rounded-full bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
-        >
-          Entrenar
-        </button>
-      </div>
-    </section>
   );
 }
 

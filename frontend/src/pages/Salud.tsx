@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { dailyKcalTarget, getProfile } from "../api/profile";
+import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
 import { getTrainingSummary } from "../api/training";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
@@ -374,8 +374,7 @@ function ComidasTab() {
   const todayTotal = todayMeals.reduce((s, m) => s + (m.calories ?? 0), 0);
 
   // Day's target = profile TDEE (or maintenance during a flare) + today's exercise calories.
-  const p = profile.data;
-  const targets = p && p.tdee != null && p.baseTarget != null ? { bmr: p.bmr ?? 0, tdee: p.tdee, baseTarget: p.baseTarget } : null;
+  const targets = targetsFromProfile(profile.data);
   const target = dailyKcalTarget(targets, training.data?.todayActivityKcal ?? 0, flares.data?.active != null);
   const pct = target ? Math.min(100, (todayTotal / target) * 100) : 0;
 
