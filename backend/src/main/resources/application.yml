@@ -32,6 +32,11 @@ spring:
           enabled: true
       republish-outstanding-events-on-restart: true
 
+# Google sign-in (browser/PWA) is wired in code by GoogleClientRegistration, which only
+# builds a ClientRegistrationRepository when GOOGLE_CLIENT_ID is set. Declaring it here with
+# empty env defaults would fail Boot's registration validation, so it is intentionally absent:
+# local/test runs without the env vars keep the API open and skip Google login entirely.
+
 jobrunr:
   background-job-server:
     enabled: true
@@ -52,8 +57,12 @@ management:
 
 itaca:
   security:
-    # Static bearer token for the whole API. Empty = no auth (development only).
+    # Static bearer token for machine callers (Garmin Action, iOS Shortcut, Strava sync).
+    # Empty = no auth (development only): the API stays open and Google login is bypassed.
     token: ${ITACA_API_TOKEN:}
+    # Single-user allowlist: only this Google account may sign in. Empty = allow any
+    # Google account that completes the flow (use only if the OAuth client is private).
+    allowed-email: ${ITACA_ALLOWED_EMAIL:}
   finance:
     # Counterparty names (own/partner/joint) whose movements are transfers, not spending.
     transfer-names: ${ITACA_FINANCE_TRANSFER_NAMES:}
