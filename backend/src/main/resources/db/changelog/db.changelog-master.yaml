@@ -77,3 +77,5 @@ databaseChangeLog:
       file: db/changelog/080-wellness-schema.sql
   - include:
       file: db/changelog/090-oauth2-authorized-client.sql
+  - include:
+      file: db/changelog/091-drive-seen.sql
