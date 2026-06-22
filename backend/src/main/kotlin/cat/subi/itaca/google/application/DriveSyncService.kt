@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service
 data class DriveSyncResult(
     val ingested: Int,
     val failed: List<String>,
+    val listed: Int = 0,
 )
 
 /**
@@ -31,12 +32,20 @@ class DriveSyncService(
     @Suppress("TooGenericExceptionCaught")
     fun sync(): DriveSyncResult {
         if (folderId.isBlank()) return EMPTY
-        val token = tokens.accessToken() ?: return EMPTY
+        val token =
+            tokens.accessToken() ?: run {
+                log.info("Drive sync: no Google token yet — sign in to connect (and re-login if you signed in before).")
+                return EMPTY
+            }
         return try {
             val result = syncDriveFolder(token, folderId, reader, seen, inbox)
-            if (result.ingested > 0 || result.failed.isNotEmpty()) {
-                log.info("Drive sync: ingested {}, failed {}", result.ingested, result.failed)
-            }
+            log.info(
+                "Drive sync: {} files in folder, {} newly ingested, {} failed {}",
+                result.listed,
+                result.ingested,
+                result.failed.size,
+                result.failed,
+            )
             result
         } catch (e: Exception) {
             // One clean line per failed poll (bad folder id, expired token, network); the next
@@ -67,7 +76,8 @@ fun syncDriveFolder(
 ): DriveSyncResult {
     var ingested = 0
     val failed = mutableListOf<String>()
-    val fresh = reader.listFolder(token, folderId).filterNot { seen.isSeen(it.id) }
+    val all = reader.listFolder(token, folderId)
+    val fresh = all.filterNot { seen.isSeen(it.id) }
     for (doc in fresh) {
         if (doc.mimeType.startsWith(GOOGLE_APPS_PREFIX)) {
             // Google-native docs can't be downloaded as bytes; mark them seen so we don't re-list.
@@ -82,5 +92,5 @@ fun syncDriveFolder(
             }
         }
     }
-    return DriveSyncResult(ingested, failed)
+    return DriveSyncResult(ingested, failed, listed = all.size)
 }

@@ -67,6 +67,7 @@ class DriveSyncServiceTest {
         val result = syncDriveFolder("tok", "folder", reader, seen, inbox)
 
         assertEquals(2, result.ingested)
+        assertEquals(2, result.listed)
         assertEquals(listOf("labs.pdf", "bank.csv"), inbox.received)
         assertTrue(seen.seen.containsAll(setOf("1", "2")))
     }
