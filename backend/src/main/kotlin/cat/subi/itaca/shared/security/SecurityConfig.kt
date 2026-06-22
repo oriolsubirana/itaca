@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.invoke
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler
@@ -40,7 +42,7 @@ class SecurityConfig {
         clientRegistrations: ObjectProvider<ClientRegistrationRepository>,
     ): SecurityFilterChain {
         val authEnabled = token.isNotBlank()
-        val googleConfigured = clientRegistrations.ifAvailable != null
+        val clientRepo = clientRegistrations.ifAvailable
         val apiMatcher = RequestMatcher { it.requestURI.startsWith("/api/") }
 
         http {
@@ -59,8 +61,11 @@ class SecurityConfig {
                 invalidateHttpSession = true
                 deleteCookies("JSESSIONID")
             }
-            if (googleConfigured) {
+            if (clientRepo != null) {
                 oauth2Login {
+                    authorizationEndpoint {
+                        authorizationRequestResolver = offlineAccessResolver(clientRepo)
+                    }
                     userInfoEndpoint {
                         oidcUserService = GoogleEmailAllowlist(allowedEmail)
                     }
@@ -74,4 +79,19 @@ class SecurityConfig {
         }
         return http.build()
     }
+
+    /**
+     * Asks Google for offline access so it returns a refresh token (prompt=consent forces it on
+     * every login, not just the first). Without this we'd only get a 1h access token and could
+     * never read Calendar/Gmail/Drive off the request thread.
+     */
+    private fun offlineAccessResolver(repo: ClientRegistrationRepository): OAuth2AuthorizationRequestResolver =
+        DefaultOAuth2AuthorizationRequestResolver(repo, "/oauth2/authorization").apply {
+            setAuthorizationRequestCustomizer { builder ->
+                builder.additionalParameters { params ->
+                    params["access_type"] = "offline"
+                    params["prompt"] = "consent"
+                }
+            }
+        }
 }
