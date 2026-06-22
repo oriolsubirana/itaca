@@ -56,6 +56,8 @@ management:
         include: health,info
 
 itaca:
+  # Where the SPA lives; Google login redirects back here after a successful sign-in.
+  app-url: ${ITACA_APP_URL:http://localhost:5173}
   security:
     # Static bearer token for machine callers (Garmin Action, iOS Shortcut, Strava sync).
     # Empty = no auth (development only): the API stays open and Google login is bypassed.

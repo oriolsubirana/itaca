@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.invoke
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.util.matcher.RequestMatcher
 
@@ -18,7 +19,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher
  *  - Machines (Garmin Action, iOS Shortcut, Strava sync) send the static bearer token,
  *    authenticated by [BearerTokenFilter].
  *  - The human (browser/PWA) signs in with Google (OAuth2 login → session), gated to a
- *    single email by [GoogleEmailAllowlist].
+ *    single email by [GoogleEmailAllowlist], then lands back on the SPA (itaca.app-url).
  *
  * When `itaca.security.token` is blank (local/test), the API stays fully open — the previous
  * development behaviour — so the existing suite runs unchanged. Google login only activates
@@ -33,6 +34,7 @@ class SecurityConfig {
         http: HttpSecurity,
         @Value("\${itaca.security.token:}") token: String,
         @Value("\${itaca.security.allowed-email:}") allowedEmail: String,
+        @Value("\${itaca.app-url:http://localhost:5173}") appUrl: String,
         clientRegistrations: ObjectProvider<ClientRegistrationRepository>,
     ): SecurityFilterChain {
         val authEnabled = token.isNotBlank()
@@ -53,6 +55,7 @@ class SecurityConfig {
                     userInfoEndpoint {
                         oidcUserService = GoogleEmailAllowlist(allowedEmail)
                     }
+                    authenticationSuccessHandler = SimpleUrlAuthenticationSuccessHandler(appUrl)
                 }
             }
             exceptionHandling {
