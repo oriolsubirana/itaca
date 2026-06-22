@@ -61,12 +61,13 @@ class DriveSyncService(
 }
 
 private const val GOOGLE_APPS_PREFIX = "application/vnd.google-apps"
+private val driveLog = org.slf4j.LoggerFactory.getLogger("cat.subi.itaca.google.DriveSync")
 
 /**
  * Pure poll step (no Spring/Google): for each unseen, downloadable file, download it, hand it to
  * the inbox, and mark it seen. A per-file failure is collected (not marked seen, so it retries).
  */
-@Suppress("TooGenericExceptionCaught", "SwallowedException")
+@Suppress("TooGenericExceptionCaught")
 fun syncDriveFolder(
     token: String,
     folderId: String,
@@ -88,6 +89,7 @@ fun syncDriveFolder(
                 seen.markSeen(doc.id, doc.name, doc.mimeType)
                 ingested++
             } catch (e: Exception) {
+                driveLog.warn("Drive sync: could not ingest '{}': {}", doc.name, e.toString())
                 failed.add(doc.name)
             }
         }
