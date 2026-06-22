@@ -39,16 +39,30 @@ export function Home() {
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{greeting()}, Oriol</h1>
           <p className="mt-1 text-sm capitalize text-ink-soft">{fullDate()}</p>
         </div>
-        <button
-          onClick={() => void navigate({ to: "/perfil" })}
-          aria-label="Perfil"
-          className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-5">
-            <circle cx="12" cy="8.5" r="3.5" />
-            <path d="M5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
+          <button
+            onClick={() => void navigate({ to: "/entradas" })}
+            aria-label="Entradas"
+            className="flex size-10 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-5">
+              <path
+                d="M4 13h4l2 3h4l2-3h4M4 13l2.5-7h11L20 13v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18z"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => void navigate({ to: "/perfil" })}
+            aria-label="Perfil"
+            className="flex size-10 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-5">
+              <circle cx="12" cy="8.5" r="3.5" />
+              <path d="M5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <ChatHero onOpen={openChat} />

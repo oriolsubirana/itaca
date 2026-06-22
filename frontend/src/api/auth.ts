@@ -21,5 +21,10 @@ export function startGoogleLogin(): void {
   window.location.assign(googleLoginUrl);
 }
 
+/** Full-page navigation to log out; the backend clears the session and bounces back to the SPA. */
+export function logout(): void {
+  window.location.assign(`${AUTH_BASE}/logout`);
+}
+
 /** 401 here means "log in"; a 200 means the API is usable (Google session, token, or open dev). */
 export const getMe = () => api<Me>("/auth/me");

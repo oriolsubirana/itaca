@@ -13,6 +13,7 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.authentication.logout.SimpleUrlLogoutSuccessHandler
 import org.springframework.security.web.util.matcher.RequestMatcher
 
 /**
@@ -51,6 +52,13 @@ class SecurityConfig {
                 authorize(anyRequest, permitAll)
             }
             addFilterBefore<UsernamePasswordAuthenticationFilter>(BearerTokenFilter(token))
+            logout {
+                // The SPA logs out via a full-page GET to /logout; clear the session and bounce back.
+                logoutRequestMatcher = RequestMatcher { it.requestURI == "/logout" }
+                logoutSuccessHandler = SimpleUrlLogoutSuccessHandler().apply { setDefaultTargetUrl(appUrl) }
+                invalidateHttpSession = true
+                deleteCookies("JSESSIONID")
+            }
             if (googleConfigured) {
                 oauth2Login {
                     userInfoEndpoint {
