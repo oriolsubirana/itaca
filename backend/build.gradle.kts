@@ -60,7 +60,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // Async jobs (same Postgres, no broker)
-    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.6.1")
+    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.0")
 
     // Claude via Spring AI (GA not out yet; RC2 is the latest on Central)
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic")
