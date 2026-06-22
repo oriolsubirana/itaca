@@ -28,14 +28,22 @@ class DriveSyncService(
 ) {
     private val log = LoggerFactory.getLogger(DriveSyncService::class.java)
 
+    @Suppress("TooGenericExceptionCaught")
     fun sync(): DriveSyncResult {
         if (folderId.isBlank()) return EMPTY
         val token = tokens.accessToken() ?: return EMPTY
-        val result = syncDriveFolder(token, folderId, reader, seen, inbox)
-        if (result.ingested > 0 || result.failed.isNotEmpty()) {
-            log.info("Drive sync: ingested {}, failed {}", result.ingested, result.failed)
+        return try {
+            val result = syncDriveFolder(token, folderId, reader, seen, inbox)
+            if (result.ingested > 0 || result.failed.isNotEmpty()) {
+                log.info("Drive sync: ingested {}, failed {}", result.ingested, result.failed)
+            }
+            result
+        } catch (e: Exception) {
+            // One clean line per failed poll (bad folder id, expired token, network); the next
+            // scheduled run retries. Don't rethrow — that triggers a JobRunr retry storm.
+            log.warn("Drive sync failed (folder '{}'): {}", folderId, e.message)
+            EMPTY
         }
-        return result
     }
 
     private companion object {
