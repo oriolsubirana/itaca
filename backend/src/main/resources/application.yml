@@ -9,7 +9,7 @@ spring:
     virtual:
       enabled: true
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/itaca}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/itaca}
     username: ${SPRING_DATASOURCE_USERNAME:itaca}
     password: ${SPRING_DATASOURCE_PASSWORD:itaca}
   jpa:
