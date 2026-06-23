@@ -69,8 +69,9 @@ itaca:
     # Counterparty names (own/partner/joint) whose movements are transfers, not spending.
     transfer-names: ${ITACA_FINANCE_TRANSFER_NAMES:}
   storage:
-    # Local fallback when Supabase is not configured
-    local-dir: ${ITACA_STORAGE_DIR:./data/lab-reports}
+    # Local fallback when Supabase is not configured. Holds all ingested documents
+    # (lab reports and finance statements), not just labs.
+    local-dir: ${ITACA_STORAGE_DIR:./data/documents}
   extraction:
     model: claude-haiku-4-5
   strava:
