@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient
 /** Google's files.list payload (only the fields we use; Jackson 3 ignores the rest). */
 class DriveListResponse {
     var files: List<DriveFileItem> = emptyList()
+    var nextPageToken: String? = null
 }
 
 class DriveFileItem {
@@ -28,24 +29,34 @@ class GoogleDriveClient(
         accessToken: String,
         folderId: String,
     ): List<DriveDoc> {
-        val response =
-            api
-                .get()
-                .uri { b ->
-                    b
-                        .path("/files")
-                        .queryParam("q", "'$folderId' in parents and trashed = false")
-                        .queryParam("fields", "files(id,name,mimeType)")
-                        .queryParam("orderBy", "createdTime")
-                        .queryParam("pageSize", PAGE_SIZE)
-                        .build()
-                }.header("Authorization", "Bearer $accessToken")
-                .retrieve()
-                .body(DriveListResponse::class.java)
-        return response?.files.orEmpty().mapNotNull { f ->
-            val id = f.id ?: return@mapNotNull null
-            DriveDoc(id, f.name ?: id, f.mimeType ?: "application/octet-stream")
-        }
+        val docs = mutableListOf<DriveDoc>()
+        var pageToken: String? = null
+        var pages = 0
+        do {
+            val token = pageToken
+            val response =
+                api
+                    .get()
+                    .uri { b ->
+                        b
+                            .path("/files")
+                            .queryParam("q", "'$folderId' in parents and trashed = false")
+                            .queryParam("fields", "nextPageToken,files(id,name,mimeType)")
+                            .queryParam("orderBy", "createdTime")
+                            .queryParam("pageSize", PAGE_SIZE)
+                        if (token != null) b.queryParam("pageToken", token)
+                        b.build()
+                    }.header("Authorization", "Bearer $accessToken")
+                    .retrieve()
+                    .body(DriveListResponse::class.java)
+            response?.files.orEmpty().mapNotNullTo(docs) { f ->
+                val id = f.id ?: return@mapNotNullTo null
+                DriveDoc(id, f.name ?: id, f.mimeType ?: "application/octet-stream")
+            }
+            pageToken = response?.nextPageToken
+            pages++
+        } while (pageToken != null && pages < MAX_PAGES)
+        return docs
     }
 
     override fun download(
@@ -61,5 +72,6 @@ class GoogleDriveClient(
 
     private companion object {
         const val PAGE_SIZE = 100
+        const val MAX_PAGES = 20 // safety cap: up to ~2000 files per poll
     }
 }

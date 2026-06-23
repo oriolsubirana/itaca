@@ -62,8 +62,8 @@ itaca:
     # Static bearer token for machine callers (Garmin Action, iOS Shortcut, Strava sync).
     # Empty = no auth (development only): the API stays open and Google login is bypassed.
     token: ${ITACA_API_TOKEN:}
-    # Single-user allowlist: only this Google account may sign in. Empty = allow any
-    # Google account that completes the flow (use only if the OAuth client is private).
+    # Single-user allowlist: only this Google account may sign in. REQUIRED when Google login
+    # is configured — fail-closed: an empty value rejects every account (nobody can log in).
     allowed-email: ${ITACA_ALLOWED_EMAIL:}
   finance:
     # Counterparty names (own/partner/joint) whose movements are transfers, not spending.

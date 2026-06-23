@@ -41,8 +41,10 @@ class SecurityConfig {
         @Value("\${itaca.app-url:http://localhost:5173}") appUrl: String,
         clientRegistrations: ObjectProvider<ClientRegistrationRepository>,
     ): SecurityFilterChain {
-        val authEnabled = token.isNotBlank()
         val clientRepo = clientRegistrations.ifAvailable
+        // Protect /api when EITHER a machine token OR Google login is configured, so a prod deploy
+        // that uses only Google (no static token) is never left open. Blank both = open (local/dev).
+        val authEnabled = token.isNotBlank() || clientRepo != null
         val apiMatcher = RequestMatcher { it.requestURI.startsWith("/api/") }
 
         http {

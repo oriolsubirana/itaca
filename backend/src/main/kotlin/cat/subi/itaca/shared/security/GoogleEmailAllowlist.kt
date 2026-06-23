@@ -8,8 +8,8 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser
 
 /**
  * Single-user gate for Google sign-in: only the configured email may complete the login.
- * An empty allowlist allows any Google account that finishes the flow (only safe when the
- * OAuth client itself is private to one user). Loads the standard OIDC user, then checks.
+ * Fail-closed — a blank allowlist rejects everyone, so a forgotten ITACA_ALLOWED_EMAIL locks
+ * the app rather than letting any Google account in. Loads the standard OIDC user, then checks.
  */
 class GoogleEmailAllowlist(
     private val allowedEmail: String,
@@ -26,8 +26,8 @@ class GoogleEmailAllowlist(
     }
 }
 
-/** Pure allow decision (extracted so it can be tested without hitting Google). */
+/** Pure allow decision (extracted so it can be tested without hitting Google). Fail-closed when blank. */
 internal fun isAllowed(
     email: String?,
     allowedEmail: String,
-): Boolean = allowedEmail.isBlank() || allowedEmail.equals(email, ignoreCase = true)
+): Boolean = allowedEmail.isNotBlank() && allowedEmail.equals(email, ignoreCase = true)

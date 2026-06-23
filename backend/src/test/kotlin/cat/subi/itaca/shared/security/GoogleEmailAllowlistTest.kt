@@ -21,7 +21,7 @@ class GoogleEmailAllowlistTest {
     }
 
     @Test
-    fun `allows anyone when the allowlist is empty`() {
-        assertTrue(isAllowed("anyone@example.com", ""))
+    fun `rejects everyone when the allowlist is empty (fail-closed)`() {
+        assertFalse(isAllowed("anyone@example.com", ""))
     }
 }
