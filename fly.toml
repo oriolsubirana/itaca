@@ -1,0 +1,31 @@
+# Fly.io config. Run `fly launch --no-deploy` once to create the app (it may rename it if "itaca"
+# is taken — update `app` and ITACA_APP_URL accordingly), then `fly secrets set ...` and `fly deploy`.
+app = "itaca"
+primary_region = "fra" # Frankfurt — close to central Europe
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SPRING_PROFILES_ACTIVE = "prod"
+  # Public URL used for the Google login/logout redirects. Change to your custom domain if you add one.
+  ITACA_APP_URL = "https://itaca.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Keep one machine warm: a JVM cold start is slow and this is a daily-use app.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/actuator/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
