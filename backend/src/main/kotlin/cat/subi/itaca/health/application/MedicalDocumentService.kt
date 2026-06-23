@@ -78,6 +78,18 @@ class MedicalDocumentService(
         return document.toDto(0, 0)
     }
 
+    /** Registers a clinical document ingestion already stored (no second copy). Idempotent on the path. */
+    @Transactional
+    fun registerStored(
+        filename: String,
+        storagePath: String,
+    ): MedicalDocumentDto {
+        documents.findFirstByStoragePath(storagePath)?.let { return it.toDto(0, 0) }
+        val document =
+            documents.save(MedicalDocumentEntity(filename = filename, storagePath = storagePath, extracting = true))
+        return document.toDto(0, 0)
+    }
+
     /** Executed by the JobRunr handler, with retries on failure. */
     @Transactional
     fun runExtraction(documentId: Long) {

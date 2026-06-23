@@ -4,6 +4,7 @@ import cat.subi.itaca.ingestion.BankStatementReceived
 import cat.subi.itaca.ingestion.IngestionFailed
 import cat.subi.itaca.ingestion.IngestionSucceeded
 import cat.subi.itaca.ingestion.LabReportReceived
+import cat.subi.itaca.ingestion.MedicalDocumentReceived
 import cat.subi.itaca.ingestion.domain.Destination
 import cat.subi.itaca.ingestion.domain.FileType
 import cat.subi.itaca.ingestion.domain.FileTypeDetector
@@ -50,6 +51,10 @@ class IngestionService(
             Destination.HEALTH_LAB -> {
                 repo.setDestination(id, "health")
                 events.publishEvent(LabReportReceived(id, file.name, file.storagePath))
+            }
+            Destination.HEALTH_DOCUMENT -> {
+                repo.setDestination(id, "health")
+                events.publishEvent(MedicalDocumentReceived(id, file.name, file.storagePath))
             }
             Destination.FINANCE_BANK -> {
                 repo.setDestination(id, "finance")

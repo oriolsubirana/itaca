@@ -1,62 +1,62 @@
 package cat.subi.itaca.shared.security
 
-import jakarta.servlet.http.HttpServletResponse
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockFilterChain
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
-import kotlin.test.assertEquals
+import org.springframework.security.core.context.SecurityContextHolder
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class BearerTokenFilterTest {
     private val filter = BearerTokenFilter(configuredToken = "secret")
 
-    private fun request(authorization: String? = null) =
-        MockHttpServletRequest("GET", "/api/workouts").apply {
-            authorization?.let { addHeader("Authorization", it) }
-        }
+    @AfterEach
+    fun clearContext() = SecurityContextHolder.clearContext()
 
-    @Test
-    fun `rejects requests without Authorization header`() {
-        val response = MockHttpServletResponse()
+    private fun run(
+        authorization: String?,
+        f: BearerTokenFilter = filter,
+    ): MockFilterChain {
+        val request =
+            MockHttpServletRequest("GET", "/api/workouts").apply {
+                authorization?.let { addHeader("Authorization", it) }
+            }
         val chain = MockFilterChain()
-
-        filter.doFilter(request(), response, chain)
-
-        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.status)
-        assertNull(chain.request)
+        f.doFilter(request, MockHttpServletResponse(), chain)
+        return chain
     }
 
     @Test
-    fun `rejects wrong tokens`() {
-        val response = MockHttpServletResponse()
-        val chain = MockFilterChain()
+    fun `authenticates a valid token as the machine role`() {
+        val chain = run("Bearer secret")
 
-        filter.doFilter(request("Bearer wrong"), response, chain)
-
-        assertEquals(HttpServletResponse.SC_UNAUTHORIZED, response.status)
-        assertNull(chain.request)
+        val auth = SecurityContextHolder.getContext().authentication
+        assertNotNull(auth)
+        assertTrue(auth.authorities.any { it.authority == "ROLE_MACHINE" })
+        assertNotNull(chain.request) // the filter never blocks; it only sets the authentication
     }
 
     @Test
-    fun `lets requests with the right token through`() {
-        val response = MockHttpServletResponse()
-        val chain = MockFilterChain()
+    fun `leaves the context unauthenticated for a wrong token`() {
+        run("Bearer wrong")
 
-        filter.doFilter(request("Bearer secret"), response, chain)
-
-        assertNotNull(chain.request)
+        assertNull(SecurityContextHolder.getContext().authentication)
     }
 
     @Test
-    fun `disables itself when no token is configured`() {
-        val openFilter = BearerTokenFilter(configuredToken = "")
-        val response = MockHttpServletResponse()
-        val chain = MockFilterChain()
+    fun `leaves the context unauthenticated without an Authorization header`() {
+        run(null)
 
-        openFilter.doFilter(request(), response, chain)
+        assertNull(SecurityContextHolder.getContext().authentication)
+    }
 
-        assertNotNull(chain.request)
+    @Test
+    fun `is a no-op when no token is configured`() {
+        run(null, BearerTokenFilter(""))
+
+        assertNull(SecurityContextHolder.getContext().authentication)
     }
 }

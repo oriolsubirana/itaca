@@ -9,7 +9,7 @@ spring:
     virtual:
       enabled: true
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/itaca}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/itaca}
     username: ${SPRING_DATASOURCE_USERNAME:itaca}
     password: ${SPRING_DATASOURCE_PASSWORD:itaca}
   jpa:
@@ -32,6 +32,11 @@ spring:
           enabled: true
       republish-outstanding-events-on-restart: true
 
+# Google sign-in (browser/PWA) is wired in code by GoogleClientRegistration, which only
+# builds a ClientRegistrationRepository when GOOGLE_CLIENT_ID is set. Declaring it here with
+# empty env defaults would fail Boot's registration validation, so it is intentionally absent:
+# local/test runs without the env vars keep the API open and skip Google login entirely.
+
 jobrunr:
   background-job-server:
     enabled: true
@@ -51,15 +56,22 @@ management:
         include: health,info
 
 itaca:
+  # Where the SPA lives; Google login redirects back here after a successful sign-in.
+  app-url: ${ITACA_APP_URL:http://localhost:5173}
   security:
-    # Static bearer token for the whole API. Empty = no auth (development only).
+    # Static bearer token for machine callers (Garmin Action, iOS Shortcut, Strava sync).
+    # Empty = no auth (development only): the API stays open and Google login is bypassed.
     token: ${ITACA_API_TOKEN:}
+    # Single-user allowlist: only this Google account may sign in. REQUIRED when Google login
+    # is configured — fail-closed: an empty value rejects every account (nobody can log in).
+    allowed-email: ${ITACA_ALLOWED_EMAIL:}
   finance:
     # Counterparty names (own/partner/joint) whose movements are transfers, not spending.
     transfer-names: ${ITACA_FINANCE_TRANSFER_NAMES:}
   storage:
-    # Local fallback when Supabase is not configured
-    local-dir: ${ITACA_STORAGE_DIR:./data/lab-reports}
+    # Local fallback when Supabase is not configured. Holds all ingested documents
+    # (lab reports and finance statements), not just labs.
+    local-dir: ${ITACA_STORAGE_DIR:./data/documents}
   extraction:
     model: claude-haiku-4-5
   strava:

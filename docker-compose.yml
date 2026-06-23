@@ -6,7 +6,9 @@ services:
       POSTGRES_USER: itaca
       POSTGRES_PASSWORD: itaca
     ports:
-      - "5432:5432"
+      # Host port 5433 (container stays 5432) to avoid clashing with another local Postgres.
+      # Override with ITACA_DB_PORT if needed.
+      - "${ITACA_DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

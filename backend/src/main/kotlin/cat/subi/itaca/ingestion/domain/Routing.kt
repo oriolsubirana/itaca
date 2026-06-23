@@ -10,6 +10,9 @@ enum class FileType {
 /** Which bounded context an ingested file is routed to. */
 enum class Destination {
     HEALTH_LAB,
+
+    /** A clinical document (consultation letter, report, treatment plan, prescription) — not a lab report. */
+    HEALTH_DOCUMENT,
     FINANCE_BANK,
 
     /** Could not be decided deterministically — the AI tier must classify it. */

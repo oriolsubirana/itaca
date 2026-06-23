@@ -40,13 +40,13 @@ class DocumentStorageConfig {
     fun supabaseDocumentStorage(
         @Value("\${supabase.url}") supabaseUrl: String,
         @Value("\${supabase.service-key}") serviceKey: String,
-        @Value("\${supabase.bucket:lab-reports}") bucket: String,
+        @Value("\${supabase.bucket:documents}") bucket: String,
     ): DocumentStorage = SupabaseDocumentStorage(supabaseUrl, serviceKey, bucket)
 
     @Bean
     @ConditionalOnMissingBean(DocumentStorage::class)
     fun localDocumentStorage(
-        @Value("\${itaca.storage.local-dir:./data/lab-reports}") localDir: String,
+        @Value("\${itaca.storage.local-dir:./data/documents}") localDir: String,
     ): DocumentStorage = LocalDocumentStorage(localDir)
 }
 
