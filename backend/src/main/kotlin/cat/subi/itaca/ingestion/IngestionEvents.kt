@@ -17,6 +17,13 @@ data class LabReportReceived(
     val storagePath: String,
 )
 
+/** A clinical document (consultation letter, report, treatment plan...) was received for health. */
+data class MedicalDocumentReceived(
+    val ingestionId: Long,
+    val filename: String,
+    val storagePath: String,
+)
+
 /**
  * A bank statement / pension report was received and should be imported into finance.
  * Carries the content type already decided at routing ("pdf" = finpension, "csv" = Neon)

@@ -3,10 +3,16 @@ package cat.subi.itaca.ingestion.application
 import cat.subi.itaca.TestcontainersConfiguration
 import cat.subi.itaca.ingestion.BankStatementReceived
 import cat.subi.itaca.ingestion.LabReportReceived
+import cat.subi.itaca.ingestion.MedicalDocumentReceived
+import cat.subi.itaca.ingestion.application.IngestionClassifierAi
+import cat.subi.itaca.ingestion.domain.Destination
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -21,9 +27,23 @@ import kotlin.test.assertEquals
  * asynchronously and are covered by their own listeners).
  */
 @SpringBootTest(properties = ["jobrunr.background-job-server.enabled=false"])
-@Import(TestcontainersConfiguration::class)
+@Import(TestcontainersConfiguration::class, IngestionIntegrationTest.StubClassifier::class)
 @RecordApplicationEvents
 class IngestionIntegrationTest {
+    /** Stubs the AI tier so a generic PDF routes to a clinical document (no real Anthropic call). */
+    @TestConfiguration
+    class StubClassifier {
+        @Bean
+        @Primary
+        fun stubAi(): IngestionClassifierAi =
+            object : IngestionClassifierAi {
+                override fun classify(
+                    filename: String,
+                    content: ByteArray,
+                ): Destination = Destination.HEALTH_DOCUMENT
+            }
+    }
+
     @Autowired
     lateinit var ingestion: IngestionService
 
@@ -54,6 +74,15 @@ class IngestionIntegrationTest {
         ingestion.process(dto.id)
 
         assertEquals(1, events.stream(LabReportReceived::class.java).filter { it.ingestionId == dto.id }.count())
+    }
+
+    @Test
+    fun `a generic clinical PDF routes to a medical document via the AI tier`() {
+        val dto = ingestion.ingest("test", "gastro_consultation_letter.pdf", "%PDF-1.7 fake".toByteArray())
+
+        ingestion.process(dto.id)
+
+        assertEquals(1, events.stream(MedicalDocumentReceived::class.java).filter { it.ingestionId == dto.id }.count())
     }
 
     @Test
