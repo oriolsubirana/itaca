@@ -20,12 +20,13 @@ primary_region = "fra" # Frankfurt — close to central Europe
   min_machines_running = 1
 
   [[http_service.checks]]
-    grace_period = "30s"
+    # First boot runs all Liquibase migrations on a small VM, so give it room before checking.
+    grace_period = "120s"
     interval = "30s"
     method = "GET"
     timeout = "5s"
     path = "/actuator/health"
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "1gb"
+  size = "shared-cpu-2x"
+  memory = "2gb"
