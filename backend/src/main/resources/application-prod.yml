@@ -1,0 +1,20 @@
+# Production profile (SPRING_PROFILES_ACTIVE=prod). Activated on the deployed instance.
+server:
+  # Behind Fly's TLS proxy: trust X-Forwarded-* so Spring builds https redirect URIs (OAuth) and
+  # knows the request is secure. Without this the Google redirect_uri would be http://internal:8080.
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        # The session cookie only travels over HTTPS, and Lax lets it survive the top-level
+        # redirect back from Google after login.
+        secure: true
+        http-only: true
+        same-site: lax
+
+# No public API docs in production.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
