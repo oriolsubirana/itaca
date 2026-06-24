@@ -44,6 +44,9 @@ class GoogleDriveClient(
                             .queryParam("fields", "nextPageToken,files(id,name,mimeType)")
                             .queryParam("orderBy", "createdTime")
                             .queryParam("pageSize", PAGE_SIZE)
+                            // Also reach folders in Shared Drives / shared-with-me, not just My Drive.
+                            .queryParam("supportsAllDrives", "true")
+                            .queryParam("includeItemsFromAllDrives", "true")
                         if (token != null) b.queryParam("pageToken", token)
                         b.build()
                     }.header("Authorization", "Bearer $accessToken")
@@ -65,8 +68,13 @@ class GoogleDriveClient(
     ): ByteArray =
         api
             .get()
-            .uri { b -> b.path("/files/{id}").queryParam("alt", "media").build(fileId) }
-            .header("Authorization", "Bearer $accessToken")
+            .uri { b ->
+                b
+                    .path("/files/{id}")
+                    .queryParam("alt", "media")
+                    .queryParam("supportsAllDrives", "true")
+                    .build(fileId)
+            }.header("Authorization", "Bearer $accessToken")
             .retrieve()
             .body(ByteArray::class.java) ?: ByteArray(0)
 
