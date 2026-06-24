@@ -30,7 +30,14 @@ class GoogleTokens(
         log.info("Google token: resolving for stored principal=[{}]", principalName)
         val principal = UsernamePasswordAuthenticationToken(principalName, null, emptyList())
         val request = OAuth2AuthorizeRequest.withClientRegistrationId("google").principal(principal).build()
-        return runCatching { mgr.authorize(request)?.accessToken?.tokenValue }.getOrNull()
+        return runCatching {
+            val client = mgr.authorize(request) ?: return@runCatching null
+            // The scopes Google actually GRANTED (not what we requested). A Drive 404 with a valid
+            // files.list request means the token can't see the folder — usually because drive.readonly
+            // was never granted (consent predates it / not on the OAuth consent screen).
+            log.info("Google token: granted scopes={}", client.accessToken.scopes)
+            client.accessToken.tokenValue
+        }.getOrNull()
     }
 
     /** The single stored Google principal (most recently authorized), or null if none yet. */
