@@ -1,5 +1,6 @@
 package cat.subi.itaca.google.application
 
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -21,9 +22,12 @@ class GoogleTokens(
     private val manager: ObjectProvider<OAuth2AuthorizedClientManager>,
     private val jdbc: JdbcTemplate,
 ) {
+    private val log = LoggerFactory.getLogger(GoogleTokens::class.java)
+
     fun accessToken(): String? {
         val mgr = manager.ifAvailable ?: return null
         val principalName = storedPrincipal() ?: return null
+        log.info("Google token: resolving for stored principal=[{}]", principalName)
         val principal = UsernamePasswordAuthenticationToken(principalName, null, emptyList())
         val request = OAuth2AuthorizeRequest.withClientRegistrationId("google").principal(principal).build()
         return runCatching { mgr.authorize(request)?.accessToken?.tokenValue }.getOrNull()
