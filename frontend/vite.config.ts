@@ -9,6 +9,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      workbox: {
+        // The SPA navigation fallback (serve index.html) must NOT swallow the backend's auth
+        // endpoints — those have to reach the server: the OAuth redirect to Google, the login
+        // callback, logout and the API. Without this denylist the service worker intercepts
+        // /oauth2/authorization/google and returns the SPA, so login silently does nothing.
+        navigateFallbackDenylist: [/^\/api\//, /^\/oauth2\//, /^\/login\//, /^\/logout$/, /^\/actuator\//],
+      },
       manifest: {
         name: "Ítaca",
         short_name: "Ítaca",
