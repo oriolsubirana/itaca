@@ -1,5 +1,6 @@
 package cat.subi.itaca.training.application
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import java.time.LocalDate
@@ -56,9 +57,13 @@ private val MES = listOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago",
 @Service
 class ActivityQueries(
     private val jdbc: JdbcTemplate,
+    // Match StravaService.isConnected(): a configured seed refresh token counts as connected even
+    // before the first sync has created the strava_account row (the account is seeded lazily on sync).
+    @Value("\${itaca.strava.refresh-token:}") private val seedRefreshToken: String,
 ) {
     fun view(): ActivitiesView {
-        val connected = jdbc.queryForObject("SELECT count(*) FROM strava_account", Int::class.java)!! > 0
+        val hasAccount = (jdbc.queryForObject("SELECT count(*) FROM strava_account", Int::class.java) ?: 0) > 0
+        val connected = hasAccount || seedRefreshToken.isNotBlank()
         return ActivitiesView(connected, recent(), weekBike(), weekRun(), weekHikes(), weekMoving(), volume())
     }
 
