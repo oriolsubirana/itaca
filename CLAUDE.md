@@ -126,6 +126,7 @@ prepared by `.claude/hooks/session-start.sh`.
 9. ✅ Wellness (daily Garmin metrics: sleep/HRV/recovery via an external sync → `/api/wellness`)
 10. ✅ Auth + Google (OAuth2 login + email allowlist; Calendar read in chat; Drive drop-folder → ingestion)
 11. ✅ Production deploy (Fly.io, same-origin SPA served by the backend, Supabase Postgres)
+12. ✅ Tasks + agenda (to-do list by chat/screen; Gmail "awaiting reply" + calendar in the Home glance; chat "Resumen del día")
 
 ### Nutrition architecture (phase 7)
 
@@ -189,8 +190,9 @@ prepared by `.claude/hooks/session-start.sh`.
   filter stays for machine endpoints; the API entry point returns 401 (not a redirect) so the SPA can
   show its own login. Wired only when `GOOGLE_CLIENT_ID` exists, built in code (not YAML) to avoid
   `OAuth2ClientProperties` validation on an empty registration.
-- One consent covers identity + read scopes (`gmail.readonly` reserved, `calendar.readonly`,
-  `drive.readonly`); `access_type=offline` + `prompt=consent` for a refresh token. The authorized
+- One consent covers identity + read scopes (`gmail.readonly` (inbox glance, phase 12),
+  `calendar.readonly`, `drive.readonly`); `access_type=offline` + `prompt=consent` for a refresh
+  token. The authorized
   client is persisted in Postgres (`JdbcOAuth2AuthorizedClientService`, table `oauth2_authorized_client`,
   migration 090) so it survives restarts and works off the request thread. `GoogleTokens` resolves a
   fresh access token by looking the client up by the stored principal (email), refreshing as needed.
@@ -214,6 +216,22 @@ prepared by `.claude/hooks/session-start.sh`.
   in `vite.config.ts` covers `/oauth2`, `/login`, `/logout`, `/api`, `/actuator` (else the SW
   intercepts the OAuth redirect and login silently no-ops). The Google redirect URI is the callback
   `/login/oauth2/code/google`, NOT the start endpoint.
+
+### Tasks + agenda architecture (phase 12)
+
+- Own bounded context `tasks`: a personal to-do list. `TaskService` is a `ChatTools` impl
+  (`add_task` / `complete_task` / `query_tasks`; complete by id or by a title fragment) reused by the
+  REST adapter (`/api/tasks` GET/POST/PATCH/DELETE). `tasks` table (migration 100); the domain is
+  light (`TaskTitle` VO, `TaskSource` enum), and "overdue" is derived in Europe/Madrid. Add a task by
+  chat ("recuérdame contestar a X") or in the `/tareas` screen; a Home glance shows the next/overdue.
+- Agenda glance (Home) is composed at the EDGE (frontend) from `/api/calendar` (upcoming events) and
+  `/api/inbox` (emails awaiting a reply) plus the tasks glance — no cross-context backend coupling.
+- Gmail "awaiting reply": the API does NOT expose Gmail's Nudge signal, so `GoogleGmailClient`
+  reproduces it heuristically (an inbox thread whose LAST message isn't the user's and is ≥2 days
+  old). Read-only, nothing stored; one API call per scanned thread, so the scan is capped and the
+  glance caches a few minutes. Exposed to the chat as `query_inbox`.
+- The narrative "Resumen del día" is the model's job, not code: a Home shortcut seeds the chat and
+  Claude folds query_calendar + query_inbox + query_tasks into the nudges ("mañana cumple Paula…").
 
 ### Chat architecture (phase 2)
 
