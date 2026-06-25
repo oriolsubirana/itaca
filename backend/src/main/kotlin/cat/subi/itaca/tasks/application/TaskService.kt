@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 data class TaskDto(
     val id: Long,
@@ -203,11 +204,15 @@ class TaskService(
             doneAt = doneAt?.toString(),
             source = source,
             createdAt = createdAt.toString(),
-            overdue = !done && due != null && due.isBefore(LocalDate.now()),
+            overdue = !done && due != null && due.isBefore(LocalDate.now(ZONE)),
         )
     }
 
     private companion object {
+        // Compute "today" in the user's zone (match the rest of the app) so a deadline doesn't read
+        // as overdue for the hours the server clock is a day ahead/behind.
+        val ZONE: ZoneId = ZoneId.of("Europe/Madrid")
+
         // Open tasks: soonest deadline first, undated last, then most recently created.
         val OPEN_ORDER =
             compareBy<TaskDto> { it.dueDate ?: "9999-12-31" }.thenByDescending { it.createdAt }

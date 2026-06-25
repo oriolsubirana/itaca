@@ -10,7 +10,7 @@ import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile"
 import { getWellness, recoveryState, sleepLabel } from "../api/wellness";
 import { getTasks } from "../api/tasks";
 import { getCalendar, getInbox, type AgendaEvent } from "../api/agenda";
-import { balance, daysSince, routineLabel, shortDate, today } from "../lib/format";
+import { balance, daysSince, localToday, localTomorrow, routineLabel, shortDate, today } from "../lib/format";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -29,6 +29,9 @@ const SUGGESTIONS: { label: string; seed: string; workout?: boolean }[] = [
   { label: "¿Qué como hoy?", seed: "¿Qué como hoy?" },
   { label: "Resumen de la semana", seed: "Hazme un resumen de la semana" },
 ];
+
+/** Calendar/inbox are cached this long so re-opening Home doesn't re-hit the Gmail API. */
+const AGENDA_TTL = 5 * 60 * 1000;
 
 export function Home() {
   const navigate = useNavigate();
@@ -258,17 +261,17 @@ function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
 
 function eventWhen(e: AgendaEvent): string {
   const iso = e.start.slice(0, 10);
-  const t = today();
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const day = iso === t ? "hoy" : iso === tomorrow ? "mañana" : shortDate(iso);
+  const day = iso === localToday() ? "hoy" : iso === localTomorrow() ? "mañana" : shortDate(iso);
   if (e.allDay) return day;
   const time = new Date(e.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
   return `${day} · ${time}`;
 }
 
 function AgendaBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => void }) {
-  const calendar = useQuery({ queryKey: ["calendar"], queryFn: () => getCalendar(7) });
-  const inbox = useQuery({ queryKey: ["inbox"], queryFn: () => getInbox(21) });
+  // Gmail costs one API call per scanned thread, so cache for a few minutes and don't retry on
+  // error — the glance just hides itself if these come back empty.
+  const calendar = useQuery({ queryKey: ["calendar"], queryFn: () => getCalendar(7), staleTime: AGENDA_TTL, retry: false });
+  const inbox = useQuery({ queryKey: ["inbox"], queryFn: () => getInbox(21), staleTime: AGENDA_TTL, retry: false });
   const events = calendar.data ?? [];
   const emails = inbox.data ?? [];
   if (events.length === 0 && emails.length === 0) return null;

@@ -9,6 +9,16 @@ export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Today in the device's local timezone (the user's phone), as YYYY-MM-DD. */
+export function localToday(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+/** Tomorrow in the device's local timezone, as YYYY-MM-DD. */
+export function localTomorrow(): string {
+  return new Date(Date.now() + 86400000).toLocaleDateString("en-CA");
+}
+
 /** "13 jun" */
 export function shortDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);

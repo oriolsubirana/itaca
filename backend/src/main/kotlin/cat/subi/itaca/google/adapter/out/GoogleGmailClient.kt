@@ -147,7 +147,9 @@ class GoogleGmailClient(
             ?.value
 
     private companion object {
-        const val SCAN_LIMIT = 25
+        // Each scanned thread is one extra API call; keep the glance cheap (the chat tool is fine
+        // with this too — it surfaces the few most recent that are awaiting a reply).
+        const val SCAN_LIMIT = 12
     }
 }
 

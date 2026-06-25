@@ -3,16 +3,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../components/Modal";
 import { createTask, deleteTask, getTasks, updateTask, type Task } from "../api/tasks";
-import { shortDate, today } from "../lib/format";
+import { localToday, localTomorrow, shortDate } from "../lib/format";
 
 /** "hoy" / "mañana" / "vencía 23 jun" (overdue) / "1 jul". */
 function dueLabel(task: Task): string {
   const due = task.dueDate;
   if (!due) return "";
-  const t = today();
-  if (due === t) return "hoy";
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  if (due === tomorrow) return "mañana";
+  if (due === localToday()) return "hoy";
+  if (due === localTomorrow()) return "mañana";
   return task.overdue ? `vencía ${shortDate(due)}` : shortDate(due);
 }
 
