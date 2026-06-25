@@ -1,5 +1,6 @@
 package cat.subi.itaca.google.adapter.out
 
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -34,6 +35,7 @@ class GoogleCalendarClient(
     @Value("\${itaca.google.calendar-base:https://www.googleapis.com/calendar/v3}") base: String,
 ) {
     private val api = RestClient.create(base)
+    private val log = LoggerFactory.getLogger(GoogleCalendarClient::class.java)
 
     /** Events of the primary calendar between timeMin and timeMax (RFC3339), soonest first. */
     fun events(
@@ -43,20 +45,22 @@ class GoogleCalendarClient(
         maxResults: Int,
     ): List<CalendarEvent> {
         val response =
-            api
-                .get()
-                .uri { b ->
-                    b
-                        .path("/calendars/primary/events")
-                        .queryParam("singleEvents", "true")
-                        .queryParam("orderBy", "startTime")
-                        .queryParam("timeMin", timeMinIso)
-                        .queryParam("timeMax", timeMaxIso)
-                        .queryParam("maxResults", maxResults)
-                        .build()
-                }.header("Authorization", "Bearer $accessToken")
-                .retrieve()
-                .body(CalendarListResponse::class.java)
+            runCatching {
+                api
+                    .get()
+                    .uri { b ->
+                        b
+                            .path("/calendars/primary/events")
+                            .queryParam("singleEvents", "true")
+                            .queryParam("orderBy", "startTime")
+                            .queryParam("timeMin", timeMinIso)
+                            .queryParam("timeMax", timeMaxIso)
+                            .queryParam("maxResults", maxResults)
+                            .build()
+                    }.header("Authorization", "Bearer $accessToken")
+                    .retrieve()
+                    .body(CalendarListResponse::class.java)
+            }.onFailure { log.warn("Calendar read failed: {}", it.message) }.getOrNull()
         return response?.items.orEmpty().mapNotNull { it.toEvent() }
     }
 
