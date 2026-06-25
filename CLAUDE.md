@@ -70,7 +70,7 @@ integration point, configuration property, annotation or artifact name:
 ## Architecture rules
 
 - Bounded contexts = Modulith modules: `training`, `health`, `finance`, `chat`,
-  `ingestion`, `nutrition`, `profile`, `wellness`, `shared` (only open module). No direct references or FKs across
+  `ingestion`, `nutrition`, `profile`, `wellness`, `google`, `shared` (only open module). No direct references or FKs across
   contexts; communicate via Modulith events (JDBC registry = outbox). Verified by
   `ModularityTests` — keep it green.
 - Hexagonal per context: `domain` / `application` / `adapter/in/rest`,
@@ -81,8 +81,11 @@ integration point, configuration property, annotation or artifact name:
   without Spring; adapters with Testcontainers/WireMock; `@ApplicationModuleTest`
   per context.
 - Idiomatic Kotlin: data/value/sealed classes, null-safety. Simple over abstract.
-- Security (current phase): static bearer token filter in `shared`. Do NOT add
-  Spring Security until the auth phase.
+- Security: Google OAuth2 login (Spring Security 7 `oauth2Login`, Kotlin DSL) gated
+  by a single-user email allowlist (fail-closed) protects the browser/SPA; a static
+  bearer token filter still guards the machine endpoints (`/api/ingest`,
+  `/api/wellness`, Strava sync). Both live in `shared.security`. OAuth is wired only
+  when `GOOGLE_CLIENT_ID` is set (`@ConditionalOnProperty`), so local/test runs skip it.
 
 ## Domain rules that must never be violated
 
@@ -116,10 +119,13 @@ prepared by `.claude/hooks/session-start.sh`.
 1. ✅ Skeleton (modules, schema+seeds, compose, CI)
 2. ✅ Chat + workout mode end-to-end (Spring AI 2.0, training tools, SSE, mobile UI)
 3. ✅ Health (diary+flares via chat and form; lab pipeline: upload → JobRunr → claude-haiku extraction → review → per-analyte chart)
-4. Home/dashboard · 5. ✅ Finance (CSV import) · 6. ✅ Ingestion (`/api/ingest`)
+4. ✅ Home/dashboard (proactive "Hoy" briefing + Salud/Descanso/Finanzas glances)
+   · 5. ✅ Finance (CSV import) · 6. ✅ Ingestion (`/api/ingest`)
 7. ✅ Nutrition (anti-inflammatory paleo: chat proposals adjusted to training/flares + meal logging)
 8. ✅ Profile (anthropometrics → Mifflin-St Jeor calorie target, training/flare-aware)
 9. ✅ Wellness (daily Garmin metrics: sleep/HRV/recovery via an external sync → `/api/wellness`)
+10. ✅ Auth + Google (OAuth2 login + email allowlist; Calendar read in chat; Drive drop-folder → ingestion)
+11. ✅ Production deploy (Fly.io, same-origin SPA served by the backend, Supabase Postgres)
 
 ### Nutrition architecture (phase 7)
 
@@ -174,6 +180,40 @@ prepared by `.claude/hooks/session-start.sh`.
 - `/descanso` screen (Claude-design port) opens from the Home "Descanso" glance: anoche (sleep +
   score + stages bar), an HRV/recovery metric grid, 7-day sparkline trends and a recent-days table,
   plus a "Preguntar a Ítaca" shortcut into the chat.
+
+### Auth + Google integration architecture (phase 10)
+
+- Browser/SPA auth is Google OAuth2 login (Spring Security 7 `oauth2Login`, Kotlin DSL) gated by a
+  single-user email allowlist (`GoogleEmailAllowlist`, fail-closed). All in `shared.security`
+  (`SecurityConfig`, `GoogleClientRegistration`, `AuthController` → `GET /api/auth/me`). The bearer
+  filter stays for machine endpoints; the API entry point returns 401 (not a redirect) so the SPA can
+  show its own login. Wired only when `GOOGLE_CLIENT_ID` exists, built in code (not YAML) to avoid
+  `OAuth2ClientProperties` validation on an empty registration.
+- One consent covers identity + read scopes (`gmail.readonly` reserved, `calendar.readonly`,
+  `drive.readonly`); `access_type=offline` + `prompt=consent` for a refresh token. The authorized
+  client is persisted in Postgres (`JdbcOAuth2AuthorizedClientService`, table `oauth2_authorized_client`,
+  migration 090) so it survives restarts and works off the request thread. `GoogleTokens` resolves a
+  fresh access token by looking the client up by the stored principal (email), refreshing as needed.
+- Own `google` module: `GoogleCalendarService` (`ChatTools`, read-only `query_calendar`) and a Drive
+  drop-folder poll — `DriveSyncService` + `GoogleDriveClient`, JobRunr recurring every 5 min when
+  `GOOGLE_DRIVE_FOLDER_ID` is set, dedup via `drive_seen` (migration 091), downloads new files and
+  hands them to the ingestion pipeline. `supportsAllDrives` so shared drives work too. Gmail
+  auto-ingest is intentionally NOT built (medical mail arrives password-protected).
+- Testing-mode caveat: with restricted scopes unverified, Google expires the refresh token after
+  ~7 days → periodic re-login until the OAuth app is verified.
+
+### Production deployment (phase 11)
+
+- Single same-origin image (`Dockerfile`, repo root): Vite build → bundled into the Spring Boot jar's
+  static resources → `SpaController` forwards non-asset paths to `index.html`. Deployed on Fly.io
+  (`fly.toml`, `min_machines_running = 1`, health check `/actuator/health`); Postgres on Supabase
+  (`SPRING_DATASOURCE_URL` must start with `jdbc:`, pooler host, `sslmode=require`).
+- `application-prod.yml`: `forward-headers-strategy: framework` (behind Fly's TLS proxy, so OAuth
+  redirect URIs are https), secure/http-only/lax session cookie, docs off.
+- PWA gotcha: the service worker must NOT cache-serve auth/API paths — `navigateFallbackDenylist`
+  in `vite.config.ts` covers `/oauth2`, `/login`, `/logout`, `/api`, `/actuator` (else the SW
+  intercepts the OAuth redirect and login silently no-ops). The Google redirect URI is the callback
+  `/login/oauth2/code/google`, NOT the start endpoint.
 
 ### Chat architecture (phase 2)
 
