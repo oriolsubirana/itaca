@@ -34,6 +34,7 @@ class GoogleDriveClient(
     ): List<DriveDoc> {
         val q = "'$folderId' in parents and trashed = false"
         log.info("Drive listFolder: folderId=[{}] q=[{}]", folderId, q)
+        probeFolder(accessToken, folderId)
         val docs = mutableListOf<DriveDoc>()
         var pageToken: String? = null
         var pages = 0
@@ -71,6 +72,37 @@ class GoogleDriveClient(
             pages++
         } while (pageToken != null && pages < MAX_PAGES)
         return docs
+    }
+
+    /**
+     * Diagnostic: resolve the folder by id (files.get) before listing it. Isolates "the token can't
+     * see this id at all" from "the list query is the problem", and reveals driveId (null = My Drive)
+     * and ownedByMe so we see the folder as the API does. Failures are logged, never thrown.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun probeFolder(
+        accessToken: String,
+        folderId: String,
+    ) {
+        try {
+            val meta =
+                api
+                    .get()
+                    .uri { b ->
+                        b
+                            .path("/files/{id}")
+                            .queryParam("fields", "id,name,mimeType,driveId,ownedByMe,trashed,parents")
+                            .queryParam("supportsAllDrives", "true")
+                            .build(folderId)
+                    }.header("Authorization", "Bearer $accessToken")
+                    .retrieve()
+                    .body(String::class.java)
+            log.info("Drive folder probe OK: {}", meta)
+        } catch (e: RestClientResponseException) {
+            log.warn("Drive folder probe HTTP {}: {}", e.statusCode, e.responseBodyAsString)
+        } catch (e: Exception) {
+            log.warn("Drive folder probe failed: {}", e.toString())
+        }
     }
 
     override fun download(
