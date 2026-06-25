@@ -103,6 +103,38 @@ class GoogleDriveClient(
         } catch (e: Exception) {
             log.warn("Drive folder probe failed: {}", e.toString())
         }
+        probeVisibleFolders(accessToken)
+    }
+
+    /**
+     * Diagnostic: list the folders this token CAN see (id, name, ownedByMe). If the configured id
+     * isn't visible, this surfaces the real "itaca" folder id so the secret can be corrected, and
+     * confirms whether the stored account is the one that owns it. Failures are logged, never thrown.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun probeVisibleFolders(accessToken: String) {
+        try {
+            val folders =
+                api
+                    .get()
+                    .uri { b ->
+                        b
+                            .path("/files")
+                            .queryParam("q", "mimeType = 'application/vnd.google-apps.folder' and trashed = false")
+                            .queryParam("fields", "files(id,name,ownedByMe)")
+                            .queryParam("pageSize", PAGE_SIZE)
+                            .queryParam("supportsAllDrives", "true")
+                            .queryParam("includeItemsFromAllDrives", "true")
+                            .build()
+                    }.header("Authorization", "Bearer $accessToken")
+                    .retrieve()
+                    .body(String::class.java)
+            log.info("Drive visible folders for this token: {}", folders)
+        } catch (e: RestClientResponseException) {
+            log.warn("Drive visible-folders probe HTTP {}: {}", e.statusCode, e.responseBodyAsString)
+        } catch (e: Exception) {
+            log.warn("Drive visible-folders probe failed: {}", e.toString())
+        }
     }
 
     override fun download(
