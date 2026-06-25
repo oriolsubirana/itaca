@@ -8,7 +8,8 @@ import { getFinanceOverview } from "../api/finance";
 import { getMeals } from "../api/nutrition";
 import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
 import { getWellness, recoveryState, sleepLabel } from "../api/wellness";
-import { balance, daysSince, routineLabel, today } from "../lib/format";
+import { getTasks } from "../api/tasks";
+import { balance, daysSince, routineLabel, shortDate, today } from "../lib/format";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -41,6 +42,15 @@ export function Home() {
         </div>
         <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
           <button
+            onClick={() => void navigate({ to: "/tareas" })}
+            aria-label="Tareas"
+            className="flex size-10 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-5">
+              <path d="M4 6.5l2 2 3-3.5M4 17.5l2 2 3-3.5M12 7h8M12 18h8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
             onClick={() => void navigate({ to: "/entradas" })}
             aria-label="Entradas"
             className="flex size-10 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:text-ink"
@@ -68,6 +78,8 @@ export function Home() {
       <ChatHero onOpen={openChat} />
 
       <Briefing onOpen={openChat} />
+
+      <TareasBlock />
 
       <div className="space-y-8">
         <SaludBlock onOpen={openChat} />
@@ -236,6 +248,43 @@ function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+function TareasBlock() {
+  const navigate = useNavigate();
+  const tasks = useQuery({ queryKey: ["tasks"], queryFn: () => getTasks(false) });
+  const open = tasks.data?.open ?? [];
+  if (open.length === 0) return null;
+
+  const preview = open.slice(0, 3);
+  const rest = open.length - preview.length;
+  const overdue = tasks.data?.overdueCount ?? 0;
+
+  return (
+    <section>
+      <SecHead title="Tareas" onClick={() => void navigate({ to: "/tareas" })} />
+      <ul className="space-y-2.5">
+        {preview.map((t) => (
+          <li key={t.id} className="flex items-center gap-2.5">
+            <span className={`size-[7px] shrink-0 rounded-full ${t.overdue ? "bg-clinical" : "bg-ink/30"}`} />
+            <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{t.title}</span>
+            {t.dueDate && (
+              <span className={`shrink-0 text-[12px] ${t.overdue ? "text-clinical" : "text-ink-soft"}`}>
+                {t.overdue ? `vencía ${shortDate(t.dueDate)}` : shortDate(t.dueDate)}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {(rest > 0 || overdue > 0) && (
+        <p className="mt-2.5 text-[12px] text-ink-soft">
+          {rest > 0 && `+${rest} más`}
+          {rest > 0 && overdue > 0 && " · "}
+          {overdue > 0 && <span className="text-clinical">{overdue} vencida{overdue === 1 ? "" : "s"}</span>}
+        </p>
+      )}
     </section>
   );
 }

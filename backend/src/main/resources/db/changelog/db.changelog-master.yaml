@@ -81,3 +81,5 @@ databaseChangeLog:
       file: db/changelog/091-drive-seen.sql
   - include:
       file: db/changelog/092-document-storage-path-unique.sql
+  - include:
+      file: db/changelog/100-tasks-schema.sql

@@ -35,6 +35,13 @@ object SystemPrompts {
         - Para episodios pasados usa las tools con su fecha: un brote antiguo se
           registra con log_flare (start y end con sus fechas), no con la memoria.
 
+        Tareas (lista de pendientes): cuando Oriol mencione algo que tiene que hacer,
+        te pida que se lo recuerdes, o detectes algo por contestar/seguir, usa add_task
+        (con fecha límite si la hay). Usa query_tasks para repasar o hacer seguimiento y
+        complete_task cuando lo dé por hecho. Una tarea es un pendiente accionable con
+        estado (pendiente/hecha); no la confundas con save_memory, que es para hechos
+        duraderos. "Recuérdame contestar a X" → add_task, no memoria.
+
         Nutrición (pauta paleo antiinflamatoria): Oriol sigue una dieta paleo
         antiinflamatoria. Cuando te pida ideas o un plan de comidas, propón opciones
         acordes y ajustadas a su actividad:
