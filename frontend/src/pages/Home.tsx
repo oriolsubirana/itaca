@@ -9,6 +9,7 @@ import { getMeals } from "../api/nutrition";
 import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
 import { getWellness, recoveryState, sleepLabel } from "../api/wellness";
 import { getTasks } from "../api/tasks";
+import { getCalendar, getInbox, type AgendaEvent } from "../api/agenda";
 import { balance, daysSince, routineLabel, shortDate, today } from "../lib/format";
 
 function greeting(): string {
@@ -21,6 +22,7 @@ function fullDate(): string {
 }
 
 const SUGGESTIONS: { label: string; seed: string; workout?: boolean }[] = [
+  { label: "Resumen del día", seed: "Hazme un resumen del día: agenda, correos por contestar y tareas pendientes" },
   { label: "¿Cómo estoy hoy?", seed: "¿Cómo estoy hoy según mi descanso y qué me recomiendas?" },
   { label: "Registrar el día", seed: "Quiero registrar el día de hoy" },
   { label: "Empezar entrenamiento", seed: "Empiezo entreno", workout: true },
@@ -78,6 +80,8 @@ export function Home() {
       <ChatHero onOpen={openChat} />
 
       <Briefing onOpen={openChat} />
+
+      <AgendaBlock onOpen={openChat} />
 
       <TareasBlock />
 
@@ -248,6 +252,59 @@ function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+function eventWhen(e: AgendaEvent): string {
+  const iso = e.start.slice(0, 10);
+  const t = today();
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const day = iso === t ? "hoy" : iso === tomorrow ? "mañana" : shortDate(iso);
+  if (e.allDay) return day;
+  const time = new Date(e.start).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  return `${day} · ${time}`;
+}
+
+function AgendaBlock({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => void }) {
+  const calendar = useQuery({ queryKey: ["calendar"], queryFn: () => getCalendar(7) });
+  const inbox = useQuery({ queryKey: ["inbox"], queryFn: () => getInbox(21) });
+  const events = calendar.data ?? [];
+  const emails = inbox.data ?? [];
+  if (events.length === 0 && emails.length === 0) return null;
+
+  const summarySeed = "Hazme un resumen del día: agenda, correos por contestar y tareas pendientes";
+
+  return (
+    <section>
+      <SecHead title="Agenda" onClick={() => onOpen(summarySeed)} />
+      {events.length > 0 && (
+        <ul className="space-y-2.5">
+          {events.slice(0, 2).map((e, i) => (
+            <li key={i} className="flex items-center gap-2.5">
+              <span className="size-[7px] shrink-0 rounded-full bg-ink/30" />
+              <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{e.summary}</span>
+              <span className="shrink-0 text-[12px] text-ink-soft">{eventWhen(e)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {emails.length > 0 && (
+        <button
+          onClick={() => onOpen("¿Qué correos tengo por contestar?")}
+          className={`flex w-full items-center justify-between gap-3 text-left ${events.length > 0 ? "mt-4 border-t border-line pt-3.5" : ""}`}
+        >
+          <div className="min-w-0">
+            <div className="text-[14px] text-ink">
+              {emails.length} {emails.length === 1 ? "correo por contestar" : "correos por contestar"}
+            </div>
+            <div className="mt-0.5 truncate text-[12px] text-ink-soft">
+              {emails[0].from}: {emails[0].subject}
+            </div>
+          </div>
+          <span className="shrink-0 text-xs text-ink-soft">Ver</span>
+        </button>
+      )}
     </section>
   );
 }

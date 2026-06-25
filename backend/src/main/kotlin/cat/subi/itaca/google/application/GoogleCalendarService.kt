@@ -43,6 +43,19 @@ class GoogleCalendarService(
         return summarizeAgenda(events, window)
     }
 
+    /** Structured upcoming events for the REST adapter (Home agenda glance); empty if not connected. */
+    fun upcoming(days: Int?): List<CalendarEvent> {
+        val token = tokens.accessToken() ?: return emptyList()
+        val window = (days ?: DEFAULT_DAYS).coerceIn(1, MAX_DAYS)
+        val now = Instant.now()
+        return calendar.events(
+            token,
+            now.toString(),
+            now.plus(window.toLong(), ChronoUnit.DAYS).toString(),
+            MAX_EVENTS,
+        )
+    }
+
     private companion object {
         const val DEFAULT_DAYS = 7
         const val MAX_DAYS = 60
