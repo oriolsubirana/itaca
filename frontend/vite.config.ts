@@ -22,8 +22,8 @@ export default defineConfig({
         description: "Dashboard personal: salud, entrenamiento y finanzas",
         lang: "es",
         display: "standalone",
-        background_color: "#faf9f7",
-        theme_color: "#faf9f7",
+        background_color: "#1b1a18",
+        theme_color: "#1b1a18",
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

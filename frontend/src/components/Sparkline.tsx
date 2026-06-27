@@ -29,7 +29,7 @@ export function Sparkline({
       <polyline
         points={pts}
         fill="none"
-        stroke="#1c1c1a"
+        stroke="var(--color-ink)"
         strokeWidth="1.4"
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -38,8 +38,8 @@ export function Sparkline({
         cx={x(values.length - 1)}
         cy={y(last)}
         r="2.6"
-        fill={out ? "#b23a2b" : "#1c1c1a"}
-        stroke="#faf9f7"
+        fill={out ? "var(--color-clinical)" : "var(--color-ink)"}
+        stroke="var(--color-paper)"
         strokeWidth="1.2"
       />
     </svg>

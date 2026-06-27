@@ -122,7 +122,7 @@ export function LabReports() {
               </span>
               <span
                 className={`shrink-0 text-xs uppercase tracking-wide ${
-                  r.status === "pending_review" ? "text-amber-700" : "text-ink-soft"
+                  r.status === "pending_review" ? "text-warning" : "text-ink-soft"
                 }`}
               >
                 {r.extracting ? "procesando…" : STATUS_LABELS[r.status]}
@@ -234,8 +234,8 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
         {viewFile.isPending ? "Abriendo…" : "Ver documento (PDF)"}
       </button>
       {report.extracting && (
-        <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          <span className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />
+        <p className="mb-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">
+          <span className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-warning border-t-transparent" />
           Procesando el PDF… los resultados aparecerán aquí solos.
         </p>
       )}
@@ -289,7 +289,7 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
                   <span className="block truncate text-sm leading-snug">
                     {res.analyteName ?? res.rawName}
                     {!res.analyteName && (
-                      <span className="ml-1.5 align-middle text-[11px] uppercase tracking-wide text-amber-700">
+                      <span className="ml-1.5 align-middle text-[11px] uppercase tracking-wide text-warning">
                         sin normalizar
                       </span>
                     )}
@@ -366,7 +366,7 @@ function ReportReview({ reportId, onDone }: { reportId: number; onDone: () => vo
           if (window.confirm("¿Eliminar este informe y todos sus resultados?")) remove.mutate();
         }}
         disabled={remove.isPending}
-        className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+        className="mt-2 min-h-11 w-full text-sm text-clinical disabled:opacity-40"
       >
         Eliminar informe
       </button>
@@ -468,7 +468,7 @@ function EditResultModal({
           if (window.confirm("¿Eliminar este resultado?")) remove.mutate();
         }}
         disabled={remove.isPending}
-        className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+        className="mt-2 min-h-11 w-full text-sm text-clinical disabled:opacity-40"
       >
         Eliminar resultado
       </button>
