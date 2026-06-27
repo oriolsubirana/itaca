@@ -277,8 +277,8 @@ function Bubble({
   return (
     <div className="flex justify-start">
       <div
-        className={`markdown max-w-[88%] text-pretty rounded-2xl rounded-bl-md bg-[#f1efea] px-3.5 py-2.5 text-[14.5px] leading-relaxed ${
-          error ? "text-red-800" : "text-ink"
+        className={`markdown max-w-[88%] text-pretty rounded-2xl rounded-bl-md bg-bubble px-3.5 py-2.5 text-[14.5px] leading-relaxed ${
+          error ? "text-clinical" : "text-ink"
         }`}
       >
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>

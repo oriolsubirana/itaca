@@ -12,6 +12,22 @@
   --color-line: #e8e6e1;
   --color-clinical: #b23a2b;
   --color-income: #4a5d4f;
+  /* Assistant chat bubble (a touch off the page); inverts in dark. */
+  --color-bubble: #f1efea;
+}
+
+/* Dark theme: the same warm palette, inverted. Toggled by `html.dark` (set by the inline theme
+   script in index.html before first paint, and by the Apariencia switch in Perfil). Tailwind's
+   @theme tokens are real CSS variables, so redefining them here flips every `text-ink` / `bg-paper`
+   / `border-line` utility across the whole app at once. */
+html.dark {
+  --color-paper: #1b1a18;
+  --color-ink: #f1efea;
+  --color-ink-soft: #9a958b;
+  --color-line: #322f2b;
+  --color-clinical: #d98a7d;
+  --color-income: #8fae95;
+  --color-bubble: #2a2723;
 }
 
 html {
