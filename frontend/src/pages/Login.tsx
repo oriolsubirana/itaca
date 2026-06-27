@@ -62,7 +62,7 @@ export function Login({ denied = false }: { denied?: boolean }) {
           className="flex min-h-[52px] w-full items-center justify-center gap-[11px] rounded-full bg-ink px-[18px] text-[15.5px] font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           <span
-            className={`flex size-[22px] shrink-0 items-center justify-center rounded-full ${loading ? "" : "bg-paper"}`}
+            className={`flex size-[22px] shrink-0 items-center justify-center rounded-full ${loading ? "" : "bg-white"}`}
           >
             {loading ? (
               <span className="size-[18px] animate-spin rounded-full border-2 border-paper/40 border-t-paper" />

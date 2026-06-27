@@ -12,6 +12,8 @@
   --color-line: #e8e6e1;
   --color-clinical: #b23a2b;
   --color-income: #4a5d4f;
+  /* Warm amber for "pending / needs review" states (so it themes instead of hardcoded amber-*). */
+  --color-warning: #b4690e;
   /* Assistant chat bubble (a touch off the page); inverts in dark. */
   --color-bubble: #f1efea;
 }
@@ -27,6 +29,7 @@ html.dark {
   --color-line: #322f2b;
   --color-clinical: #d98a7d;
   --color-income: #8fae95;
+  --color-warning: #d2a35a;
   --color-bubble: #2a2723;
 }
 

@@ -561,7 +561,7 @@ function MealDetail({ m, onDelete, deleting }: { m: Meal; onDelete: () => void; 
       <button
         onClick={onDelete}
         disabled={deleting}
-        className="mt-4 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+        className="mt-4 min-h-11 w-full text-sm text-clinical disabled:opacity-40"
       >
         Eliminar comida
       </button>
@@ -858,7 +858,7 @@ function FlareModal({
             if (window.confirm("¿Eliminar este brote?")) remove.mutate();
           }}
           disabled={remove.isPending}
-          className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+          className="mt-2 min-h-11 w-full text-sm text-clinical disabled:opacity-40"
         >
           Eliminar brote
         </button>
@@ -980,7 +980,7 @@ function DiaryModal({
             if (window.confirm("¿Eliminar el registro de este día?")) remove.mutate();
           }}
           disabled={remove.isPending}
-          className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+          className="mt-2 min-h-11 w-full text-sm text-clinical disabled:opacity-40"
         >
           Eliminar registro
         </button>
