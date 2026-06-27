@@ -18,6 +18,13 @@ spring:
     open-in-view: false
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  session:
+    # HTTP sessions live in Postgres (survive redeploys) and last a week, so the login holds for ~7
+    # days — matching Google's Testing-mode token, so a weekly re-auth refreshes everything at once.
+    timeout: 7d
+    jdbc:
+      # The SPRING_SESSION tables are created by Liquibase (migration 101), not by Spring Session.
+      initialize-schema: never
   ai:
     anthropic:
       # Placeholder default keeps the context bootable without a key (calls will fail with 401)
@@ -92,3 +99,9 @@ itaca:
 
 server:
   port: 8080
+  servlet:
+    session:
+      cookie:
+        # Persist the cookie for a week so the login survives the PWA being closed/evicted (otherwise
+        # it's a session cookie and dies on app restart). Prod adds secure/http-only/same-site.
+        max-age: 7d

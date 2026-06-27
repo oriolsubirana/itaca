@@ -83,3 +83,5 @@ databaseChangeLog:
       file: db/changelog/092-document-storage-path-unique.sql
   - include:
       file: db/changelog/100-tasks-schema.sql
+  - include:
+      file: db/changelog/101-session-schema.sql
