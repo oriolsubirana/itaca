@@ -47,6 +47,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     // Auth phase: Google OAuth2 login for the browser/PWA (machines still use the static bearer)
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    // Persistent HTTP sessions in Postgres: survive redeploys and back a 1-week login
+    // (schema created by Liquibase; spring.session.jdbc.initialize-schema=never)
+    implementation("org.springframework.session:spring-session-jdbc")
 
     // Modulith: verified bounded contexts + event publication registry (outbox)
     implementation("org.springframework.modulith:spring-modulith-starter-core")
