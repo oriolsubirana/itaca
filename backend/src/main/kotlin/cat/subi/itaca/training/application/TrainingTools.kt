@@ -31,6 +31,16 @@ data class StartWorkoutResult(
     val error: String? = null,
 )
 
+data class ExerciseHistory(
+    val exerciseName: String,
+    val found: Boolean,
+    val lastWeightKg: Double? = null,
+    val lastReps: Int? = null,
+    val lastDate: String? = null,
+    val suggestedWeightKg: Double? = null,
+    val candidates: List<String>? = null,
+)
+
 data class LogSetResult(
     val confirmed: Boolean,
     val exerciseName: String? = null,
@@ -232,6 +242,33 @@ class TrainingTools(
             routineName = queries.routineNameOf(active.routineId),
             totalSets = currentSets.size,
             comparison = comparison,
+        )
+    }
+
+    @Tool(
+        name = "query_exercise_history",
+        description =
+            "Returns the last logged top set (weight, reps, date) and the suggested next weight for ONE " +
+                "exercise (fuzzy name match), regardless of today's routine or any active workout. Use it to " +
+                "tell the user what they lifted last time for any exercise; NEVER claim there is no history " +
+                "for an exercise without calling this first.",
+    )
+    fun queryExerciseHistory(
+        @ToolParam(description = "Exercise name, can be partial (e.g. 'press militar')") exerciseName: String,
+    ): ExerciseHistory {
+        val matches = queries.findExercises(exerciseName)
+        if (matches.isEmpty()) return ExerciseHistory(exerciseName, found = false)
+        if (matches.size > 1) return ExerciseHistory(exerciseName, found = false, candidates = matches.map { it.name })
+        val exercise = matches.single()
+        val last = queries.lastTopSetOf(exercise.id) ?: return ExerciseHistory(exercise.name, found = false)
+        val suggested = progression.suggestNextWeight(Weight.ofKg(last.weightKg), Reps.of(last.reps))
+        return ExerciseHistory(
+            exerciseName = exercise.name,
+            found = true,
+            lastWeightKg = last.weightKg.toDouble(),
+            lastReps = last.reps,
+            lastDate = last.date.toString(),
+            suggestedWeightKg = suggested.kg.toDouble(),
         )
     }
 

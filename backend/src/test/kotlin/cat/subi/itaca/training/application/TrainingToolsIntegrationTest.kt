@@ -45,6 +45,18 @@ class TrainingToolsIntegrationTest {
     }
 
     @Test
+    fun `query_exercise_history finds an exercise's last set regardless of routine`() {
+        val militar = tools.queryExerciseHistory("press militar")
+        assertTrue(militar.found, "Press Militar has a completed set in the seed (Push 2026-06-09)")
+        assertEquals(14.0, militar.lastWeightKg)
+        assertEquals(6, militar.lastReps)
+        assertEquals(14.0, militar.suggestedWeightKg, "6 reps do not exceed the 8-rep target -> keep weight")
+
+        val unknown = tools.queryExerciseHistory("dominadas a una mano")
+        assertFalse(unknown.found)
+    }
+
+    @Test
     fun `home summary reflects the last completed session and the next rotation`() {
         val summary = queries.homeSummary()
         assertEquals("2026-06-09", summary.lastWorkoutDate)
