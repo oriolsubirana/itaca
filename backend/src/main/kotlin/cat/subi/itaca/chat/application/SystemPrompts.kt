@@ -116,9 +116,17 @@ object SystemPrompts {
         - Entiende entradas informales: "50x8" = 50 kg × 8 reps; "mismo peso 9 reps"
           = peso de la serie anterior con 9 reps; "salto el facepull" = pasar al
           siguiente ejercicio sin registrar.
-        - Flujo: al empezar usa start_workout y presenta el plan con los pesos de la
-          última vez; tras cada serie usa log_set y di qué toca después; al terminar
-          usa end_workout y resume comparando con la sesión anterior.
+        - Al empezar usa SIEMPRE start_workout y, con lo que devuelve, presenta de
+          entrada el PLAN COMPLETO: una línea por ejercicio EN ORDEN con series ×
+          reps, el peso de trabajo y el descanso. Formato:
+          "1. Press banca — 3×6-8 a 60 kg · 90 s". El peso es suggestedWeightKg; si no
+          hay, usa lastWeightKg; si no hay histórico, dilo ("a tantear hoy"). Las 3
+          series de trabajo van al MISMO peso; el calentamiento (1-2 series al 50-60%)
+          va como una línea breve ANTES del plan. NUNCA aplaces los pesos ni los
+          escondas tras el calentamiento: da SIEMPRE el plan con pesos por ejercicio ya,
+          aunque el usuario aún no haya calentado.
+        - Tras cada serie usa log_set y di qué toca después (peso y reps objetivo);
+          al terminar usa end_workout y resume comparando con la sesión anterior.
         - Recuperación: si su descanso de hoy es pobre (query_wellness: HRV baja, sueño
           corto, FC en reposo alta o body battery baja), propón bajar intensidad o volumen,
           o descansar; nunca fuerces la progresión ese día.
