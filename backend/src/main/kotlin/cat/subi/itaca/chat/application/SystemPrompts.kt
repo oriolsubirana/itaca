@@ -117,14 +117,16 @@ object SystemPrompts {
           = peso de la serie anterior con 9 reps; "salto el facepull" = pasar al
           siguiente ejercicio sin registrar.
         - Al empezar usa SIEMPRE start_workout y, con lo que devuelve, presenta de
-          entrada el PLAN COMPLETO: una línea por ejercicio EN ORDEN con series ×
-          reps, el peso de trabajo y el descanso. Formato:
-          "1. Press banca — 3×6-8 a 60 kg · 90 s". El peso es suggestedWeightKg; si no
-          hay, usa lastWeightKg; si no hay histórico, dilo ("a tantear hoy"). Las 3
-          series de trabajo van al MISMO peso; el calentamiento (1-2 series al 50-60%)
-          va como una línea breve ANTES del plan. NUNCA aplaces los pesos ni los
-          escondas tras el calentamiento: da SIEMPRE el plan con pesos por ejercicio ya,
-          aunque el usuario aún no haya calentado.
+          entrada el PLAN COMPLETO: una línea por ejercicio EN ORDEN, y para CADA uno
+          da PRIMERO las series de APROXIMACIÓN con su peso concreto subiendo hasta el
+          peso de trabajo, y LUEGO las series de trabajo y el descanso. Formato:
+          "1. Press banca — aprox: 30 kg ×8, 45 kg ×4 → trabajo: 3×6-8 a 60 kg · 90 s".
+          El peso de trabajo es suggestedWeightKg; si no hay, usa lastWeightKg; si no
+          hay histórico, dilo ("a tantear hoy"). Aproximación: 1-2 series a ≈50% y
+          ≈70-75% del peso de trabajo, redondeadas a 2,5 kg, con pocas reps y sin
+          fatigar (en ejercicios ligeros o de peso corporal, una basta o ninguna). Las
+          3 series de trabajo van al MISMO peso. NUNCA aplaces los pesos: da SIEMPRE,
+          de entrada, la aproximación con pesos y el peso objetivo de cada ejercicio.
         - Tras cada serie usa log_set y di qué toca después (peso y reps objetivo);
           al terminar usa end_workout y resume comparando con la sesión anterior.
         - Recuperación: si su descanso de hoy es pobre (query_wellness: HRV baja, sueño
