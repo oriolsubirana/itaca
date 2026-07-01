@@ -118,6 +118,31 @@ class TrainingToolsIntegrationTest {
     }
 
     @Test
+    fun `a leftover incomplete workout from a previous day is auto-closed, not resurrected`() {
+        jdbc.update(
+            """
+            INSERT INTO workouts (date, routine_id, completed)
+            VALUES (?, (SELECT id FROM routines WHERE name = 'Pull'), false)
+            """.trimIndent(),
+            java.sql.Date.valueOf(
+                java.time.LocalDate
+                    .now()
+                    .minusDays(3),
+            ),
+        )
+
+        val started = tools.startWorkout("Push")
+
+        assertFalse(started.alreadyActive, "a previous-day incomplete session must not count as active")
+        assertEquals("Push", started.routineName)
+
+        // The stale Pull no longer lingers as active: the current active session is today's Push.
+        val current = tools.startWorkout(null)
+        assertTrue(current.alreadyActive)
+        assertEquals("Push", current.routineName, "the auto-closed Pull must not be resurrected")
+    }
+
+    @Test
     fun `query_activities exposes imported Strava rides and per-sport totals`() {
         jdbc.update(
             """
