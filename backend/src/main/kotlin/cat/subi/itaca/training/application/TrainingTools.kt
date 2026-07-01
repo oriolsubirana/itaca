@@ -225,16 +225,17 @@ class TrainingTools(
 
         val activeId = active.id!!
         val currentSets = queries.setsOfWorkout(activeId)
-        val previousId = queries.previousCompletedWorkoutOfRoutine(active.routineId, activeId)
-        val previousTop = previousId?.let { topSetsByExercise(queries.setsOfWorkout(it)) } ?: emptyMap()
+        // Compare each exercise to ITS OWN last time (any routine), matching the progression chart —
+        // not to the previous session of this routine, which misses exercises done across routines.
         val comparison =
-            topSetsByExercise(currentSets).map { (name, top) ->
+            queries.topSetsOfWorkout(activeId).map { top ->
+                val previous = queries.previousTopSetOf(top.exerciseId, activeId)
                 ExerciseComparison(
-                    exerciseName = name,
+                    exerciseName = top.exerciseName,
                     topWeightKg = top.weightKg,
                     topReps = top.reps,
-                    previousTopWeightKg = previousTop[name]?.weightKg,
-                    previousTopReps = previousTop[name]?.reps,
+                    previousTopWeightKg = previous?.weightKg?.toDouble(),
+                    previousTopReps = previous?.reps,
                 )
             }
         return EndWorkoutResult(
@@ -341,11 +342,6 @@ class TrainingTools(
                         ?.toDouble(),
             )
         }
-
-    private fun topSetsByExercise(lines: List<SetLine>): Map<String, SetLine> =
-        lines
-            .groupBy { it.exerciseName }
-            .mapValues { (_, sets) -> sets.maxWith(compareBy({ it.weightKg }, { it.reps })) }
 
     companion object {
         private const val TARGET_TOP_REPS = 8

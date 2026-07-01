@@ -103,6 +103,21 @@ class TrainingToolsIntegrationTest {
     }
 
     @Test
+    fun `end_workout compares each exercise to its own last time, across routines`() {
+        // Press Militar belongs to Push (seed: 14 kg x 6 on 2026-06-09). Log it into a Pull session
+        // (as happens when the wrong routine is active) and close: the comparison must still find it.
+        tools.startWorkout("Pull")
+        tools.logSet("press militar", 16.0, 8, null)
+
+        val ended = tools.endWorkout(null)
+
+        val militar = ended.comparison.single { it.exerciseName == "Press Militar" }
+        assertEquals(16.0, militar.topWeightKg)
+        assertEquals(14.0, militar.previousTopWeightKg, "compares to the 2026-06-09 Push, not the Pull routine")
+        assertEquals(6, militar.previousTopReps)
+    }
+
+    @Test
     fun `query_activities exposes imported Strava rides and per-sport totals`() {
         jdbc.update(
             """

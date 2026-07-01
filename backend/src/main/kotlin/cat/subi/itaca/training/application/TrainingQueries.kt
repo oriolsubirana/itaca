@@ -29,6 +29,13 @@ data class SetLine(
     val position: Int,
 )
 
+data class ExerciseTopRow(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val weightKg: Double,
+    val reps: Int,
+)
+
 data class WorkoutRow(
     val id: Long,
     val date: LocalDate,
@@ -48,6 +55,7 @@ data class TrainingSummaryDto(
  * Read side of the training context (light CQRS): plain SQL projections.
  */
 @Component
+@Suppress("TooManyFunctions") // cohesive: the training read-side projections (rotation, plan, history).
 class TrainingQueries(
     private val jdbc: JdbcTemplate,
 ) {
@@ -165,19 +173,54 @@ class TrainingQueries(
             workoutId,
         )
 
-    fun previousCompletedWorkoutOfRoutine(
-        routineId: Long,
-        beforeWorkoutId: Long,
-    ): Long? =
+    /** Top set (max weight, then reps) per exercise performed in the given workout. */
+    fun topSetsOfWorkout(workoutId: Long): List<ExerciseTopRow> =
+        jdbc.query(
+            """
+            SELECT DISTINCT ON (s.exercise_id) s.exercise_id, e.name, s.weight_kg, s.reps
+            FROM sets s JOIN exercises e ON e.id = s.exercise_id
+            WHERE s.workout_id = ?
+            ORDER BY s.exercise_id, s.weight_kg DESC, s.reps DESC
+            """.trimIndent(),
+            { rs, _ ->
+                ExerciseTopRow(
+                    rs.getLong("exercise_id"),
+                    rs.getString("name"),
+                    rs.getDouble("weight_kg"),
+                    rs.getInt("reps"),
+                )
+            },
+            workoutId,
+        )
+
+    /**
+     * Top set of the most recent COMPLETED workout that contains the exercise, excluding
+     * [excludingWorkoutId]. Per-exercise (across routines) so "last time" matches the progression
+     * chart, not just the previous session of the same routine.
+     */
+    fun previousTopSetOf(
+        exerciseId: Long,
+        excludingWorkoutId: Long,
+    ): LastSetRow? =
         jdbc
             .query(
                 """
-                SELECT id FROM workouts WHERE routine_id = ? AND completed AND id <> ?
-                ORDER BY date DESC, id DESC LIMIT 1
+                SELECT s.weight_kg, s.reps, w.date
+                FROM sets s JOIN workouts w ON w.id = s.workout_id
+                WHERE s.exercise_id = ? AND w.completed AND w.id <> ?
+                  AND w.id = (
+                    SELECT max(w2.id) FROM sets s2 JOIN workouts w2 ON w2.id = s2.workout_id
+                    WHERE s2.exercise_id = ? AND w2.completed AND w2.id <> ?
+                  )
+                ORDER BY s.weight_kg DESC, s.reps DESC LIMIT 1
                 """.trimIndent(),
-                { rs, _ -> rs.getLong("id") },
-                routineId,
-                beforeWorkoutId,
+                { rs, _ ->
+                    LastSetRow(rs.getBigDecimal("weight_kg"), rs.getInt("reps"), rs.getDate("date").toLocalDate())
+                },
+                exerciseId,
+                excludingWorkoutId,
+                exerciseId,
+                excludingWorkoutId,
             ).firstOrNull()
 
     fun recentWorkouts(limit: Int): List<WorkoutRow> =
