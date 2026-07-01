@@ -127,7 +127,7 @@ class TrainingTools(
         @ToolParam(description = "Routine name: Push, Pull or Leg. Omit to follow the rotation", required = false)
         routineName: String?,
     ): StartWorkoutResult {
-        workouts.findFirstByCompletedFalseOrderByDateDescIdDesc()?.let { active ->
+        activeWorkout()?.let { active ->
             return StartWorkoutResult(
                 workoutId = active.id,
                 routineName = queries.routineNameOf(active.routineId),
@@ -165,7 +165,7 @@ class TrainingTools(
         @ToolParam(description = "RPE 1-10 if the user mentions it", required = false) rpe: Double?,
     ): LogSetResult {
         val active =
-            workouts.findFirstByCompletedFalseOrderByDateDescIdDesc()
+            activeWorkout()
                 ?: return LogSetResult(confirmed = false, error = "No active workout. Call start_workout first.")
         val matches = queries.findExercises(exerciseName)
         val exercise =
@@ -326,6 +326,19 @@ class TrainingTools(
                 )
             }
         return ActivitiesSummary(view.connected, recent, totals)
+    }
+
+    /**
+     * The genuinely active workout: an incomplete one from TODAY. A leftover incomplete workout from
+     * a previous day is abandoned (auto-closed) so it stops lingering as "active" — which used to
+     * resurrect the wrong routine and scatter today's sets into an old session.
+     */
+    private fun activeWorkout(): WorkoutEntity? {
+        val incomplete = workouts.findFirstByCompletedFalseOrderByDateDescIdDesc() ?: return null
+        if (incomplete.date == LocalDate.now()) return incomplete
+        incomplete.completed = true
+        workouts.save(incomplete)
+        return null
     }
 
     private fun planFor(routineId: Long): List<ExercisePlan> =
