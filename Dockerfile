@@ -2,7 +2,7 @@
 # resources, and run the jar. Build context is the repo root (see fly.toml).
 
 # Stage 1 — frontend
-FROM node:22-alpine AS frontend
+FROM node:24-alpine AS frontend
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
