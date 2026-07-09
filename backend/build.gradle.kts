@@ -48,8 +48,10 @@ dependencies {
     // Auth phase: Google OAuth2 login for the browser/PWA (machines still use the static bearer)
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     // Persistent HTTP sessions in Postgres: survive redeploys and back a 1-week login
-    // (schema created by Liquibase; spring.session.jdbc.initialize-schema=never)
-    implementation("org.springframework.session:spring-session-jdbc")
+    // (schema created by Liquibase; spring.session.jdbc.initialize-schema=never).
+    // Must be the Boot STARTER: bare spring-session-jdbc has no Boot 4 auto-config module,
+    // so it sits inert and sessions silently stay in-memory Tomcat (30-min timeout).
+    implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 
     // Modulith: verified bounded contexts + event publication registry (outbox)
     implementation("org.springframework.modulith:spring-modulith-starter-core")
