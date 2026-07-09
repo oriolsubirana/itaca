@@ -49,6 +49,10 @@ integration point, configuration property, annotation or artifact name:
 
 - Boot 4 modularized its starters: Liquibase needs `spring-boot-starter-liquibase`
   (just `liquibase-core` will NOT auto-run migrations).
+- Same trap with sessions: Spring Session needs `spring-boot-starter-session-jdbc`.
+  Bare `spring-session-jdbc` is inert in Boot 4 (its auto-config lives in the
+  `spring-boot-session(-jdbc)` modules), `spring.session.*` binds to nothing, and
+  sessions silently stay in-memory Tomcat with a 30-minute timeout.
 - Boot 4 uses **Jackson 3** (`tools.jackson.*`), not 2 (`com.fasterxml.*`).
 - Testcontainers is 2.x: artifacts are `testcontainers-postgresql`,
   `testcontainers-junit-jupiter`, `testcontainers-bom`. Classes moved to
