@@ -115,11 +115,22 @@ class HealthToolsIntegrationTest {
 
     @Test
     fun `query_health returns recent entries newest first`() {
-        tools.logDiaryEntry("2026-06-10", 5, 2, null, null, 3, null, null)
-        tools.logDiaryEntry("2026-06-11", 4, 1, null, null, 2, null, null)
+        // Relative dates: queryHealth(30) is a rolling window, fixed dates rot out of it
+        val older =
+            java.time.LocalDate
+                .now()
+                .minusDays(2)
+                .toString()
+        val newer =
+            java.time.LocalDate
+                .now()
+                .minusDays(1)
+                .toString()
+        tools.logDiaryEntry(older, 5, 2, null, null, 3, null, null)
+        tools.logDiaryEntry(newer, 4, 1, null, null, 2, null, null)
 
         val summary = tools.queryHealth(30)
 
-        assertEquals(listOf("2026-06-11", "2026-06-10"), summary.recentEntries.map { it.date })
+        assertEquals(listOf(newer, older), summary.recentEntries.map { it.date })
     }
 }

@@ -90,6 +90,11 @@ integration point, configuration property, annotation or artifact name:
   bearer token filter still guards the machine endpoints (`/api/ingest`,
   `/api/wellness`, Strava sync). Both live in `shared.security`. OAuth is wired only
   when `GOOGLE_CLIENT_ID` is set (`@ConditionalOnProperty`), so local/test runs skip it.
+- Supabase's Data API (PostgREST) is locked out of the `public` schema: migration
+  110 (runAlways, keep its include LAST in the master changelog) enables deny-all
+  RLS on every table and revokes the `anon`/`authenticated` grants. The backend is
+  unaffected (connects as table owner; owners bypass RLS). `RowLevelSecurityTest`
+  enforces it. The Data API should also stay disabled in the Supabase dashboard.
 
 ## Domain rules that must never be violated
 
