@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Modal } from "../components/Modal";
@@ -27,8 +27,14 @@ function SecLabel({ children }: { children: ReactNode }) {
 export function Gym() {
   return (
     <div>
-      <header className="mb-2 border-b border-line pb-3">
+      <header className="mb-2 flex items-center justify-between gap-2 border-b border-line pb-3">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Entreno</h1>
+        <Link
+          to="/triatlon"
+          className="rounded-full border border-line px-3.5 py-1.5 text-[13px] text-ink-soft hover:text-ink"
+        >
+          Triatlón
+        </Link>
       </header>
       <div className="space-y-9 pt-5">
         <Proxima />

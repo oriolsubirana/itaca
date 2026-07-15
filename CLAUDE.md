@@ -136,6 +136,10 @@ prepared by `.claude/hooks/session-start.sh`.
 10. ✅ Auth + Google (OAuth2 login + email allowlist; Calendar read in chat; Drive drop-folder → ingestion)
 11. ✅ Production deploy (Fly.io, same-origin SPA served by the backend, Supabase Postgres)
 12. ✅ Tasks + agenda (to-do list by chat/screen; Gmail "awaiting reply" + calendar in the Home glance; chat "Resumen del día")
+13. ✅ Triathlon plan ("Camino al sub-2h30", Zurich June 2027: static plan in `training` domain
+    (`TriathlonPlan`: 4 phases, weekly template, race targets), progress computed from Strava
+    activities (swim = type `other` + sport `Swim%`), `query_triathlon_plan` ChatTools +
+    `GET /api/training/plan`, `/triatlon` screen linked from Entreno, TRIATLÓN prompt section)
 
 ### Nutrition architecture (phase 7)
 
