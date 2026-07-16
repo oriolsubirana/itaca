@@ -76,7 +76,7 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
 
     // PDF text extraction (finpension performance reports — fixed machine-generated layout)
-    implementation("org.apache.pdfbox:pdfbox:3.0.7")
+    implementation("org.apache.pdfbox:pdfbox:3.0.8")
 
     // Tests
     testImplementation("org.springframework.boot:spring-boot-starter-test")
