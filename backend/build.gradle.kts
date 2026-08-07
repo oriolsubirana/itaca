@@ -67,13 +67,13 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // Async jobs (same Postgres, no broker)
-    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.7.1")
+    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.8.1")
 
     // Claude via Spring AI (GA not out yet; RC2 is the latest on Central)
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic")
 
     // OpenAPI as the contract (the frontend TS client is generated from it)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
 
     // PDF text extraction (finpension performance reports — fixed machine-generated layout)
     implementation("org.apache.pdfbox:pdfbox:3.0.7")
