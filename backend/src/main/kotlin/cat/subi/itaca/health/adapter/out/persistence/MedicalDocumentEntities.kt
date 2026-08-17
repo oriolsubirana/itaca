@@ -71,6 +71,9 @@ class MedicalMedicationEntity(
 )
 
 interface MedicalDocumentRepository : JpaRepository<MedicalDocumentEntity, Long> {
+    /** Idempotency for ingestion: a file already stored at this path maps to one document. */
+    fun findFirstByStoragePath(storagePath: String): MedicalDocumentEntity?
+
     /** Review queue order: pending first, then most recent document date. */
     @Query(
         """

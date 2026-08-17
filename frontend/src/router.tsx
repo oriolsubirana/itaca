@@ -12,6 +12,8 @@ import { Finanzas } from "./pages/Finanzas";
 import { Entradas } from "./pages/Entradas";
 import { Perfil } from "./pages/Perfil";
 import { Descanso } from "./pages/Descanso";
+import { Tareas } from "./pages/Tareas";
+import { Triatlon } from "./pages/Triatlon";
 
 const rootRoute = createRootRoute({ component: Layout });
 
@@ -32,6 +34,8 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/entradas", component: Entradas }),
   createRoute({ getParentRoute: () => rootRoute, path: "/perfil", component: Perfil }),
   createRoute({ getParentRoute: () => rootRoute, path: "/descanso", component: Descanso }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/tareas", component: Tareas }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/triatlon", component: Triatlon }),
 ];
 
 export const router = createRouter({

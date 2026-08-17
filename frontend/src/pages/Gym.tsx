@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { Modal } from "../components/Modal";
@@ -27,8 +27,14 @@ function SecLabel({ children }: { children: ReactNode }) {
 export function Gym() {
   return (
     <div>
-      <header className="mb-2 border-b border-line pb-3">
+      <header className="mb-2 flex items-center justify-between gap-2 border-b border-line pb-3">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Entreno</h1>
+        <Link
+          to="/triatlon"
+          className="rounded-full border border-line px-3.5 py-1.5 text-[13px] text-ink-soft hover:text-ink"
+        >
+          Triatlón
+        </Link>
       </header>
       <div className="space-y-9 pt-5">
         <Proxima />
@@ -486,22 +492,22 @@ function GymLine({ progression }: { progression: ExerciseProgression }) {
   const li = pts.length - 1;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full select-none" style={{ overflow: "visible" }}>
-      <polyline points={line} fill="none" stroke="#1c1c1a" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={line} fill="none" stroke="var(--color-ink)" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
       {pts.map((p, i) => (
         <circle
           key={i}
           cx={x(i)}
           cy={y(p.weight)}
           r={i === li ? 3.6 : 2.2}
-          fill={i === li ? "#1c1c1a" : "#faf9f7"}
-          stroke="#1c1c1a"
+          fill={i === li ? "var(--color-ink)" : "var(--color-paper)"}
+          stroke="var(--color-ink)"
           strokeWidth="1.4"
         />
       ))}
-      <text x={x(li)} y={y(pts[li].weight) - 9} textAnchor="middle" fill="#1c1c1a" style={{ fontSize: 11, fontWeight: 600 }}>
+      <text x={x(li)} y={y(pts[li].weight) - 9} textAnchor="middle" fill="var(--color-ink)" style={{ fontSize: 11, fontWeight: 600 }}>
         {fmtKg(pts[li].weight)}
       </text>
-      <text x={x(0)} y={H - 5} textAnchor="start" fill="#6b6963" style={{ fontSize: 10 }}>
+      <text x={x(0)} y={H - 5} textAnchor="start" fill="var(--color-ink-soft)" style={{ fontSize: 10 }}>
         {shortDate(pts[0].date)}
       </text>
       <text x={x(li)} y={H - 5} textAnchor="end" fill="#6b6963" style={{ fontSize: 10 }}>

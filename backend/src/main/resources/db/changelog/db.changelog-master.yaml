@@ -75,3 +75,17 @@ databaseChangeLog:
       file: db/changelog/070-profile-schema.sql
   - include:
       file: db/changelog/080-wellness-schema.sql
+  - include:
+      file: db/changelog/090-oauth2-authorized-client.sql
+  - include:
+      file: db/changelog/091-drive-seen.sql
+  - include:
+      file: db/changelog/092-document-storage-path-unique.sql
+  - include:
+      file: db/changelog/100-tasks-schema.sql
+  - include:
+      file: db/changelog/101-session-schema.sql
+  # Keep this include LAST: runAlways RLS sweep must run after every table-creating changeset
+  # (RowLevelSecurityTest enforces it).
+  - include:
+      file: db/changelog/110-shared-data-api-lockdown.sql

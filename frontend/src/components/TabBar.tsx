@@ -37,13 +37,6 @@ const tabs: { to: string; label: string; icon: ReactNode }[] = [
       <path d="M4 19V9m5.5 10V5m5.5 14v-7m5 7V8" strokeLinecap="round" />
     ),
   },
-  {
-    to: "/entradas",
-    label: "Entradas",
-    icon: (
-      <path d="M4 13h4l2 3h4l2-3h4M4 13l2.5-7h11L20 13v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18z" strokeLinejoin="round" />
-    ),
-  },
 ];
 
 export function TabBar() {

@@ -137,20 +137,26 @@ export function AnalyteChart() {
             <LineChart data={data.points} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 11, fill: "#6b6963" }}
+                tick={{ fontSize: 11, fill: "var(--color-ink-soft)" }}
                 tickFormatter={formatTick}
-                stroke="#e8e6e1"
+                stroke="var(--color-line)"
               />
-              <YAxis tick={{ fontSize: 11, fill: "#6b6963" }} stroke="#e8e6e1" width={48} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-ink-soft)" }} stroke="var(--color-line)" width={48} />
               <Tooltip
                 formatter={(value) => [`${value} ${data.unit}`, data.name]}
-                contentStyle={{ border: "1px solid #e8e6e1", borderRadius: 8, fontSize: 12 }}
+                contentStyle={{
+                  background: "var(--color-paper)",
+                  border: "1px solid var(--color-line)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--color-ink)",
+                }}
               />
               {reference && reference.refMax != null && (
                 <ReferenceArea
                   y1={reference.refMin ?? 0}
                   y2={reference.refMax}
-                  fill="#1c1c1a"
+                  fill="var(--color-ink)"
                   fillOpacity={0.05}
                   strokeOpacity={0}
                 />
@@ -158,9 +164,9 @@ export function AnalyteChart() {
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#1c1c1a"
+                stroke="var(--color-ink)"
                 strokeWidth={1.5}
-                dot={{ r: 3, fill: "#1c1c1a" }}
+                dot={{ r: 3, fill: "var(--color-ink)" }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -38,6 +38,7 @@ class AnthropicIngestionClassifier(
                 .entity(ClassificationResponse::class.java) ?: return Destination.UNKNOWN
         return when (response.kind.trim().uppercase()) {
             "LAB" -> Destination.HEALTH_LAB
+            "DOCUMENT" -> Destination.HEALTH_DOCUMENT
             "FINANCE" -> Destination.FINANCE_BANK
             else -> Destination.UNKNOWN
         }
@@ -50,10 +51,13 @@ class AnthropicIngestionClassifier(
             """
             Look at this PDF and decide what kind of document it is, for routing into a personal
             dashboard. Answer with a single field `kind`:
-            - "LAB" if it is a medical / clinical lab report (blood test, analytics, clinical results).
+            - "LAB" if it is a lab / analytics report with numeric test results (blood test,
+              laboratory values, analytics).
+            - "DOCUMENT" if it is another medical / clinical document without lab values (consultation
+              letter, diagnosis or specialist report, treatment plan, prescription, discharge summary).
             - "FINANCE" if it is a financial document (bank statement, pension/investment performance
               report such as finpension).
-            - "UNKNOWN" if it is clearly neither.
+            - "UNKNOWN" if it is clearly none of these.
             """.trimIndent()
     }
 }

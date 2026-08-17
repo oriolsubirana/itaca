@@ -31,6 +31,16 @@ data class StartWorkoutResult(
     val error: String? = null,
 )
 
+data class ExerciseHistory(
+    val exerciseName: String,
+    val found: Boolean,
+    val lastWeightKg: Double? = null,
+    val lastReps: Int? = null,
+    val lastDate: String? = null,
+    val suggestedWeightKg: Double? = null,
+    val candidates: List<String>? = null,
+)
+
 data class LogSetResult(
     val confirmed: Boolean,
     val exerciseName: String? = null,
@@ -117,7 +127,7 @@ class TrainingTools(
         @ToolParam(description = "Routine name: Push, Pull or Leg. Omit to follow the rotation", required = false)
         routineName: String?,
     ): StartWorkoutResult {
-        workouts.findFirstByCompletedFalseOrderByDateDescIdDesc()?.let { active ->
+        activeWorkout()?.let { active ->
             return StartWorkoutResult(
                 workoutId = active.id,
                 routineName = queries.routineNameOf(active.routineId),
@@ -155,7 +165,7 @@ class TrainingTools(
         @ToolParam(description = "RPE 1-10 if the user mentions it", required = false) rpe: Double?,
     ): LogSetResult {
         val active =
-            workouts.findFirstByCompletedFalseOrderByDateDescIdDesc()
+            activeWorkout()
                 ?: return LogSetResult(confirmed = false, error = "No active workout. Call start_workout first.")
         val matches = queries.findExercises(exerciseName)
         val exercise =
@@ -215,16 +225,17 @@ class TrainingTools(
 
         val activeId = active.id!!
         val currentSets = queries.setsOfWorkout(activeId)
-        val previousId = queries.previousCompletedWorkoutOfRoutine(active.routineId, activeId)
-        val previousTop = previousId?.let { topSetsByExercise(queries.setsOfWorkout(it)) } ?: emptyMap()
+        // Compare each exercise to ITS OWN last time (any routine), matching the progression chart —
+        // not to the previous session of this routine, which misses exercises done across routines.
         val comparison =
-            topSetsByExercise(currentSets).map { (name, top) ->
+            queries.topSetsOfWorkout(activeId).map { top ->
+                val previous = queries.previousTopSetOf(top.exerciseId, activeId)
                 ExerciseComparison(
-                    exerciseName = name,
+                    exerciseName = top.exerciseName,
                     topWeightKg = top.weightKg,
                     topReps = top.reps,
-                    previousTopWeightKg = previousTop[name]?.weightKg,
-                    previousTopReps = previousTop[name]?.reps,
+                    previousTopWeightKg = previous?.weightKg?.toDouble(),
+                    previousTopReps = previous?.reps,
                 )
             }
         return EndWorkoutResult(
@@ -232,6 +243,33 @@ class TrainingTools(
             routineName = queries.routineNameOf(active.routineId),
             totalSets = currentSets.size,
             comparison = comparison,
+        )
+    }
+
+    @Tool(
+        name = "query_exercise_history",
+        description =
+            "Returns the last logged top set (weight, reps, date) and the suggested next weight for ONE " +
+                "exercise (fuzzy name match), regardless of today's routine or any active workout. Use it to " +
+                "tell the user what they lifted last time for any exercise; NEVER claim there is no history " +
+                "for an exercise without calling this first.",
+    )
+    fun queryExerciseHistory(
+        @ToolParam(description = "Exercise name, can be partial (e.g. 'press militar')") exerciseName: String,
+    ): ExerciseHistory {
+        val matches = queries.findExercises(exerciseName)
+        if (matches.isEmpty()) return ExerciseHistory(exerciseName, found = false)
+        if (matches.size > 1) return ExerciseHistory(exerciseName, found = false, candidates = matches.map { it.name })
+        val exercise = matches.single()
+        val last = queries.lastTopSetOf(exercise.id) ?: return ExerciseHistory(exercise.name, found = false)
+        val suggested = progression.suggestNextWeight(Weight.ofKg(last.weightKg), Reps.of(last.reps))
+        return ExerciseHistory(
+            exerciseName = exercise.name,
+            found = true,
+            lastWeightKg = last.weightKg.toDouble(),
+            lastReps = last.reps,
+            lastDate = last.date.toString(),
+            suggestedWeightKg = suggested.kg.toDouble(),
         )
     }
 
@@ -290,6 +328,19 @@ class TrainingTools(
         return ActivitiesSummary(view.connected, recent, totals)
     }
 
+    /**
+     * The genuinely active workout: an incomplete one from TODAY. A leftover incomplete workout from
+     * a previous day is abandoned (auto-closed) so it stops lingering as "active" — which used to
+     * resurrect the wrong routine and scatter today's sets into an old session.
+     */
+    private fun activeWorkout(): WorkoutEntity? {
+        val incomplete = workouts.findFirstByCompletedFalseOrderByDateDescIdDesc() ?: return null
+        if (incomplete.date == LocalDate.now()) return incomplete
+        incomplete.completed = true
+        workouts.save(incomplete)
+        return null
+    }
+
     private fun planFor(routineId: Long): List<ExercisePlan> =
         queries.exercisesOfRoutine(routineId).map { row ->
             val last = queries.lastTopSetOf(row.exerciseId)
@@ -304,11 +355,6 @@ class TrainingTools(
                         ?.toDouble(),
             )
         }
-
-    private fun topSetsByExercise(lines: List<SetLine>): Map<String, SetLine> =
-        lines
-            .groupBy { it.exerciseName }
-            .mapValues { (_, sets) -> sets.maxWith(compareBy({ it.weightKg }, { it.reps })) }
 
     companion object {
         private const val TARGET_TOP_REPS = 8

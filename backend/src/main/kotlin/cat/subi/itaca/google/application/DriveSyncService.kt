@@ -1,0 +1,98 @@
+package cat.subi.itaca.google.application
+
+import cat.subi.itaca.ingestion.DocumentInbox
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
+
+/** Outcome of one folder poll. */
+data class DriveSyncResult(
+    val ingested: Int,
+    val failed: List<String>,
+    val listed: Int = 0,
+)
+
+/**
+ * Watches a Drive folder: every poll lists it, and any file not handled before is downloaded and
+ * handed to the ingestion pipeline (which classifies it as a lab report / bank statement and runs
+ * the usual review gate). Idempotent via the seen-store; Google-native docs (Sheets/Docs) are
+ * skipped since they can't be downloaded as bytes. No-op until the user connects Google and sets
+ * the folder.
+ */
+@Service
+class DriveSyncService(
+    private val tokens: GoogleTokens,
+    private val reader: DriveReader,
+    private val seen: DriveSeenStore,
+    private val inbox: DocumentInbox,
+    @Value("\${GOOGLE_DRIVE_FOLDER_ID:}") private val folderId: String,
+) {
+    private val log = LoggerFactory.getLogger(DriveSyncService::class.java)
+
+    @Suppress("TooGenericExceptionCaught")
+    fun sync(): DriveSyncResult {
+        if (folderId.isBlank()) return EMPTY
+        val token =
+            tokens.accessToken() ?: run {
+                log.info("Drive sync: no Google token yet — sign in to connect (and re-login if you signed in before).")
+                return EMPTY
+            }
+        return try {
+            val result = syncDriveFolder(token, folderId, reader, seen, inbox)
+            log.info(
+                "Drive sync: {} files in folder, {} newly ingested, {} failed {}",
+                result.listed,
+                result.ingested,
+                result.failed.size,
+                result.failed,
+            )
+            result
+        } catch (e: Exception) {
+            // One clean line per failed poll (bad folder id, expired token, network); the next
+            // scheduled run retries. Don't rethrow — that triggers a JobRunr retry storm.
+            log.warn("Drive sync failed (folder '{}'): {}", folderId, e.message)
+            EMPTY
+        }
+    }
+
+    private companion object {
+        val EMPTY = DriveSyncResult(0, emptyList())
+    }
+}
+
+private const val GOOGLE_APPS_PREFIX = "application/vnd.google-apps"
+private val driveLog = org.slf4j.LoggerFactory.getLogger("cat.subi.itaca.google.DriveSync")
+
+/**
+ * Pure poll step (no Spring/Google): for each unseen, downloadable file, download it, hand it to
+ * the inbox, and mark it seen. A per-file failure is collected (not marked seen, so it retries).
+ */
+@Suppress("TooGenericExceptionCaught")
+fun syncDriveFolder(
+    token: String,
+    folderId: String,
+    reader: DriveReader,
+    seen: DriveSeenStore,
+    inbox: DocumentInbox,
+): DriveSyncResult {
+    var ingested = 0
+    val failed = mutableListOf<String>()
+    val all = reader.listFolder(token, folderId)
+    val fresh = all.filterNot { seen.isSeen(it.id) }
+    for (doc in fresh) {
+        if (doc.mimeType.startsWith(GOOGLE_APPS_PREFIX)) {
+            // Google-native docs can't be downloaded as bytes; mark them seen so we don't re-list.
+            seen.markSeen(doc.id, doc.name, doc.mimeType)
+        } else {
+            try {
+                inbox.receive("drive", doc.name, reader.download(token, doc.id))
+                seen.markSeen(doc.id, doc.name, doc.mimeType)
+                ingested++
+            } catch (e: Exception) {
+                driveLog.warn("Drive sync: could not ingest '{}': {}", doc.name, e.toString())
+                failed.add(doc.name)
+            }
+        }
+    }
+    return DriveSyncResult(ingested, failed, listed = all.size)
+}

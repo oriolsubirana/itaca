@@ -4,15 +4,21 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.filter.OncePerRequestFilter
 import java.security.MessageDigest
 
 /**
- * Minimal auth for the current phase: a single static bearer token for the
- * whole API. Will be replaced by Spring Security 7 + JWT in the auth phase.
+ * Machine-to-machine auth: a single static bearer token for callers that can't do the
+ * Google login (the Garmin GitHub Action, the iOS Shortcut hitting /api/ingest, the
+ * Strava sync). A valid token authenticates the request as the MACHINE role; humans
+ * authenticate instead via Google OAuth2 login (a session). The authorization rules in
+ * SecurityConfig then gate the API routes.
  *
- * If the token is not configured (local development), the filter disables
- * itself and logs a warning.
+ * If no token is configured (local/test), the filter is a no-op and SecurityConfig leaves
+ * the API open — preserving the previous development behaviour.
  */
 class BearerTokenFilter(
     private val configuredToken: String,
@@ -22,7 +28,7 @@ class BearerTokenFilter(
 
     init {
         if (!enabled) {
-            log.warn("ITACA_API_TOKEN not configured: the API runs WITHOUT authentication (development only)")
+            log.warn("ITACA_API_TOKEN not configured: the API accepts machine calls WITHOUT a token (development only)")
         }
     }
 
@@ -31,25 +37,21 @@ class BearerTokenFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        if (!enabled || isPublic(request) || isAuthorized(request)) {
-            filterChain.doFilter(request, response)
-            return
+        if (enabled && SecurityContextHolder.getContext().authentication == null && hasValidToken(request)) {
+            val auth =
+                UsernamePasswordAuthenticationToken(
+                    "machine",
+                    null,
+                    listOf(SimpleGrantedAuthority("ROLE_MACHINE")),
+                )
+            SecurityContextHolder.getContext().authentication = auth
         }
-        response.status = HttpServletResponse.SC_UNAUTHORIZED
-        response.contentType = "application/json"
-        response.writer.write("""{"error":"Unauthorized"}""")
+        filterChain.doFilter(request, response)
     }
 
-    // OAuth redirects arrive as browser navigations without the bearer token.
-    private fun isPublic(request: HttpServletRequest): Boolean = PUBLIC_PATHS.any { request.requestURI.startsWith(it) }
-
-    private fun isAuthorized(request: HttpServletRequest): Boolean {
+    private fun hasValidToken(request: HttpServletRequest): Boolean {
         val header = request.getHeader("Authorization") ?: return false
         val token = header.removePrefix("Bearer ").trim()
         return MessageDigest.isEqual(token.toByteArray(), configuredToken.toByteArray())
-    }
-
-    private companion object {
-        val PUBLIC_PATHS = listOf("/api/strava/connect", "/api/strava/callback")
     }
 }

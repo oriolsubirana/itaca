@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { logout } from "../api/auth";
+import { getTheme, setTheme, type Theme } from "../lib/theme";
 import { getFlares } from "../api/health";
 import { getTrainingSummary } from "../api/training";
 import {
@@ -178,7 +180,50 @@ function PerfilForm({ initial }: { initial: Profile }) {
         >
           {save.isPending ? "Guardando…" : save.isSuccess ? "Guardado ✓" : "Guardar"}
         </button>
+
+        <div className="border-t border-line" />
+
+        <section>
+          <SecLabel>Apariencia</SecLabel>
+          <Appearance />
+        </section>
+
+        <div className="border-t border-line pt-6">
+          <button
+            onClick={() => logout()}
+            className="h-11 w-full rounded-md border border-line text-[14px] font-medium text-ink-soft hover:text-ink"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+const APPEARANCE: { value: Theme; label: string }[] = [
+  { value: "light", label: "Claro" },
+  { value: "dark", label: "Oscuro" },
+];
+
+function Appearance() {
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+  return (
+    <div className="flex gap-1.5">
+      {APPEARANCE.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => {
+            setTheme(o.value);
+            setThemeState(o.value);
+          }}
+          className={`h-11 rounded-md px-5 text-[14px] transition-colors ${
+            theme === o.value ? "bg-ink text-paper" : "border border-line text-ink hover:bg-line/40"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

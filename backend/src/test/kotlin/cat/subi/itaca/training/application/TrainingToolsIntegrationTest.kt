@@ -45,6 +45,18 @@ class TrainingToolsIntegrationTest {
     }
 
     @Test
+    fun `query_exercise_history finds an exercise's last set regardless of routine`() {
+        val militar = tools.queryExerciseHistory("press militar")
+        assertTrue(militar.found, "Press Militar has a completed set in the seed (Push 2026-06-09)")
+        assertEquals(14.0, militar.lastWeightKg)
+        assertEquals(6, militar.lastReps)
+        assertEquals(14.0, militar.suggestedWeightKg, "6 reps do not exceed the 8-rep target -> keep weight")
+
+        val unknown = tools.queryExerciseHistory("dominadas a una mano")
+        assertFalse(unknown.found)
+    }
+
+    @Test
     fun `home summary reflects the last completed session and the next rotation`() {
         val summary = queries.homeSummary()
         assertEquals("2026-06-09", summary.lastWorkoutDate)
@@ -88,6 +100,46 @@ class TrainingToolsIntegrationTest {
 
         val recent = tools.queryWorkouts(10)
         assertNotNull(recent.firstOrNull { it.routineName == "Pull" && it.completed && it.sets.size == 1 })
+    }
+
+    @Test
+    fun `end_workout compares each exercise to its own last time, across routines`() {
+        // Press Militar belongs to Push (seed: 14 kg x 6 on 2026-06-09). Log it into a Pull session
+        // (as happens when the wrong routine is active) and close: the comparison must still find it.
+        tools.startWorkout("Pull")
+        tools.logSet("press militar", 16.0, 8, null)
+
+        val ended = tools.endWorkout(null)
+
+        val militar = ended.comparison.single { it.exerciseName == "Press Militar" }
+        assertEquals(16.0, militar.topWeightKg)
+        assertEquals(14.0, militar.previousTopWeightKg, "compares to the 2026-06-09 Push, not the Pull routine")
+        assertEquals(6, militar.previousTopReps)
+    }
+
+    @Test
+    fun `a leftover incomplete workout from a previous day is auto-closed, not resurrected`() {
+        jdbc.update(
+            """
+            INSERT INTO workouts (date, routine_id, completed)
+            VALUES (?, (SELECT id FROM routines WHERE name = 'Pull'), false)
+            """.trimIndent(),
+            java.sql.Date.valueOf(
+                java.time.LocalDate
+                    .now()
+                    .minusDays(3),
+            ),
+        )
+
+        val started = tools.startWorkout("Push")
+
+        assertFalse(started.alreadyActive, "a previous-day incomplete session must not count as active")
+        assertEquals("Push", started.routineName)
+
+        // The stale Pull no longer lingers as active: the current active session is today's Push.
+        val current = tools.startWorkout(null)
+        assertTrue(current.alreadyActive)
+        assertEquals("Push", current.routineName, "the auto-closed Pull must not be resurrected")
     }
 
     @Test

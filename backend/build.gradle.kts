@@ -45,6 +45,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // Auth phase: Google OAuth2 login for the browser/PWA (machines still use the static bearer)
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    // Persistent HTTP sessions in Postgres: survive redeploys and back a 1-week login
+    // (schema created by Liquibase; spring.session.jdbc.initialize-schema=never).
+    // Must be the Boot STARTER: bare spring-session-jdbc has no Boot 4 auto-config module,
+    // so it sits inert and sessions silently stay in-memory Tomcat (30-min timeout).
+    implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 
     // Modulith: verified bounded contexts + event publication registry (outbox)
     implementation("org.springframework.modulith:spring-modulith-starter-core")
@@ -60,16 +67,16 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // Async jobs (same Postgres, no broker)
-    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.6.1")
+    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.8.1")
 
     // Claude via Spring AI (GA not out yet; RC2 is the latest on Central)
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic")
 
     // OpenAPI as the contract (the frontend TS client is generated from it)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
 
     // PDF text extraction (finpension performance reports — fixed machine-generated layout)
-    implementation("org.apache.pdfbox:pdfbox:3.0.7")
+    implementation("org.apache.pdfbox:pdfbox:3.0.8")
 
     // Tests
     testImplementation("org.springframework.boot:spring-boot-starter-test")

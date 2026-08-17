@@ -90,7 +90,7 @@ export function MedicalDocuments() {
               </span>
               <span
                 className={`shrink-0 text-xs uppercase tracking-wide ${
-                  d.status === "pending_review" ? "text-amber-700" : "text-ink-soft"
+                  d.status === "pending_review" ? "text-warning" : "text-ink-soft"
                 }`}
               >
                 {d.extracting ? "procesando…" : MEDICAL_STATUS_LABELS[d.status]}
@@ -174,8 +174,8 @@ function DocumentReview({ documentId, onDone }: { documentId: number; onDone: ()
       </button>
 
       {document.extracting ? (
-        <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          <span className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-amber-700 border-t-transparent" />
+        <p className="mb-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">
+          <span className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-warning border-t-transparent" />
           Procesando el documento… los datos aparecerán aquí solos.
         </p>
       ) : (
@@ -259,7 +259,7 @@ function DocumentReview({ documentId, onDone }: { documentId: number; onDone: ()
           if (window.confirm("¿Eliminar este documento y todos sus datos?")) remove.mutate();
         }}
         disabled={remove.isPending}
-        className="mt-2 min-h-11 w-full text-sm text-red-800 disabled:opacity-40"
+        className="mt-2 min-h-11 w-full text-sm text-clinical disabled:opacity-40"
       >
         Eliminar documento
       </button>

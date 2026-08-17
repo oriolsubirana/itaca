@@ -1,7 +1,22 @@
 name: Garmin wellness sync
 
 # Daily pull of Garmin sleep/HRV/recovery into Ítaca. Needs repo secrets:
-# GARMIN_EMAIL, GARMIN_PASSWORD, ITACA_URL, ITACA_API_TOKEN.
+# GARMIN_EMAIL, GARMIN_PASSWORD, ITACA_URL, ITACA_API_TOKEN — and, to work from
+# GitHub's datacenter IPs, GARMIN_TOKENS (see below).
+#
+# Why the session dance: a full credential login from a datacenter IP trips
+# Garmin's rate limit and Cloudflare's bot wall (429 / 403 / CAPTCHA), so the
+# workflow NEVER re-authenticates if it can resume a saved session. The tokens
+# last about a year and refresh in use.
+#   1. actions/cache keeps ~/.garminconnect between daily runs (hot path).
+#   2. If the cache is cold (first run / eviction), it is seeded from the
+#      GARMIN_TOKENS secret: a base64 tarball of ~/.garminconnect created ONCE
+#      from a residential IP, where the login works:
+#        pip install -r tools/garmin-sync/requirements.txt
+#        DRY_RUN=1 python tools/garmin-sync/sync.py   # logs in, saves ~/.garminconnect
+#        tar czf - -C ~ .garminconnect | base64 -w0    # -> paste as secret GARMIN_TOKENS
+#   3. Only with no cache AND no secret does it fall back to a credential
+#      login (which from Actions will most likely be blocked).
 on:
   schedule:
     - cron: "30 6 * * *" # 06:30 UTC daily (after the night's data is in Garmin)
@@ -15,11 +30,33 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - run: pip install -r tools/garmin-sync/requirements.txt
+
+      - name: Restore Garmin session
+        id: tokens
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.garminconnect
+          key: garmin-tokens-${{ github.run_id }}
+          restore-keys: |
+            garmin-tokens-
+
+      - name: Seed Garmin session from secret (cold cache)
+        if: steps.tokens.outputs.cache-matched-key == ''
+        env:
+          GARMIN_TOKENS: ${{ secrets.GARMIN_TOKENS }}
+        run: |
+          if [ -n "$GARMIN_TOKENS" ]; then
+            echo "$GARMIN_TOKENS" | base64 -d | tar xzf - -C ~
+            echo "Seeded ~/.garminconnect from the GARMIN_TOKENS secret"
+          else
+            echo "::warning::No cached session and no GARMIN_TOKENS secret — falling back to a credential login, which Garmin usually blocks from datacenter IPs. Seed the secret (see the workflow header)."
+          fi
+
       - run: python tools/garmin-sync/sync.py
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
@@ -27,3 +64,11 @@ jobs:
           ITACA_URL: ${{ secrets.ITACA_URL }}
           ITACA_API_TOKEN: ${{ secrets.ITACA_API_TOKEN }}
           DAYS: ${{ github.event.inputs.days || '1' }}
+
+      # Tokens refresh in use; save them back so tomorrow's run resumes the session.
+      - name: Save Garmin session
+        if: success()
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.garminconnect
+          key: garmin-tokens-${{ github.run_id }}
