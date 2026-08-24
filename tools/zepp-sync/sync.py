@@ -89,6 +89,12 @@ XIAOMI_OAUTH_PARAMS = (
 )
 
 
+XIAOMI_UA = (
+    "Mozilla/5.0 (Linux; Android 12; Pixel 4 Build/SP1A.210812.016.C1; wv) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.200 Mobile Safari/537.36"
+)
+
+
 def _xiaomi_json(text):
     prefix = "&&&START&&&"
     if text.startswith(prefix):
@@ -110,10 +116,14 @@ class MiAccountZeppSession:
         import hashlib
 
         http = requests.Session()
+        http.headers["User-Agent"] = XIAOMI_UA  # Xiaomi's WAF rejects the python-requests UA
         r1 = http.get(f"https://account.xiaomi.com/oauth2/authorize?{XIAOMI_OAUTH_PARAMS}", timeout=30)
         j1 = _xiaomi_json(r1.text)
         if not j1.get("_sign"):
-            raise SystemExit(f"Xiaomi OAuth bootstrap failed: keys {sorted(j1)}")
+            raise SystemExit(
+                "Xiaomi OAuth bootstrap failed: "
+                f"code={j1.get('code')} result={j1.get('result')} desc={j1.get('description')}"
+            )
 
         http.cookies.set("deviceId", pysecrets.token_hex(8))
         r2 = http.post(
