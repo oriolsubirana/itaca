@@ -23,7 +23,13 @@ import json
 import os
 import sys
 
+import uuid
+
 import requests
+from huami_token.constants import HEADERS as HT_HEADERS
+from huami_token.constants import PAYLOADS as HT_PAYLOADS
+from huami_token.constants import URLS as HT_URLS
+from huami_token.errors import AuthenticationError
 from huami_token.zepp import ZeppSession
 from loguru import logger
 
@@ -32,12 +38,56 @@ logger.remove()
 logger.add(sys.stderr, level="INFO")
 
 # Regional mifit hosts, tried in order until one answers with data (override with ZEPP_HOST).
+# The login response's `domains` lists the account's REAL data hosts — those go first.
 HOSTS = [
     "api-mifit-de2.zepp.com",
     "api-mifit.zepp.com",
     "api-mifit-us2.zepp.com",
     "api-mifit-us3.zepp.com",
 ]
+
+
+class ZeppSessionWithDomains(ZeppSession):
+    """huami-token's ZeppSession discards the login response's `domains` (the per-account data
+    hosts); this re-does only the second login step to also capture them."""
+
+    def __init__(self, username, password):
+        super().__init__(username, password)
+        self.data_hosts = []
+
+    def _login(self):
+        payload = HT_PAYLOADS.ZEPP_LOGIN.value.copy()
+        payload["code"] = self._access_token
+        payload["device_id"] = str(uuid.uuid4())
+        response = requests.post(HT_URLS.ZEPP_LOGIN.value, data=payload, headers=HT_HEADERS.ZEPP_LOGIN.value)
+        if response.status_code != 200:
+            raise AuthenticationError(code="login-failed", message=f"Login HTTP {response.status_code}")
+        data = response.json()
+        token_info = data.get("token_info", {})
+        self._login_token = token_info.get("login_token")
+        self._app_token = token_info.get("app_token")
+        self._user_id = token_info.get("user_id")
+        if not self._login_token or not self._app_token or not self._user_id:
+            raise AuthenticationError(code="no-login-tokens", message="Missing tokens in login response")
+        for d in data.get("domains") or []:
+            host = d.get("host") if isinstance(d, dict) else None
+            if host and "mifit" in host:
+                self.data_hosts.append(host)
+            for cname in (d.get("cnames") or []) if isinstance(d, dict) else []:
+                if cname and "mifit" in cname:
+                    self.data_hosts.append(cname)
+        print(f"Zepp: account data host(s) from login: {self.data_hosts or 'none advertised'}", file=sys.stderr)
+
+
+def candidate_hosts(session):
+    if os.environ.get("ZEPP_HOST"):
+        return [os.environ["ZEPP_HOST"]]
+    seen, hosts = set(), []
+    for h in list(getattr(session, "data_hosts", [])) + HOSTS:
+        if h not in seen:
+            seen.add(h)
+            hosts.append(h)
+    return hosts
 
 
 def num(v):
@@ -155,9 +205,10 @@ def family_member_ids(host, app_token, user_id):
         return []
 
 
-def fetch_records(app_token, user_id, days):
+def fetch_records(session, days):
+    app_token, user_id = session.app_token, session.user_id
     from_s = int((dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).timestamp())
-    hosts = [os.environ["ZEPP_HOST"]] if os.environ.get("ZEPP_HOST") else HOSTS
+    hosts = candidate_hosts(session)
     last_err = None
     reachable = False
     for host in hosts:
@@ -186,14 +237,14 @@ def fetch_records(app_token, user_id, days):
 
 
 
-def diagnose(app_token, user_id):
+def diagnose(session):
+    app_token, user_id = session.app_token, session.user_id
     """Probe candidate endpoints across hosts; print only status, counts and key names (no values),
     so the account's data layout can be located without leaking personal data into CI logs."""
     headers = {**HEADERS_BASE, "apptoken": app_token}
     now = int(dt.datetime.now(dt.timezone.utc).timestamp())
-    hosts = [os.environ["ZEPP_HOST"]] if os.environ.get("ZEPP_HOST") else (
-        HOSTS + [h.replace(".zepp.com", ".huami.com") for h in HOSTS]
-    )
+    base = candidate_hosts(session)
+    hosts = base + [h.replace(".zepp.com", ".huami.com") for h in base if ".zepp.com" in h]
 
     def shape(obj, depth=0):
         if isinstance(obj, dict):
@@ -241,14 +292,14 @@ def main():
     if not email or not password:
         sys.exit("Set ZEPP_EMAIL and ZEPP_PASSWORD (a Zepp email-registered account).")
 
-    session = ZeppSession(email, password)
+    session = ZeppSessionWithDomains(email, password)
     session.login()
 
     if os.environ.get("DIAGNOSE", "").lower() in ("1", "true", "yes"):
-        diagnose(session.app_token, session.user_id)
+        diagnose(session)
         return
 
-    records = fetch_records(session.app_token, session.user_id, days)
+    records = fetch_records(session, days)
     # One payload per date; records come newest first, keep the newest of each day.
     by_date = {}
     for rec in records:
