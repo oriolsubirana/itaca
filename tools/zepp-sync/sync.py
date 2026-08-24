@@ -56,8 +56,18 @@ def first(record, *keys):
 
 
 def to_payload(record):
-    """Map one Zepp weight record to the Ítaca body-composition payload (defensive)."""
-    ts = first(record, "timestamp", "time", "generatedTime")
+    """Map one Zepp weight record to the Ítaca body-composition payload.
+
+    Proven shape (SmartScaleConnect): generatedTime is unix SECONDS, weightType != 0 rows carry
+    broken values, and the metrics live in a nested "summary" — whose muscleRate is actually a
+    MASS in kg despite the name. Flat fields are kept as fallback; missing -> null.
+    """
+    if record.get("weightType") not in (0, None):
+        return None
+    summary = record.get("summary") or {}
+    src = {**record, **summary}
+
+    ts = first(src, "generatedTime", "timestamp", "time")
     if ts is None:
         return None
     ts = float(ts)
@@ -65,23 +75,20 @@ def to_payload(record):
         ts /= 1000.0
     date = dt.datetime.fromtimestamp(ts).date().isoformat()
 
-    weight = num(first(record, "weight", "weightKg"))
+    weight = num(first(src, "weight", "weightKg"))
     if weight is None:
         return None
 
-    fat_pct = num(first(record, "bodyFatRate", "fatRate", "bodyFat"))
-    water_pct = num(first(record, "moistureRate", "waterRate", "moisture"))
-    bone = num(first(record, "boneMass", "bone"))
-    visceral = num(first(record, "visceralFat", "visceralFatLevel"))
-    bmi = num(record.get("bmi"))
-    bmr = num(first(record, "metabolism", "basalMetabolism", "bmr"))
+    fat_pct = num(first(src, "fatRate", "bodyFatRate", "bodyFat"))
+    water_pct = num(first(src, "bodyWaterRate", "moistureRate", "waterRate"))
+    bone = num(first(src, "boneMass", "bone"))
+    visceral = num(first(src, "visceralFat", "visceralFatLevel"))
+    bmi = num(src.get("bmi"))
+    bmr = num(first(src, "metabolism", "basalMetabolism", "bmr"))
 
-    # Muscle arrives either as kg ("muscle"/"muscleMass") or as a rate (% of weight).
-    muscle = num(first(record, "muscleMass", "muscle"))
-    muscle_rate = num(record.get("muscleRate"))
-    if muscle is None and muscle_rate is not None:
-        muscle = round(weight * muscle_rate / 100.0, 2)
-    elif muscle is not None and muscle > weight:  # clearly a rate mislabeled as mass
+    # muscleRate is a mass (kg) in practice; if it exceeds the weight it must be a real rate.
+    muscle = num(first(src, "muscleMass", "muscle", "muscleRate"))
+    if muscle is not None and muscle > weight:
         muscle = round(weight * muscle / 100.0, 2)
 
     payload = {
@@ -98,56 +105,83 @@ def to_payload(record):
     return {k: v for k, v in payload.items() if v is not None or k in ("date",)}
 
 
+HEADERS_BASE = {
+    "appname": "com.huami.midong",
+    "appplatform": "android_phone",
+    "user-agent": "Zepp/9.12.5 (Pixel 4; Android 12; Density/2.75)",
+}
+
+
+def member_records(host, app_token, user_id, member_id, from_s):
+    """All weight records of one member newer than from_s, paginating with `next` (toTime unix s)."""
+    headers = {**HEADERS_BASE, "apptoken": app_token}
+    items, to_time = [], int(dt.datetime.now(dt.timezone.utc).timestamp())
+    while to_time and to_time > 0:
+        r = requests.get(
+            f"https://{host}/users/{user_id}/members/{member_id}/weightRecords",
+            params={"limit": 200, "toTime": to_time},
+            headers=headers,
+            timeout=30,
+        )
+        r.raise_for_status()
+        data = r.json() if isinstance(r.json(), dict) else {}
+        page = data.get("items") or []
+        items.extend(page)
+        if not page:
+            break
+        oldest = min(float(i.get("generatedTime") or 0) for i in page)
+        if oldest and oldest < from_s:
+            break
+        to_time = data.get("next") or 0
+    return [i for i in items if float(i.get("generatedTime") or 0) >= from_s]
+
+
+def family_member_ids(host, app_token, user_id):
+    """Scale family member ids (fuid) — weigh-ins may live under a member instead of -1."""
+    try:
+        r = requests.post(
+            f"https://{host}/huami.health.scale.familymember.get.json",
+            data={"fuid": "all", "userid": user_id},
+            headers={**HEADERS_BASE, "apptoken": app_token},
+            timeout=30,
+        )
+        if r.status_code != 200:
+            return []
+        members = ((r.json() or {}).get("data") or {}).get("list") or []
+        ids = [m.get("fuid") for m in members if m.get("fuid") is not None]
+        print(f"Zepp: {len(ids)} scale family member(s) on {host}", file=sys.stderr)
+        return ids
+    except (requests.RequestException, ValueError):
+        return []
+
+
 def fetch_records(app_token, user_id, days):
-    now = dt.datetime.now(dt.timezone.utc)
-    from_s = int((now - dt.timedelta(days=days)).timestamp())
-    to_s = int(now.timestamp())
-    headers = {
-        "apptoken": app_token,
-        "appname": "com.huami.midong",
-        "appplatform": "android_phone",
-        "user-agent": "Zepp/9.12.5 (Pixel 4; Android 12; Density/2.75)",
-    }
+    from_s = int((dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).timestamp())
     hosts = [os.environ["ZEPP_HOST"]] if os.environ.get("ZEPP_HOST") else HOSTS
-    # The records carry millisecond timestamps; whether the range filter wants s or ms is
-    # undocumented and has drifted, so try ms first, then seconds, per host. An empty list
-    # is NOT success (wrong host answers 200 + empty): keep trying, remember we got one.
-    saw_empty_host = None
     last_err = None
+    reachable = False
     for host in hosts:
-        url = f"https://{host}/users/{user_id}/members/-1/weightRecords"
-        for unit, (f, t) in (("ms", (from_s * 1000, to_s * 1000)), ("s", (from_s, to_s))):
-            try:
-                r = requests.get(
-                    url,
-                    params={"fromTime": f, "toTime": t, "limit": 300, "isForward": 0},
-                    headers=headers,
-                    timeout=30,
-                )
-                if r.status_code != 200:
-                    last_err = f"{host} ({unit}) -> HTTP {r.status_code}"
-                    print(f"  · {last_err}", file=sys.stderr)
-                    break  # same host won't improve with other units
-                data = r.json()
-                items = data.get("items") if isinstance(data, dict) else data
-                if isinstance(items, list) and items:
-                    print(f"Zepp: {len(items)} weight records from {host} ({unit})", file=sys.stderr)
-                    return items
-                saw_empty_host = host
-                print(f"  · {host} ({unit}) -> 200 but 0 records", file=sys.stderr)
-            except requests.RequestException as e:
-                last_err = f"{host} ({unit}) -> {e}"
-                print(f"  · {last_err}", file=sys.stderr)
-                break
-    if saw_empty_host:
+        try:
+            items = member_records(host, app_token, user_id, -1, from_s)
+            reachable = True
+            if not items:  # weigh-ins may sit under a family member, not the main profile
+                for fuid in family_member_ids(host, app_token, user_id):
+                    items.extend(member_records(host, app_token, user_id, fuid, from_s))
+            if items:
+                print(f"Zepp: {len(items)} weight records from {host}", file=sys.stderr)
+                return items
+            print(f"  · {host} -> reachable but 0 records", file=sys.stderr)
+        except requests.RequestException as e:
+            last_err = f"{host} -> {e}"
+            print(f"  · {last_err}", file=sys.stderr)
+    if reachable:
         print(
-            f"No weight records on any host (e.g. {saw_empty_host} answered fine but empty). "
-            "Either no weigh-ins in the window, or the scale syncs to another app "
-            "(Zepp Life / Mi Fitness) instead of Zepp.",
+            "No weight records on any host: either no weigh-ins in the window, or the scale "
+            "syncs to another app (Zepp Life / Mi Fitness) instead of Zepp.",
             file=sys.stderr,
         )
         return []
-    sys.exit(f"Could not read weightRecords from any host (last: {last_err}). Set ZEPP_HOST to your region.")
+    sys.exit(f"Could not reach weightRecords on any host (last: {last_err}). Set ZEPP_HOST to your region.")
 
 
 def main():
