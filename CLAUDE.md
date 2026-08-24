@@ -136,6 +136,10 @@ prepared by `.claude/hooks/session-start.sh`.
 10. ✅ Auth + Google (OAuth2 login + email allowlist; Calendar read in chat; Drive drop-folder → ingestion)
 11. ✅ Production deploy (Fly.io, same-origin SPA served by the backend, Supabase Postgres)
 12. ✅ Tasks + agenda (to-do list by chat/screen; Gmail "awaiting reply" + calendar in the Home glance; chat "Resumen del día")
+15. ✅ Xiaomi scale (`body_composition` table in `wellness`, one row per date; external
+    `tools/zepp-sync/sync.py` — huami-token encrypted login + regional weightRecords,
+    defensive field mapping — POSTs `/api/wellness/body`; `query_body_composition`
+    ChatTools with window trend; daily GitHub Action zepp-sync.yml)
 14. ✅ Diet plan ("Plan Paleomind" phase 1 for UC: `nutrition` domain `DietPlan` — allowed/avoid
     food rules, meal habits, supplement schedule by time slot — `query_diet_plan` ChatTools;
     the prompt's Nutrición section defers to the tool. Phase 2/3 arrive as plan updates.)

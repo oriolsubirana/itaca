@@ -3,6 +3,10 @@
 
 package cat.subi.itaca.wellness.adapter.`in`.rest
 
+import cat.subi.itaca.wellness.application.BodyCompositionCommand
+import cat.subi.itaca.wellness.application.BodyCompositionDto
+import cat.subi.itaca.wellness.application.BodyCompositionService
+import cat.subi.itaca.wellness.application.BodyCompositionSummary
 import cat.subi.itaca.wellness.application.WellnessCommand
 import cat.subi.itaca.wellness.application.WellnessDayDto
 import cat.subi.itaca.wellness.application.WellnessService
@@ -60,11 +64,51 @@ data class WellnessRequest(
         )
 }
 
+/** One scale measurement as pushed by the external Zepp sync; composition fields optional. */
+data class BodyCompositionRequest(
+    val date: String = "",
+    val weightKg: Double = 0.0,
+    val bmi: Double? = null,
+    val bodyFatPct: Double? = null,
+    val muscleKg: Double? = null,
+    val waterPct: Double? = null,
+    val boneKg: Double? = null,
+    val visceralFat: Double? = null,
+    val bmrKcal: Int? = null,
+) {
+    fun toCommand(): BodyCompositionCommand {
+        require(weightKg > 0) { "weightKg must be positive" }
+        return BodyCompositionCommand(
+            date = LocalDate.parse(date),
+            weightKg = weightKg,
+            bmi = bmi,
+            bodyFatPct = bodyFatPct,
+            muscleKg = muscleKg,
+            waterPct = waterPct,
+            boneKg = boneKg,
+            visceralFat = visceralFat,
+            bmrKcal = bmrKcal,
+        )
+    }
+}
+
 @RestController
 @RequestMapping("/api/wellness")
 class WellnessController(
     private val wellness: WellnessService,
+    private val body: BodyCompositionService,
 ) {
+    /** Upsert a scale measurement (idempotent on the date). Fed by the external Zepp sync. */
+    @PostMapping("/body")
+    fun upsertBody(
+        @RequestBody request: BodyCompositionRequest,
+    ): BodyCompositionDto = body.upsert(request.toCommand())
+
+    @GetMapping("/body")
+    fun bodyRecent(
+        @RequestParam(required = false) days: Int?,
+    ): BodyCompositionSummary = body.queryBodyComposition(days)
+
     /** Upsert a day's metrics (idempotent on the date). Fed by the external Garmin sync. */
     @PostMapping("/daily")
     fun daily(
