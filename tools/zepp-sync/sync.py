@@ -21,8 +21,9 @@ both are handled.
 import datetime as dt
 import json
 import os
+import secrets as pysecrets
 import sys
-
+import urllib.parse
 import uuid
 
 import requests
@@ -77,6 +78,107 @@ class ZeppSessionWithDomains(ZeppSession):
                 if cname and "mifit" in cname:
                     self.data_hosts.append(cname)
         print(f"Zepp: account data host(s) from login: {self.data_hosts or 'none advertised'}", file=sys.stderr)
+
+
+# --- "Sign in with Mi Account" (the Zepp app's Xiaomi login) ---------------------------------
+# Recipe from SmartScaleConnect: Xiaomi OAuth2 (Zepp Life's client) -> code -> Huami login with
+# third_name=xiaomi-hm-mifit. Lands on the Huami account linked to the Xiaomi identity.
+XIAOMI_OAUTH_PARAMS = (
+    "_json=true&client_id=428135909242707968&pt=1"
+    "&redirect_uri=https://api-mifit-cn.huami.com/huami.health.loginview.do&response_type=code"
+)
+
+
+def _xiaomi_json(text):
+    prefix = "&&&START&&&"
+    if text.startswith(prefix):
+        text = text[len(prefix):]
+    return json.loads(text)
+
+
+class MiAccountZeppSession:
+    """Log into the Huami/Zepp cloud through a Xiaomi (Mi) account, headlessly."""
+
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+        self.app_token = None
+        self.user_id = None
+        self.data_hosts = []
+
+    def login(self):
+        import hashlib
+
+        http = requests.Session()
+        r1 = http.get(f"https://account.xiaomi.com/oauth2/authorize?{XIAOMI_OAUTH_PARAMS}", timeout=30)
+        j1 = _xiaomi_json(r1.text)
+        if not j1.get("_sign"):
+            raise SystemExit(f"Xiaomi OAuth bootstrap failed: keys {sorted(j1)}")
+
+        http.cookies.set("deviceId", pysecrets.token_hex(8))
+        r2 = http.post(
+            "https://account.xiaomi.com/pass/serviceLoginAuth2",
+            data={
+                "_json": "true",
+                "hash": hashlib.md5(self.password.encode()).hexdigest().upper(),
+                "sid": j1.get("sid"),
+                "callback": j1.get("callback"),
+                "_sign": j1.get("_sign"),
+                "qs": j1.get("qs"),
+                "user": self.username,
+            },
+            timeout=30,
+        )
+        j2 = _xiaomi_json(r2.text)
+        if j2.get("code") != 0 or not j2.get("location"):
+            hint = j2.get("description") or j2.get("desc") or j2.get("code")
+            extra = " (captcha/2FA challenge — Xiaomi is blocking this IP)" if j2.get("captchaUrl") else ""
+            raise SystemExit(f"Xiaomi login failed: {hint}{extra}")
+        print("Xiaomi: authenticated", file=sys.stderr)
+
+        # Follow the OAuth redirect chain until the huami redirect_uri carrying ?code=
+        code, url = None, j2["location"]
+        for _ in range(5):
+            r = http.get(url, allow_redirects=False, timeout=30)
+            nxt = r.headers.get("Location")
+            for candidate in (nxt, url):
+                if candidate and "code=" in candidate:
+                    code = urllib.parse.parse_qs(urllib.parse.urlparse(candidate).query).get("code", [None])[0]
+            if code or not nxt:
+                break
+            url = nxt
+        if not code:
+            raise SystemExit("Xiaomi OAuth: no authorization code in the redirect chain")
+
+        r3 = requests.post(
+            "https://account.zepp.com/v2/client/login",
+            data={
+                "app_name": "com.xiaomi.hm.health",
+                "app_version": "6.14.0",
+                "code": code,
+                "country_code": "CN",
+                "device_id": str(uuid.uuid4()),
+                "device_model": "phone",
+                "dn": "api-mifit.zepp.com",
+                "grant_type": "request_token",
+                "third_name": "xiaomi-hm-mifit",
+            },
+            timeout=30,
+        )
+        data = r3.json() if r3.status_code == 200 else {}
+        token_info = data.get("token_info") or {}
+        self.app_token = token_info.get("app_token")
+        self.user_id = token_info.get("user_id")
+        if not self.app_token or not self.user_id:
+            raise SystemExit(f"Huami third-party login failed (HTTP {r3.status_code}, result {data.get('result')})")
+        for d in data.get("domains") or []:
+            if isinstance(d, dict):
+                if d.get("host") and "mifit" in d["host"]:
+                    self.data_hosts.append(d["host"])
+                for cname in d.get("cnames") or []:
+                    if cname and "mifit" in cname:
+                        self.data_hosts.append(cname)
+        print(f"Zepp (Mi account): logged in, data host(s): {self.data_hosts or 'none advertised'}", file=sys.stderr)
 
 
 def candidate_hosts(session):
@@ -292,14 +394,47 @@ def main():
     if not email or not password:
         sys.exit("Set ZEPP_EMAIL and ZEPP_PASSWORD (a Zepp email-registered account).")
 
-    session = ZeppSessionWithDomains(email, password)
-    session.login()
+    # ZEPP_AUTH: "zepp" (email account), "xiaomi" (Mi Account sign-in), or "auto" (default):
+    # try the plain Zepp account first and fall back to the Mi Account if it holds no records.
+    mode = os.environ.get("ZEPP_AUTH", "auto").lower()
+    diagnosing = os.environ.get("DIAGNOSE", "").lower() in ("1", "true", "yes")
 
-    if os.environ.get("DIAGNOSE", "").lower() in ("1", "true", "yes"):
-        diagnose(session)
+    sessions = []
+    if mode in ("zepp", "auto"):
+        try:
+            zs = ZeppSessionWithDomains(email, password)
+            zs.login()
+            sessions.append(zs)
+        except Exception as e:  # noqa: BLE001 - in auto mode the Mi path may still work
+            if mode == "zepp":
+                raise
+            print(f"Zepp email login failed ({e}); trying Mi Account", file=sys.stderr)
+    if mode in ("xiaomi", "auto"):
+        try:
+            ms = MiAccountZeppSession(email, password)
+            ms.login()
+            # In auto mode skip the Mi session if it resolved to the very same account.
+            if not any(getattr(s0, "user_id", None) == ms.user_id for s0 in sessions):
+                sessions.append(ms)
+        except SystemExit as e:
+            if mode == "xiaomi" or not sessions:
+                raise
+            print(f"Mi Account login failed ({e}); continuing with the Zepp account", file=sys.stderr)
+    if not sessions:
+        sys.exit("No login method succeeded.")
+
+    if diagnosing:
+        for session in sessions:
+            print(f"=== diagnosing account {session.user_id}", file=sys.stderr)
+            diagnose(session)
         return
 
-    records = fetch_records(session, days)
+    records, session = [], sessions[0]
+    for candidate in sessions:
+        records = fetch_records(candidate, days)
+        if records:
+            session = candidate
+            break
     # One payload per date; records come newest first, keep the newest of each day.
     by_date = {}
     for rec in records:
