@@ -25,6 +25,11 @@ import sys
 
 import requests
 from huami_token.zepp import ZeppSession
+from loguru import logger
+
+# huami-token logs tokens at DEBUG; keep CI logs at INFO and token-free.
+logger.remove()
+logger.add(sys.stderr, level="INFO")
 
 # Regional mifit hosts, tried in order until one answers with data (override with ZEPP_HOST).
 HOSTS = [
@@ -95,12 +100,8 @@ def to_payload(record):
 
 def fetch_records(app_token, user_id, days):
     now = dt.datetime.now(dt.timezone.utc)
-    params = {
-        "fromTime": int((now - dt.timedelta(days=days)).timestamp()),
-        "toTime": int(now.timestamp()),
-        "limit": 300,
-        "isForward": 0,
-    }
+    from_s = int((now - dt.timedelta(days=days)).timestamp())
+    to_s = int(now.timestamp())
     headers = {
         "apptoken": app_token,
         "appname": "com.huami.midong",
@@ -108,21 +109,44 @@ def fetch_records(app_token, user_id, days):
         "user-agent": "Zepp/9.12.5 (Pixel 4; Android 12; Density/2.75)",
     }
     hosts = [os.environ["ZEPP_HOST"]] if os.environ.get("ZEPP_HOST") else HOSTS
+    # The records carry millisecond timestamps; whether the range filter wants s or ms is
+    # undocumented and has drifted, so try ms first, then seconds, per host. An empty list
+    # is NOT success (wrong host answers 200 + empty): keep trying, remember we got one.
+    saw_empty_host = None
     last_err = None
     for host in hosts:
         url = f"https://{host}/users/{user_id}/members/-1/weightRecords"
-        try:
-            r = requests.get(url, params=params, headers=headers, timeout=30)
-            if r.status_code == 200:
+        for unit, (f, t) in (("ms", (from_s * 1000, to_s * 1000)), ("s", (from_s, to_s))):
+            try:
+                r = requests.get(
+                    url,
+                    params={"fromTime": f, "toTime": t, "limit": 300, "isForward": 0},
+                    headers=headers,
+                    timeout=30,
+                )
+                if r.status_code != 200:
+                    last_err = f"{host} ({unit}) -> HTTP {r.status_code}"
+                    print(f"  · {last_err}", file=sys.stderr)
+                    break  # same host won't improve with other units
                 data = r.json()
                 items = data.get("items") if isinstance(data, dict) else data
-                if isinstance(items, list):
-                    print(f"Zepp: {len(items)} weight records from {host}", file=sys.stderr)
+                if isinstance(items, list) and items:
+                    print(f"Zepp: {len(items)} weight records from {host} ({unit})", file=sys.stderr)
                     return items
-            last_err = f"{host} -> HTTP {r.status_code}"
-        except requests.RequestException as e:
-            last_err = f"{host} -> {e}"
-        print(f"  · {last_err}, trying next host", file=sys.stderr)
+                saw_empty_host = host
+                print(f"  · {host} ({unit}) -> 200 but 0 records", file=sys.stderr)
+            except requests.RequestException as e:
+                last_err = f"{host} ({unit}) -> {e}"
+                print(f"  · {last_err}", file=sys.stderr)
+                break
+    if saw_empty_host:
+        print(
+            f"No weight records on any host (e.g. {saw_empty_host} answered fine but empty). "
+            "Either no weigh-ins in the window, or the scale syncs to another app "
+            "(Zepp Life / Mi Fitness) instead of Zepp.",
+            file=sys.stderr,
+        )
+        return []
     sys.exit(f"Could not read weightRecords from any host (last: {last_err}). Set ZEPP_HOST to your region.")
 
 
