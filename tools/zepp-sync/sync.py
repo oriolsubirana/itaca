@@ -184,6 +184,54 @@ def fetch_records(app_token, user_id, days):
     sys.exit(f"Could not reach weightRecords on any host (last: {last_err}). Set ZEPP_HOST to your region.")
 
 
+
+
+def diagnose(app_token, user_id):
+    """Probe candidate endpoints across hosts; print only status, counts and key names (no values),
+    so the account's data layout can be located without leaking personal data into CI logs."""
+    headers = {**HEADERS_BASE, "apptoken": app_token}
+    now = int(dt.datetime.now(dt.timezone.utc).timestamp())
+    hosts = [os.environ["ZEPP_HOST"]] if os.environ.get("ZEPP_HOST") else (
+        HOSTS + [h.replace(".zepp.com", ".huami.com") for h in HOSTS]
+    )
+
+    def shape(obj, depth=0):
+        if isinstance(obj, dict):
+            return {k: shape(v, depth + 1) if depth < 2 else type(v).__name__ for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [len(obj), shape(obj[0], depth + 1) if obj else None]
+        return type(obj).__name__
+
+    probes = [
+        ("GET", "/users/{uid}/devices", {"enableMultiDevice": "true"}),
+        ("GET", "/users/{uid}/members/-1/weightRecords", {"limit": 200, "toTime": now}),
+        ("GET", "/users/{uid}/weightRecords", {"limit": 200, "toTime": now}),
+        ("GET", "/users/{uid}/events", {"eventType": "weight", "from": (now - 400 * 86400) * 1000,
+                                        "to": now * 1000, "limit": 100}),
+        ("GET", "/users/{uid}/events", {"eventType": "body_composition", "from": (now - 400 * 86400) * 1000,
+                                        "to": now * 1000, "limit": 100}),
+        ("POST", "/huami.health.scale.familymember.get.json", {"fuid": "all", "userid": user_id}),
+        ("POST", "/huami.health.scale.datalist.get.json",
+         {"userid": user_id, "fuid": "-1", "startdate": "0", "enddate": str(now)}),
+    ]
+    for host in hosts:
+        print(f"--- {host}", file=sys.stderr)
+        for method, path, params in probes:
+            url = f"https://{host}" + path.format(uid=user_id)
+            try:
+                if method == "GET":
+                    r = requests.get(url, params=params, headers=headers, timeout=20)
+                else:
+                    r = requests.post(url, data=params, headers=headers, timeout=20)
+                try:
+                    body = shape(r.json())
+                except ValueError:
+                    body = f"non-json ({len(r.content)} bytes)"
+                print(f"  {method} {path} {params.get('eventType', '')} -> {r.status_code} {body}", file=sys.stderr)
+            except requests.RequestException as e:
+                print(f"  {method} {path} -> {e}", file=sys.stderr)
+
+
 def main():
     dry_run = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
     days = int(os.environ.get("DAYS", "7"))
@@ -195,6 +243,10 @@ def main():
 
     session = ZeppSession(email, password)
     session.login()
+
+    if os.environ.get("DIAGNOSE", "").lower() in ("1", "true", "yes"):
+        diagnose(session.app_token, session.user_id)
+        return
 
     records = fetch_records(session.app_token, session.user_id, days)
     # One payload per date; records come newest first, keep the newest of each day.
