@@ -85,6 +85,8 @@ databaseChangeLog:
       file: db/changelog/100-tasks-schema.sql
   - include:
       file: db/changelog/101-session-schema.sql
+  - include:
+      file: db/changelog/081-wellness-body-composition.sql
   # Keep this include LAST: runAlways RLS sweep must run after every table-creating changeset
   # (RowLevelSecurityTest enforces it).
   - include:
