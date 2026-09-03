@@ -10,7 +10,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2 — backend (with the SPA copied into src/main/resources/static so bootJar bundles it)
-FROM eclipse-temurin:25.0.3_9-jdk AS build
+FROM eclipse-temurin:25.0.4_7-jdk AS build
 WORKDIR /app
 COPY backend/gradlew ./
 COPY backend/gradle ./gradle
@@ -21,7 +21,7 @@ COPY --from=frontend /web/dist ./src/main/resources/static
 RUN ./gradlew --no-daemon bootJar
 
 # Stage 3 — runtime
-FROM eclipse-temurin:25.0.3_9-jre
+FROM eclipse-temurin:25.0.4_7-jre
 WORKDIR /app
 RUN useradd --system --uid 1001 itaca
 USER itaca
