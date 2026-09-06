@@ -5,7 +5,7 @@ plugins {
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
     kotlin("plugin.jpa") version "2.2.21"
-    id("org.springframework.boot") version "4.1.0"
+    id("org.springframework.boot") version "4.1.1"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
 }
@@ -37,8 +37,8 @@ repositories {
 
 dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
-    implementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
-    implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0"))
+    implementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.1"))
+    implementation(platform("org.springframework.ai:spring-ai-bom:2.0.1"))
 
     // Spring
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -67,13 +67,13 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // Async jobs (same Postgres, no broker)
-    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.8.1")
+    implementation("org.jobrunr:jobrunr-spring-boot-4-starter:8.8.2")
 
     // Claude via Spring AI (GA not out yet; RC2 is the latest on Central)
     implementation("org.springframework.ai:spring-ai-starter-model-anthropic")
 
     // OpenAPI as the contract (the frontend TS client is generated from it)
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     // PDF text extraction (finpension performance reports — fixed machine-generated layout)
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
