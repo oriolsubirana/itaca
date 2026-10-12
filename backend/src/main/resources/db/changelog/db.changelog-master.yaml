@@ -74,6 +74,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/070-profile-schema.sql
   - include:
+      file: db/changelog/071-profile-target-weight.sql
+  - include:
       file: db/changelog/080-wellness-schema.sql
   - include:
       file: db/changelog/090-oauth2-authorized-client.sql

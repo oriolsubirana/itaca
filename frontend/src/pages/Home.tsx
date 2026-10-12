@@ -4,6 +4,7 @@ import { Sparkline } from "../components/Sparkline";
 import { getEntry, getFlares, SEVERITY_LABELS } from "../api/health";
 import { getMeasurementSeries } from "../api/labs";
 import { getTrainingSummary } from "../api/training";
+import { getTriathlonPlan } from "../api/plan";
 import { getFinanceOverview } from "../api/finance";
 import { getMeals } from "../api/nutrition";
 import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
@@ -170,7 +171,18 @@ function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
   const s = training.data;
 
   const targets = targetsFromProfile(profile.data);
-  const target = dailyKcalTarget(targets, s?.todayActivityKcal ?? 0, flares.data?.active != null);
+  const target = dailyKcalTarget(targets, s?.todayActivityKcal ?? 0, flares.data?.active != null, s?.todayPlannedKcal ?? 0);
+  const plan = useQuery({ queryKey: ["triathlon-plan"], queryFn: getTriathlonPlan });
+  const todaySessions = plan.data?.today.sessions ?? [];
+  const hasGym = todaySessions.some((x) => x.sport === "gym");
+  const sessionTitle =
+    todaySessions.length > 0
+      ? todaySessions.map((x) => x.title).join(" + ")
+      : plan.data && plan.data.phase
+        ? "Descanso"
+        : s?.nextRoutine
+          ? routineLabel(s.nextRoutine)
+          : "—";
   const consumed = (meals.data?.meals ?? [])
     .filter((m) => m.date === today())
     .reduce((sum, m) => sum + (m.calories ?? 0), 0);
@@ -198,12 +210,16 @@ function Briefing({ onOpen }: { onOpen: (seed?: string, workout?: boolean) => vo
         )}
 
         <button
-          onClick={() => onOpen("Empiezo entreno", true)}
+          onClick={() =>
+            todaySessions.length > 0 && !hasGym
+              ? onOpen("Según el plan del triatlón, ¿cómo hago la sesión de hoy?")
+              : onOpen("Empiezo entreno", true)
+          }
           className={`flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-line/20 ${rec ? "border-t border-line" : ""}`}
         >
           <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Entreno de hoy</div>
-            <div className="mt-1 text-[19px] font-medium text-ink">{s?.nextRoutine ? routineLabel(s.nextRoutine) : "—"}</div>
+            <div className="mt-1 text-[19px] font-medium text-ink">{sessionTitle}</div>
             <div className="mt-1 text-[13px] leading-relaxed text-ink-soft">
               {rec?.trainingNote}
               {rec && s?.lastWorkoutDate && s.lastWorkoutRoutine ? " · " : ""}

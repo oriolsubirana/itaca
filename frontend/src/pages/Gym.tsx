@@ -76,7 +76,7 @@ function Proxima() {
         </button>
       </div>
       <p className="mt-4 text-xs leading-relaxed text-ink-soft">
-        Rotación Push · Pull · Pierna · series de trabajo 3×6-8 · descanso 90 s
+        Rutina según la fase del plan del triatlón · series de trabajo 3×6-8 · descanso 90 s
       </p>
     </section>
   );

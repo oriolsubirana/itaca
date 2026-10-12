@@ -14,8 +14,10 @@ import {
   saveProfile,
   ACTIVITY_LEVELS,
   GOALS,
+  PACE_LABELS,
   SEXES,
   type Profile,
+  type WeightPlan,
 } from "../api/profile";
 
 interface FormState {
@@ -25,6 +27,8 @@ interface FormState {
   sex: string;
   activity: string;
   goal: string;
+  targetKg: string;
+  targetDate: string;
 }
 
 function fromProfile(p: Profile): FormState {
@@ -35,6 +39,8 @@ function fromProfile(p: Profile): FormState {
     sex: p.sex ?? "",
     activity: p.activityLevel ?? "",
     goal: p.goal ?? "",
+    targetKg: p.targetWeightKg != null ? String(p.targetWeightKg) : "",
+    targetDate: p.targetDate ?? "",
   };
 }
 
@@ -63,6 +69,8 @@ function PerfilForm({ initial }: { initial: Profile }) {
         sex: form.sex || null,
         activityLevel: form.activity || null,
         goal: form.goal || null,
+        targetWeightKg: form.targetKg === "" ? null : Number(form.targetKg),
+        targetDate: form.targetDate || null,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -81,7 +89,8 @@ function PerfilForm({ initial }: { initial: Profile }) {
   });
   const sportToday = training.data?.todayActivityKcal ?? 0;
   const flareActive = flares.data?.active != null;
-  const objetivo = dailyKcalTarget(targets, sportToday, flareActive);
+  const plannedToday = training.data?.todayPlannedKcal ?? 0;
+  const objetivo = dailyKcalTarget(targets, sportToday, flareActive, plannedToday);
   const base = targets ? (flareActive ? targets.tdee : targets.baseTarget) : null;
 
   return (
@@ -150,7 +159,8 @@ function PerfilForm({ initial }: { initial: Profile }) {
           </div>
           {objetivo != null && (
             <div className="mt-2.5 text-[13px] text-ink-soft">
-              {kfmt(base)} base{sportToday > 0 ? ` + ${kfmt(sportToday)} del deporte de hoy` : ""} = {kfmt(objetivo)} kcal
+              {kfmt(base)} base{sportToday > 0 ? ` + ${kfmt(sportToday)} del deporte de hoy` : ""}
+              {plannedToday > 0 ? ` + ${kfmt(plannedToday)} del entreno que te queda` : ""} = {kfmt(objetivo)} kcal
             </div>
           )}
           {flareActive && (
@@ -170,6 +180,37 @@ function PerfilForm({ initial }: { initial: Profile }) {
 
           <p className="mt-5 text-[11.5px] leading-relaxed text-ink-soft">
             Estimación orientativa basada en tus datos. No es una pauta médica.
+          </p>
+        </section>
+
+        <div className="border-t border-line" />
+
+        <section>
+          <SecLabel>Peso objetivo</SecLabel>
+          <div className="space-y-5">
+            <Unit label="Objetivo" unit="kg">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={form.targetKg}
+                onChange={(e) => set("targetKg", e.target.value)}
+                className={INPUT}
+              />
+            </Unit>
+            <div>
+              <FieldLabel>Para el</FieldLabel>
+              <input
+                type="date"
+                value={form.targetDate}
+                onChange={(e) => set("targetDate", e.target.value)}
+                className={`${INPUT} w-full`}
+              />
+            </div>
+          </div>
+          <WeightPlanLine plan={save.data?.weightPlan ?? initial.weightPlan} />
+          <p className="mt-4 text-[11.5px] leading-relaxed text-ink-soft">
+            Composición al servicio del rendimiento: ritmo sostenible ≤0,5 %/semana y llegar estable a la fase
+            específica (marzo). Una pérdida de peso no buscada es cosa de tu gastroenterólogo.
           </p>
         </section>
 
@@ -197,6 +238,26 @@ function PerfilForm({ initial }: { initial: Profile }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function WeightPlanLine({ plan }: { plan: WeightPlan | null }) {
+  if (!plan) return null;
+  const n = (v: number, d = 1) => v.toLocaleString("de-DE", { maximumFractionDigits: d });
+  const sign = plan.weeklyChangeKg > 0 ? "+" : "";
+  return (
+    <div className="mt-5 rounded-lg bg-line/40 px-3.5 py-3 text-[13px] leading-relaxed text-ink">
+      <div className={`font-medium ${plan.pace === "aggressive" ? "text-clinical" : ""}`}>{PACE_LABELS[plan.pace]}</div>
+      {plan.pace !== "reached" && (
+        <div className="mt-1 text-ink-soft">
+          {sign}
+          {n(plan.weeklyChangeKg, 2)} kg/semana ({n(plan.weeklyPercent, 2)} %) durante {n(plan.weeks, 0)} semanas
+          {(plan.pace === "demanding" || plan.pace === "aggressive") && (
+            <> · a ritmo sostenible llegarías a {n(plan.reachableKg)} kg</>
+          )}
+        </div>
+      )}
     </div>
   );
 }

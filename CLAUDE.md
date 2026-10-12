@@ -147,6 +147,30 @@ prepared by `.claude/hooks/session-start.sh`.
     (`TriathlonPlan`: 4 phases, weekly template, race targets), progress computed from Strava
     activities (swim = type `other` + sport `Swim%`), `query_triathlon_plan` ChatTools +
     `GET /api/training/plan`, `/triatlon` screen linked from Entreno, TRIATLÓN prompt section)
+16. ✅ Race build: training + fueling (week-by-week plan, compliance, phase-aligned gym, CTL/ATL/TSB
+    load, session-aware fueling, race-week protocol, target weight trajectory — see below)
+
+### Race build architecture (phase 16)
+
+- `training.domain.TrainingSchedule` generates every Monday-Sunday week from 2026-07-13 to race day
+  deterministically: phase (the one containing the Monday), 3+1 mesocycles (LOAD ×3, RECOVERY ×1),
+  then SHARPEN ×2 (full simulation 2 weeks out), TAPER (−40 %), RACE. Sessions are concrete (sport,
+  detail, minutes, intensity, `gymRoutine`, long-run `distanceKm`). Gym is phase-aligned (Base
+  Push/Pull 2×, Winter Push/Pull/Leg rotation 2×, Specific 1× upper-body maintenance, none in the
+  last 2 weeks), always 3×6-8 · 90 s. `start_workout` without a routine uses today's planned one.
+- `Compliance` (pure): same-day same-sport minutes, ≥75 % = done; weekly adherence per sport capped at
+  the plan (moved sessions still count). `TrainingLedger` reads Strava activities + logged workouts.
+- `TrainingLoad` (pure): TSS-like load (hrTSS from `itaca.training.resting-hr`/`max-hr`, LTHR = 90 %
+  of max; swim and HR-less sessions use a per-sport intensity factor), CTL 42 d / ATL 7 d / TSB.
+- Tools/endpoints: `query_training_week` + `GET /api/training/plan/week?date=`, `query_training_load`
+  + `GET /api/training/load`, `query_triathlon_plan` now carries today's sessions.
+- Day load (`rest|easy|key|long|race`) is the edge contract: training emits it
+  (`TrainingSummaryDto.todayDayLoad`), nutrition's `SportsFueling` (g/kg carbs/protein per day type,
+  session fueling by duration, race-week protocol, Paleomind-compatible sources) keys on the same
+  codes (`query_sports_fueling`, `GET /api/nutrition/fueling`) — no cross-context dependency. The
+  calorie target adds `todayPlannedKcal` (pending planned sessions × kcal/min from Strava history).
+- `profile`: `target_weight_kg` + `target_date` (migration 071); `WeightTrajectory` (pure) gives the
+  weekly pace (sustainable ≤0.5 %/week) and what a sustainable pace reaches; `query_profile` tool.
 
 ### Nutrition architecture (phase 7)
 

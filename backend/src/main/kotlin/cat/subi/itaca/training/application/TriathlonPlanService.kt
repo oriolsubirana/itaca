@@ -48,6 +48,8 @@ data class TriathlonPlanView(
     val raceTargets: List<RaceTarget>,
     val principles: List<String>,
     val progress: PlanProgress,
+    /** Today's planned sessions with their status; empty outside the plan. */
+    val today: TodayPlanView,
 )
 
 /**
@@ -57,13 +59,15 @@ data class TriathlonPlanView(
 @Service
 class TriathlonPlanService(
     private val jdbc: JdbcTemplate,
+    private val weeks: TrainingWeekService,
 ) : ChatTools {
     @Tool(
         name = "query_triathlon_plan",
         description =
             "Zurich Olympic triathlon plan (sub-2h30, June 2027): current phase with its guidance and " +
-                "milestone, days to race, weekly template, race-day targets and last-4-weeks swim/run/bike " +
-                "progress from Strava. Use it whenever planning or discussing endurance training.",
+                "milestone, days to race, weekly template, race-day targets, last-4-weeks swim/run/bike " +
+                "progress from Strava and today's planned sessions with their status. Use it whenever " +
+                "planning or discussing endurance training (query_training_week has the full week).",
     )
     fun queryPlan(): TriathlonPlanView = view(LocalDate.now())
 
@@ -95,6 +99,7 @@ class TriathlonPlanService(
             raceTargets = TriathlonPlan.raceTargets,
             principles = TriathlonPlan.principles,
             progress = progress(today),
+            today = weeks.today(today),
         )
     }
 

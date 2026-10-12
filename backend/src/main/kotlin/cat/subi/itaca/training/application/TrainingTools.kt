@@ -7,6 +7,7 @@ import cat.subi.itaca.training.adapter.out.persistence.WorkoutEntity
 import cat.subi.itaca.training.adapter.out.persistence.WorkoutRepository
 import cat.subi.itaca.training.domain.ProgressionPolicy
 import cat.subi.itaca.training.domain.Reps
+import cat.subi.itaca.training.domain.TrainingSchedule
 import cat.subi.itaca.training.domain.Weight
 import org.springframework.ai.tool.annotation.Tool
 import org.springframework.ai.tool.annotation.ToolParam
@@ -119,12 +120,13 @@ class TrainingTools(
         name = "start_workout",
         description =
             "Starts a gym workout. Optionally takes the routine name (Push, Pull or Leg); " +
-                "if omitted, the next routine in the Push->Pull->Leg rotation is used. " +
+                "if omitted, today's routine from the triathlon plan is used, else the next one in the " +
+                "Push->Pull->Leg rotation. " +
                 "Returns the planned exercises in order with the last weight/reps and the suggested weight for today.",
     )
     @Transactional
     fun startWorkout(
-        @ToolParam(description = "Routine name: Push, Pull or Leg. Omit to follow the rotation", required = false)
+        @ToolParam(description = "Routine name: Push, Pull or Leg. Omit to follow the plan/rotation", required = false)
         routineName: String?,
     ): StartWorkoutResult {
         activeWorkout()?.let { active ->
@@ -140,6 +142,7 @@ class TrainingTools(
             routineName
                 ?.takeIf { it.isNotBlank() }
                 ?.let { queries.routineByName(it) ?: return StartWorkoutResult(error = "Unknown routine: $it") }
+                ?: plannedRoutineToday()
                 ?: queries.nextRoutineInRotation()
         val workout = workouts.save(WorkoutEntity(date = LocalDate.now(), routineId = routineId))
         return StartWorkoutResult(
@@ -333,6 +336,12 @@ class TrainingTools(
      * a previous day is abandoned (auto-closed) so it stops lingering as "active" — which used to
      * resurrect the wrong routine and scatter today's sets into an old session.
      */
+    private fun plannedRoutineToday(): Pair<Long, String>? =
+        TrainingSchedule
+            .sessionsOn(LocalDate.now())
+            .firstNotNullOfOrNull { it.gymRoutine }
+            ?.let(queries::routineByName)
+
     private fun activeWorkout(): WorkoutEntity? {
         val incomplete = workouts.findFirstByCompletedFalseOrderByDateDescIdDesc() ?: return null
         if (incomplete.date == LocalDate.now()) return incomplete
