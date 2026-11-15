@@ -290,26 +290,27 @@ class TrainingTools(
     @Tool(
         name = "query_activities",
         description =
-            "Returns endurance and gym activities imported from Strava (types: bike, run, hike, gym): " +
+            "Returns endurance and gym activities imported from Strava (types: bike, run, swim, hike, gym): " +
                 "recent sessions with date, distance (km), duration (min), elevation (m), average heart rate " +
                 "and calories, plus per-sport totals for this week and year-to-date (distance, elevation, time). " +
                 "Use for ANY question about cycling/running/hiking/gym volume, distance, elevation, pace, " +
                 "heart rate or calories. Optionally filter the recent list by sport.",
     )
     fun queryActivities(
-        @ToolParam(description = "Optional sport filter: bike, run, hike or gym", required = false) sport: String?,
+        @ToolParam(description = "Optional sport filter: bike, run, swim, hike or gym", required = false)
+        sport: String?,
         @ToolParam(description = "How many recent activities to return (default 10)", required = false) limit: Int?,
     ): ActivitiesSummary {
         val view = activityQueries.view()
         val filter = sport?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
         val recent =
             view.activities
-                .filter { filter == null || it.type == filter }
+                .filter { filter == null || sportKey(it) == filter }
                 .take(limit ?: DEFAULT_ACTIVITY_LIMIT)
                 .map {
                     ActivityLine(
                         date = it.date,
-                        type = it.type,
+                        type = sportKey(it),
                         name = it.name,
                         distanceKm = it.distanceKm,
                         durationMin = it.durationS?.let { s -> s / SECONDS_PER_MINUTE },
@@ -319,9 +320,9 @@ class TrainingTools(
                     )
                 }
         val totals =
-            view.volume.map { (sportKey, v) ->
+            view.volume.map { (key, v) ->
                 SportTotals(
-                    sport = sportKey,
+                    sport = key,
                     thisWeek = "${v.weeks.last().value} ${v.unit}".replace('.', ','),
                     ytdDistance = v.ytd.distance,
                     ytdElevation = v.ytd.elevation,
@@ -331,17 +332,21 @@ class TrainingTools(
         return ActivitiesSummary(view.connected, recent, totals)
     }
 
-    /**
-     * The genuinely active workout: an incomplete one from TODAY. A leftover incomplete workout from
-     * a previous day is abandoned (auto-closed) so it stops lingering as "active" — which used to
-     * resurrect the wrong routine and scatter today's sets into an old session.
-     */
+    /** Swims arrive from Strava as 'other' + a Swim sport; expose them as their own sport. */
+    private fun sportKey(a: ActivityDto): String =
+        if (a.type == "other" && a.sport?.lowercase()?.startsWith("swim") == true) "swim" else a.type
+
     private fun plannedRoutineToday(): Pair<Long, String>? =
         TrainingSchedule
             .sessionsOn(LocalDate.now())
             .firstNotNullOfOrNull { it.gymRoutine }
             ?.let(queries::routineByName)
 
+    /**
+     * The genuinely active workout: an incomplete one from TODAY. A leftover incomplete workout from
+     * a previous day is abandoned (auto-closed) so it stops lingering as "active" — which used to
+     * resurrect the wrong routine and scatter today's sets into an old session.
+     */
     private fun activeWorkout(): WorkoutEntity? {
         val incomplete = workouts.findFirstByCompletedFalseOrderByDateDescIdDesc() ?: return null
         if (incomplete.date == LocalDate.now()) return incomplete

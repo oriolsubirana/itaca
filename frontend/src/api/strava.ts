@@ -40,6 +40,7 @@ export interface ActivitiesView {
   activities: ActivityItem[];
   weekBikeKm: number;
   weekRunKm: number;
+  weekSwimKm: number;
   weekHikes: number;
   weekMovingTimeS: number;
   volume: Record<string, SportVolume>;

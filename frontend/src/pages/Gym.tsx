@@ -111,7 +111,9 @@ function actLabel(a: ActivityItem): string {
   return SPORT_ES[a.sport] ?? deCamel(a.sport);
 }
 
-function ActIcon({ type }: { type: ActivityType }) {
+const isSwim = (a: ActivityItem): boolean => a.type === "other" && (a.sport ?? "").toLowerCase().startsWith("swim");
+
+function ActIcon({ type, swim = false }: { type: ActivityType; swim?: boolean }) {
   const common = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, className: "size-[22px] shrink-0 text-ink" } as const;
   if (type === "bike") {
     return (
@@ -137,6 +139,14 @@ function ActIcon({ type }: { type: ActivityType }) {
       </svg>
     );
   }
+  if (swim) {
+    return (
+      <svg {...common}>
+        <circle cx="16" cy="7" r="1.6" />
+        <path d="M5 12l5-3 3 3M3 16c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0 3-1 4.5 0M3 20c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0 3-1 4.5 0" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
   if (type === "hike") {
     return (
       <svg {...common}>
@@ -151,9 +161,22 @@ function ActIcon({ type }: { type: ActivityType }) {
   );
 }
 
+/** Swim pace per 100 m ("2:05 /100m"), null without distance or time. */
+function swimPace(a: ActivityItem): string | null {
+  if (!a.distanceKm || !a.durationS) return null;
+  const per100 = Math.round(a.durationS / (a.distanceKm * 10));
+  return `${Math.floor(per100 / 60)}:${String(per100 % 60).padStart(2, "0")} /100m`;
+}
+
+// Swims read in metres and pace per 100 m; everything else in km.
+function distanceLabel(a: ActivityItem): string {
+  return isSwim(a) ? `${Math.round((a.distanceKm ?? 0) * 1000).toLocaleString("de-DE")} m` : `${fmt1(a.distanceKm ?? 0)} km`;
+}
+
 function activityLine(a: ActivityItem): string {
   const parts: string[] = [];
-  if (a.distanceKm != null && a.distanceKm > 0) parts.push(`${fmt1(a.distanceKm)} km`);
+  if (a.distanceKm != null && a.distanceKm > 0) parts.push(distanceLabel(a));
+  if (isSwim(a) && swimPace(a)) parts.push(swimPace(a)!);
   if (a.durationS != null) parts.push(fmtDuration(a.durationS));
   if (a.elevationM != null && a.elevationM > 0) parts.push(`${Math.round(a.elevationM)} m D+`);
   if (a.avgHr != null) parts.push(`${Math.round(a.avgHr)} ppm`);
@@ -163,6 +186,7 @@ function activityLine(a: ActivityItem): string {
 const VOL_SPORTS: { key: string; label: string }[] = [
   { key: "bike", label: "Bici" },
   { key: "run", label: "Correr" },
+  { key: "swim", label: "Nadar" },
   { key: "hike", label: "Hike" },
   { key: "gym", label: "Gym" },
 ];
@@ -277,7 +301,7 @@ function Actividades() {
         <SecLabel>Actividades</SecLabel>
         <div className="rounded-md border border-line px-5 py-7 text-center">
           <p className="mb-4 text-sm text-ink-soft">
-            Conecta Strava para ver tus rutas de bici, carrera y hike (importadas de Strava).
+            Conecta Strava para ver tus rutas de bici, carrera, natación y hike (importadas de Strava).
           </p>
           <button onClick={() => connectStrava()} className="h-11 rounded-full bg-ink px-5 text-sm font-medium text-paper">
             Conectar Strava
@@ -291,6 +315,7 @@ function Actividades() {
   const summary: string[] = [];
   if (v.weekBikeKm > 0) summary.push(`Bici ${Math.round(v.weekBikeKm)} km`);
   if (v.weekRunKm > 0) summary.push(`Correr ${Math.round(v.weekRunKm)} km`);
+  if (v.weekSwimKm > 0) summary.push(`Nadar ${fmt1(v.weekSwimKm)} km`);
   if (v.weekHikes > 0) summary.push(`${v.weekHikes} hike${v.weekHikes > 1 ? "s" : ""}`);
   if (v.weekMovingTimeS > 0) summary.push(fmtDuration(v.weekMovingTimeS));
   const visible = showAll ? v.activities : v.activities.slice(0, 4);
@@ -328,7 +353,7 @@ function Actividades() {
             onClick={() => setOpen(a)}
             className="flex min-h-11 w-full items-center gap-3 border-b border-line py-3 text-left last:border-b-0"
           >
-            <ActIcon type={a.type} />
+            <ActIcon type={a.type} swim={isSwim(a)} />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] text-ink">
                 <span className="capitalize">{weekday(a.date)}</span> {shortDate(a.date)} · {actLabel(a)}
@@ -352,11 +377,12 @@ function Actividades() {
 function ActivityDetailModal({ activity, onClose }: { activity: ActivityItem; onClose: () => void }) {
   const a = activity;
   const stats: [string, string][] = [];
-  if (a.distanceKm != null && a.distanceKm > 0) stats.push(["Distancia", `${fmt1(a.distanceKm)} km`]);
+  if (a.distanceKm != null && a.distanceKm > 0) stats.push(["Distancia", distanceLabel(a)]);
+  if (isSwim(a) && swimPace(a)) stats.push(["Ritmo", swimPace(a)!]);
   if (a.durationS != null) stats.push(["Duración", fmtDuration(a.durationS)]);
   if (a.elevationM != null && a.elevationM > 0) stats.push(["Desnivel", `${Math.round(a.elevationM)} m`]);
   if (a.avgHr != null) stats.push(["FC media", `${Math.round(a.avgHr)} ppm`]);
-  if (a.avgSpeedKmh != null && a.avgSpeedKmh > 0) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
+  if (!isSwim(a) && a.avgSpeedKmh != null && a.avgSpeedKmh > 0) stats.push(["Velocidad", `${fmt1(a.avgSpeedKmh)} km/h`]);
   if (a.calories != null && a.calories > 0) stats.push(["Calorías", `${a.calories} kcal`]);
   return (
     <Modal title={`${actLabel(a)} · ${shortDate(a.date)}`} onClose={onClose}>

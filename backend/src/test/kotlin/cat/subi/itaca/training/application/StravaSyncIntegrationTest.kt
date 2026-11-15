@@ -102,9 +102,35 @@ class StravaSyncIntegrationTest {
                 .ytd.distance,
         )
 
+        // Swim is its own volume bucket (Strava type 'other' + sport Swim), with distance and time only.
+        val swimVol = view.volume.getValue("swim")
+        assertEquals("km", swimVol.unit)
+        assertEquals(null, swimVol.ytd.elevation)
+        assertEquals(0.0, view.weekSwimKm)
+
         // A second sync of the same data must not duplicate.
         assertEquals(0, strava.sync().imported)
         assertEquals(3, activities.count().toInt())
+    }
+
+    @Test
+    fun `swims get their own weekly volume with pace per 100 m`() {
+        // 1500 m in 30 min this week = 2:00 /100m; a yoga 'other' must not count as swim.
+        jdbc.update(
+            """
+            INSERT INTO activities (strava_id, type, sport, name, start_date, distance_m, moving_time_s)
+            VALUES (7001, 'other', 'Swim', 'Piscina', now(), 1500, 1800),
+                   (7002, 'other', 'Yoga', 'Yoga', now(), 0, 3600)
+            """.trimIndent(),
+        )
+
+        val view = queries.view()
+
+        assertEquals(1.5, view.weekSwimKm)
+        val swim = view.volume.getValue("swim")
+        assertEquals(1.5, swim.weeks.last().value)
+        assertEquals("1 sesión · 1,5 km · 2:00 /100m", swim.weeks.last().sub)
+        assertEquals("2 km", swim.ytd.distance)
     }
 
     @Test
