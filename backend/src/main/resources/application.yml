@@ -81,6 +81,10 @@ itaca:
     local-dir: ${ITACA_STORAGE_DIR:./data/documents}
   extraction:
     model: claude-haiku-4-5
+  training:
+    # Heart-rate anchors for the training-load model (CTL/ATL/TSB); threshold = 90 % of max.
+    resting-hr: ${ITACA_TRAINING_RESTING_HR:55}
+    max-hr: ${ITACA_TRAINING_MAX_HR:185}
   strava:
     # Garmin -> Strava bridge: register an app at strava.com/settings/api.
     client-id: ${STRAVA_CLIENT_ID:}

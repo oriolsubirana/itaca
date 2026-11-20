@@ -49,6 +49,10 @@ data class TrainingSummaryDto(
     val nextRoutine: String,
     /** Calories burned in today's Strava activities (cardio + gym), for the calorie target. */
     val todayActivityKcal: Int,
+    /** Estimated kcal of today's planned triathlon sessions not done yet. */
+    val todayPlannedKcal: Int = 0,
+    /** Today's plan load (rest | easy | key | long | race), the key for the day's fueling. */
+    val todayDayLoad: String = "rest",
 )
 
 /**

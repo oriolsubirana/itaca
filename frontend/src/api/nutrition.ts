@@ -77,3 +77,42 @@ export const MEAL_TYPES: { code: string; label: string }[] = [
 ];
 
 export const MEAL_LABELS: Record<string, string> = Object.fromEntries(MEAL_TYPES.map((m) => [m.code, m.label]));
+
+export interface DayFuelingTarget {
+  dayType: string;
+  label: string;
+  carbsGPerKg: string;
+  proteinGPerKg: string;
+  carbsGPerKgMin: number;
+  carbsGPerKgMax: number;
+  proteinGPerKgMin: number;
+  proteinGPerKgMax: number;
+  guidance: string;
+}
+
+export interface SessionFueling {
+  fromMinutes: number;
+  label: string;
+  before: string;
+  during: string;
+  after: string;
+}
+
+export interface SportsFueling {
+  today: DayFuelingTarget | null;
+  dayTargets: DayFuelingTarget[];
+  carbSources: string;
+  sessionFueling: SessionFueling[];
+  raceWeek: { moment: string; guidance: string[] }[];
+  principles: string[];
+  disclaimer: string;
+}
+
+/** Sports fueling on top of the diet plan; `dayType` (the plan's day load) fills `today`. */
+export const getSportsFueling = (dayType?: string) =>
+  api<SportsFueling>(`/nutrition/fueling${dayType ? `?dayType=${dayType}` : ""}`);
+
+/** g/kg range × body weight → "380-450 g". */
+export function gramsRange(minPerKg: number, maxPerKg: number, weightKg: number): string {
+  return `${Math.round(minPerKg * weightKg)}-${Math.round(maxPerKg * weightKg)} g`;
+}

@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { dailyKcalTarget, getProfile, targetsFromProfile } from "../api/profile";
-import { getTrainingSummary } from "../api/training";
+import { getTrainingSummary, type DayLoad } from "../api/training";
 import { AnalyteChart } from "../components/AnalyteChart";
 import { LabReports } from "../components/LabReports";
 import { MedicalDocuments } from "../components/MedicalDocuments";
@@ -28,6 +28,8 @@ import {
   deleteMeal,
   estimateMealText,
   getMeals,
+  getSportsFueling,
+  gramsRange,
   logMeal,
   MEAL_LABELS,
   MEAL_TYPES,
@@ -373,9 +375,15 @@ function ComidasTab() {
   }, {});
   const todayTotal = todayMeals.reduce((s, m) => s + (m.calories ?? 0), 0);
 
-  // Day's target = profile TDEE (or maintenance during a flare) + today's exercise calories.
+  // Day's target = profile TDEE (or maintenance during a flare) + today's exercise calories
+  // + the planned sessions still to do (eat for the session before doing it).
   const targets = targetsFromProfile(profile.data);
-  const target = dailyKcalTarget(targets, training.data?.todayActivityKcal ?? 0, flares.data?.active != null);
+  const target = dailyKcalTarget(
+    targets,
+    training.data?.todayActivityKcal ?? 0,
+    flares.data?.active != null,
+    training.data?.todayPlannedKcal ?? 0,
+  );
   const pct = target ? Math.min(100, (todayTotal / target) * 100) : 0;
 
   return (
@@ -407,13 +415,7 @@ function ComidasTab() {
 
       <div className="border-t border-line" />
 
-      <section>
-        <SectionLabel>Orientación</SectionLabel>
-        <p className="text-[14px] leading-relaxed text-ink">
-          Pídele a Ítaca en el chat «¿qué ceno hoy?» o «hoy hago bici larga, ¿qué como?» y te propone según tu
-          entreno y la pauta paleo antiinflamatoria.
-        </p>
-      </section>
+<FuelToday dayLoad={training.data?.todayDayLoad} weightKg={profile.data?.weightKg ?? null} />
 
       <div className="border-t border-line" />
 
@@ -1038,5 +1040,60 @@ function Slider({
         className="w-full accent-[#1c1c1a]"
       />
     </Field>
+  );
+}
+
+/** The day's fueling from the triathlon plan's day load: carbs/protein in grams for his weight. */
+function FuelToday({ dayLoad, weightKg }: { dayLoad: DayLoad | undefined; weightKg: number | null }) {
+  const navigate = useNavigate();
+  const fueling = useQuery({
+    queryKey: ["fueling", dayLoad],
+    queryFn: () => getSportsFueling(dayLoad),
+    enabled: dayLoad != null,
+  });
+  const t = fueling.data?.today;
+  return (
+    <section>
+      <SectionLabel>Combustible de hoy</SectionLabel>
+      {!t ? (
+        <p className="text-sm text-ink-soft">Cargando…</p>
+      ) : (
+        <>
+          <div className="text-[17px] font-medium text-ink">{t.label}</div>
+          <div className="mt-3 flex gap-8">
+            <div>
+              <div className="text-[18px] tabular-nums text-ink">
+                {weightKg ? gramsRange(t.carbsGPerKgMin, t.carbsGPerKgMax, weightKg) : t.carbsGPerKg}
+              </div>
+              <div className="mt-1 text-[11px] uppercase tracking-[0.07em] text-ink-soft">Carbohidrato</div>
+            </div>
+            <div>
+              <div className="text-[18px] tabular-nums text-ink">
+                {weightKg ? gramsRange(t.proteinGPerKgMin, t.proteinGPerKgMax, weightKg) : t.proteinGPerKg}
+              </div>
+              <div className="mt-1 text-[11px] uppercase tracking-[0.07em] text-ink-soft">Proteína</div>
+            </div>
+          </div>
+          <p className="mt-3 text-[13.5px] leading-relaxed text-ink">{t.guidance}</p>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-ink-soft">{fueling.data?.carbSources}</p>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+            <button
+              onClick={() =>
+                void navigate({
+                  to: "/chat",
+                  search: { seed: "Según el entreno de hoy y mi plan, ¿qué como hoy?" },
+                })
+              }
+              className="text-[13px] text-ink hover:text-ink/70"
+            >
+              Pedir propuesta a Ítaca →
+            </button>
+            <button onClick={() => void navigate({ to: "/triatlon" })} className="text-[13px] text-ink-soft hover:text-ink">
+              Ver el plan →
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

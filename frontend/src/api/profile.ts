@@ -11,7 +11,25 @@ export interface Profile {
   bmr: number | null;
   tdee: number | null;
   baseTarget: number | null; // tdee + goal adjustment
+  targetWeightKg: number | null;
+  targetDate: string | null; // ISO
+  weightPlan: WeightPlan | null;
 }
+
+export interface WeightPlan {
+  weeks: number;
+  weeklyChangeKg: number;
+  weeklyPercent: number;
+  pace: "reached" | "sustainable" | "demanding" | "aggressive";
+  reachableKg: number;
+}
+
+export const PACE_LABELS: Record<WeightPlan["pace"], string> = {
+  reached: "Objetivo alcanzado",
+  sustainable: "Ritmo sostenible",
+  demanding: "Ritmo exigente",
+  aggressive: "Ritmo agresivo",
+};
 
 export interface ProfileBody {
   weightKg?: number | null;
@@ -20,6 +38,8 @@ export interface ProfileBody {
   sex?: string | null;
   activityLevel?: string | null;
   goal?: string | null;
+  targetWeightKg?: number | null;
+  targetDate?: string | null;
 }
 
 export const getProfile = () => api<Profile>("/profile");
@@ -106,11 +126,17 @@ export function targetsFromProfile(p: Profile | undefined): Targets | null {
 }
 
 /**
- * The day's calorie target: base (TDEE adjusted to the goal) + calories burned today,
- * with the goal deficit neutralised during an active flare (eat at maintenance).
+ * The day's calorie target: base (TDEE adjusted to the goal) + calories burned today + the
+ * estimate of today's planned sessions still to do, so you eat for the session BEFORE doing it.
+ * The goal deficit is neutralised during an active flare (eat at maintenance).
  */
-export function dailyKcalTarget(targets: Targets | null, todayActivityKcal: number, flareActive: boolean): number | null {
+export function dailyKcalTarget(
+  targets: Targets | null,
+  todayActivityKcal: number,
+  flareActive: boolean,
+  plannedKcal = 0,
+): number | null {
   if (!targets) return null;
   const base = flareActive ? targets.tdee : targets.baseTarget;
-  return base + todayActivityKcal;
+  return base + todayActivityKcal + plannedKcal;
 }

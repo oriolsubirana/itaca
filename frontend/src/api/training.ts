@@ -5,7 +5,12 @@ export interface TrainingSummary {
   lastWorkoutRoutine: string | null;
   nextRoutine: string;
   todayActivityKcal: number;
+  todayPlannedKcal: number; // estimated kcal of today's planned sessions not done yet
+  todayDayLoad: DayLoad;
 }
+
+/** How demanding the day is per the triathlon plan; also the key for the day's fueling. */
+export type DayLoad = "rest" | "easy" | "key" | "long" | "race";
 
 export const getTrainingSummary = () => api<TrainingSummary>("/training/summary");
 

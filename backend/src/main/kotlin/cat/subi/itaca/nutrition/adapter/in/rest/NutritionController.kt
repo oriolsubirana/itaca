@@ -8,6 +8,8 @@ import cat.subi.itaca.nutrition.application.MealCommand
 import cat.subi.itaca.nutrition.application.MealDto
 import cat.subi.itaca.nutrition.application.MealsSummary
 import cat.subi.itaca.nutrition.application.NutritionService
+import cat.subi.itaca.nutrition.application.SportsFuelingService
+import cat.subi.itaca.nutrition.application.SportsFuelingView
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -51,7 +53,14 @@ data class EstimateRequest(
 @RequestMapping("/api/nutrition")
 class NutritionController(
     private val nutrition: NutritionService,
+    private val fueling: SportsFuelingService,
 ) {
+    /** Sports fueling guidance; [dayType] (the training plan's day load) highlights today's target. */
+    @GetMapping("/fueling")
+    fun fueling(
+        @RequestParam(required = false) dayType: String?,
+    ): SportsFuelingView = fueling.queryFueling(dayType)
+
     @GetMapping("/meals")
     fun meals(
         @RequestParam(required = false) days: Int?,

@@ -1,12 +1,14 @@
 package cat.subi.itaca.training.application
 
 import cat.subi.itaca.TestcontainersConfiguration
+import cat.subi.itaca.training.domain.TrainingSchedule
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -65,8 +67,17 @@ class TrainingToolsIntegrationTest {
     }
 
     @Test
-    fun `full workout flow with rotation, progression and previous-session comparison`() {
+    fun `without a routine, start_workout follows today's triathlon plan, else the rotation`() {
+        val planned = TrainingSchedule.sessionsOn(LocalDate.now()).firstNotNullOfOrNull { it.gymRoutine }
+
         val started = tools.startWorkout(null)
+
+        assertEquals(planned ?: "Pull", started.routineName)
+    }
+
+    @Test
+    fun `full workout flow with progression and previous-session comparison`() {
+        val started = tools.startWorkout("Pull")
         assertEquals("Pull", started.routineName)
         assertFalse(started.alreadyActive)
         val jalon = started.plan.first()

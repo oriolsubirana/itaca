@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Primary
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockMultipartFile
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -40,6 +41,17 @@ class NutritionControllerTest {
             .andExpect(jsonPath("$.mealType").value("dinner"))
             .andExpect(jsonPath("$.onPlan").value(true))
             .andExpect(jsonPath("$.calories").value(620))
+    }
+
+    @Test
+    fun `serves sports fueling with today's target for the plan's day type`() {
+        mockMvc
+            .perform(get("/api/nutrition/fueling").param("dayType", "long"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.today.dayType").value("long"))
+            .andExpect(jsonPath("$.today.carbsGPerKg").value("6-7 g/kg"))
+            .andExpect(jsonPath("$.dayTargets.length()").value(5))
+            .andExpect(jsonPath("$.raceWeek[0].moment").value("D-7 a D-3"))
     }
 
     @Test

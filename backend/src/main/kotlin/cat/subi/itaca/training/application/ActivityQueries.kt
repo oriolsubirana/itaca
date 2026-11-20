@@ -45,9 +45,10 @@ data class ActivitiesView(
     val activities: List<ActivityDto>,
     val weekBikeKm: Double,
     val weekRunKm: Double,
+    val weekSwimKm: Double,
     val weekHikes: Int,
     val weekMovingTimeS: Int,
-    // Per-sport weekly volume (bike/run/hike in km, gym in hours) for the clickable bars + YTD.
+    // Per-sport weekly volume (bike/run/swim/hike in km, gym in hours) for the clickable bars + YTD.
     val volume: Map<String, SportVolume>,
 )
 
@@ -64,7 +65,16 @@ class ActivityQueries(
     fun view(): ActivitiesView {
         val hasAccount = (jdbc.queryForObject("SELECT count(*) FROM strava_account", Int::class.java) ?: 0) > 0
         val connected = hasAccount || seedRefreshToken.isNotBlank()
-        return ActivitiesView(connected, recent(), weekBike(), weekRun(), weekHikes(), weekMoving(), volume())
+        return ActivitiesView(
+            connected = connected,
+            activities = recent(),
+            weekBikeKm = weekSum("bike"),
+            weekRunKm = weekSum("run"),
+            weekSwimKm = weekSum(SWIM),
+            weekHikes = weekHikes(),
+            weekMovingTimeS = weekMoving(),
+            volume = volume(),
+        )
     }
 
     private fun recent(): List<ActivityDto> =
@@ -94,19 +104,30 @@ class ActivityQueries(
             )
         }
 
-    private fun weekBike(): Double = weekSum("bike")
-
-    private fun weekRun(): Double = weekSum("run")
-
-    private fun weekSum(type: String): Double =
+    private fun weekSum(sport: String): Double =
         jdbc.queryForObject(
             """
             SELECT COALESCE(sum(distance_m), 0) / 1000.0 FROM activities
-            WHERE type = ? AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('week', now() AT TIME ZONE '$ZONE')
+            WHERE ${filterOf(sport)}
+              AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('week', now() AT TIME ZONE '$ZONE')
             """.trimIndent(),
             Double::class.java,
-            type,
         )!!
+
+    /**
+     * SQL predicate selecting one volume sport. Swim has no Strava type of its own: it arrives as
+     * 'other' with a Swim* sport_type. The sport keys are a fixed whitelist, never user input.
+     */
+    private fun filterOf(
+        sport: String,
+        alias: String = "",
+    ): String =
+        if (sport == SWIM) {
+            "${alias}type = 'other' AND lower(coalesce(${alias}sport, '')) LIKE 'swim%'"
+        } else {
+            require(sport in VOLUME_SPORTS) { "Unknown volume sport: $sport" }
+            "${alias}type = '$sport'"
+        }
 
     private fun weekHikes(): Int =
         jdbc.queryForObject(
@@ -150,7 +171,7 @@ class ActivityQueries(
                     date_trunc('week', now() AT TIME ZONE '$ZONE'), interval '1 week'
                 ) g(wk)
                 LEFT JOIN activities a
-                    ON date_trunc('week', a.start_date AT TIME ZONE '$ZONE') = g.wk AND a.type = ?
+                    ON date_trunc('week', a.start_date AT TIME ZONE '$ZONE') = g.wk AND ${filterOf(type, "a.")}
                 GROUP BY g.wk ORDER BY g.wk
                 """.trimIndent(),
                 { rs, _ ->
@@ -162,7 +183,6 @@ class ActivityQueries(
                         secs = rs.getLong("secs"),
                     )
                 },
-                type,
             )
         var lastMonth = -1
         return rows.mapIndexed { i, w ->
@@ -186,6 +206,7 @@ class ActivityQueries(
         when (type) {
             "run" -> distanceSub(w, "carrera", "carreras", withElev = false)
             "hike" -> distanceSub(w, "hike", "hikes")
+            SWIM -> swimSub(w)
             GYM -> gymSub(w)
             else -> distanceSub(w, "salida", "salidas")
         }
@@ -199,6 +220,14 @@ class ActivityQueries(
         if (w.n == 0) return "Sin $many esta semana"
         val base = "${count(w.n, one, many)} · ${fmt1(w.km)} km"
         return if (withElev) base + elev(w.elevM) else base
+    }
+
+    private fun swimSub(w: WeekAgg): String {
+        if (w.n == 0) return "Sin natación esta semana"
+        val base = "${count(w.n, "sesión", "sesiones")} · ${fmt1(w.km)} km"
+        if (w.km <= 0 || w.secs <= 0) return base
+        val per100 = (w.secs / (w.km * METERS_PER_KM / SWIM_SPLIT_M)).roundToLong()
+        return "$base · ${per100 / SECONDS_PER_MINUTE}:${"%02d".format(per100 % SECONDS_PER_MINUTE)} /100m"
     }
 
     private fun gymSub(w: WeekAgg): String =
@@ -215,7 +244,8 @@ class ActivityQueries(
                 SELECT COALESCE(sum(distance_m), 0) AS dist, COALESCE(sum(elevation_m), 0) AS elev,
                        COALESCE(sum(moving_time_s), 0) AS secs
                 FROM activities
-                WHERE type = ? AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('year', now() AT TIME ZONE '$ZONE')
+                WHERE ${filterOf(type)}
+                  AND (start_date AT TIME ZONE '$ZONE') >= date_trunc('year', now() AT TIME ZONE '$ZONE')
                 """.trimIndent(),
                 { rs, _ ->
                     Triple(
@@ -224,13 +254,13 @@ class ActivityQueries(
                         rs.getLong("secs"),
                     )
                 },
-                type,
             )!!
         val (dist, elev, secs) = agg
         val hoursOnly = type == GYM
         return YtdTotals(
             distance = if (hoursOnly) null else "${groupInt((dist / METERS_PER_KM).roundToLong())} km",
-            elevation = if (hoursOnly) null else "${groupInt(elev.roundToLong())} m D+",
+            // Swimming has no elevation.
+            elevation = if (hoursOnly || type == SWIM) null else "${groupInt(elev.roundToLong())} m D+",
             time = "${groupInt((secs / SECONDS_PER_HOUR).roundToLong())} h",
         )
     }
@@ -272,10 +302,13 @@ class ActivityQueries(
         const val ONE_DECIMAL = 10.0
         const val GROUP_SIZE = 3
         const val GYM = "gym"
+        const val SWIM = "swim"
+        const val SWIM_SPLIT_M = 100.0
+        const val SECONDS_PER_MINUTE = 60
 
         // Week/year boundaries are computed in this zone to match WorkoutActivityLinker,
         // so activities near midnight/Sunday-night land in the same week/day everywhere.
         const val ZONE = "Europe/Madrid"
-        val VOLUME_SPORTS = listOf("bike", "run", "hike", "gym")
+        val VOLUME_SPORTS = listOf("bike", "run", SWIM, "hike", GYM)
     }
 }
